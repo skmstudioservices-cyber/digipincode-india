@@ -1,0 +1,28 @@
+---
+layout: ../layouts/Base.astro
+---
+<section class="hero">
+  <h1>India Pincode Directory</h1>
+  <p>Every pincode, village, and panchayat in India — searchable.</p>
+  <form action="/search" method="get" class="search">
+    <input type="search" name="q" placeholder="Search pincode, village, district…" />
+    <button type="submit">Search</button>
+  </form>
+</section>
+
+<section class="states">
+  <h2>Browse by State</h2>
+  <ul>
+    {states.map((s) => (
+      <li><a href={`/state/${s.slug}`}>{s.name}</a></li>
+    ))}
+  </ul>
+</section>
+
+<style>
+  .hero { text-align: center; padding: 3rem 1rem; }
+  .search input { padding: .6rem; width: 60%; max-width: 480px; }
+  .states ul { columns: 3; list-style: none; padding: 0; }
+  .states li { padding: .25rem 0; }
+  @media (max-width: 600px) { .states ul { columns: 1; } }
+</style>

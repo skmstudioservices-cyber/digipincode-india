@@ -1,0 +1,54 @@
+---
+const { title = 'India Pincode Directory' } = Astro.props;
+---
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{title}</title>
+  <link rel="icon" href="/favicon.ico" />
+  <meta name="description" content="Search any Indian pincode, village, or panchayat. Complete directory with LGD codes, census data, and local body information." />
+  <meta name="robots" content="index, follow" />
+  <link rel="canonical" href={Astro.url.href} />
+  <link rel="sitemap" href="/sitemap-index.xml" />
+  <script defer data-site="YOUR_SITE_TAG" src="https://static.cloudflareinsights.com/beacon.min.js"></script>
+  <script>
+    import { initFeedbackButtons } from '../components/FeedbackWidget';
+    initFeedbackButtons();
+  </script>
+</head>
+<body>
+  <header>
+    <nav>
+      <a href="/">Digipincode</a>
+      <a href="/search">Search</a>
+      <a href="/states">States</a>
+    </nav>
+  </header>
+  <main>
+    <slot />
+  </main>
+  <footer>
+    <p>Digipincode — 6 lakh villages, panchayats & pincodes</p>
+  </footer>
+</body>
+</html>
+
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 960px; margin: 0 auto; padding: 1rem; color: #1a1a1a; }
+  header { border-bottom: 1px solid #ddd; padding: .5rem 0; }
+  header nav { display: flex; gap: 1rem; }
+  header nav a { text-decoration: none; color: #1a1a1a; font-weight: 600; }
+  main { padding: 1rem 0; }
+  footer { border-top: 1px solid #ddd; padding: .5rem 0; font-size: .85rem; color: #666; }
+  table.details { border-collapse: collapse; margin: 1rem 0; }
+  table.details th { text-align: left; padding: .4rem .8rem; background: #f5f5f5; border: 1px solid #ddd; }
+  table.details td { padding: .4rem .8rem; border: 1px solid #ddd; }
+  .breadcrumb { font-size: .85rem; color: #666; margin-bottom: 1rem; }
+  .breadcrumb a { color: #0066cc; }
+  .desc { color: #444; line-height: 1.5; }
+  ul { padding-left: 1.2rem; }
+  li { margin: .3rem 0; }
+  a { color: #0066cc; }
+</style>

@@ -1,0 +1,30 @@
+---
+// Panchayat page — SSR from LGD data
+export const prerender = false;
+import { getPanchayatByCode, getVillagesByPanchayat } from '../../lib/db';
+
+const { lgd_code } = Astro.params;
+const panchayat = await getPanchayatByCode(Astro.locals.runtime.env.DB, lgd_code);
+if (!panchayat) return Astro.redirect('/404');
+
+const villages = await getVillagesByPanchayat(Astro.locals.runtime.env.DB, lgd_code);
+---
+<Layout title={`${panchayat.local_body_name} — Panchayat`}>
+  <h1>{panchayat.local_body_name}</h1>
+  <p>{panchayat.local_body_type} · {panchayat.district_name}, {panchayat.state_name}</p>
+
+  <table class="details">
+    <tr><th>LGD Code</th><td>{panchayat.lgd_code}</td></tr>
+    <tr><th>Block</th><td>{panchayat.block_name}</td></tr>
+    <tr><th>Population</th><td>{panchayat.population?.toLocaleString()}</td></tr>
+    <tr><th>Households</th><td>{panchayat.households?.toLocaleString()}</td></tr>
+    <tr><th>Area</th><td>{panchayat.area_km2} km²</td></tr>
+    {panchayat.head_name && <tr><th>Sarpanch</th><td>{panchayat.head_name}</td></tr>}
+    {panchayat.website && <tr><th>Website</th><td><a href={panchayat.website}>{panchayat.website}</a></td></tr>}
+  </table>
+
+  <h2>Villages</h2>
+  <ul>
+    {villages.map(v => <li><a href={`/village/${v.slug}`}>{v.name}</a></li>)}
+  </ul>
+</Layout>

@@ -1,0 +1,17 @@
+---
+// State page — SSR, lists districts
+export const prerender = false;
+import { getStateBySlug, getDistrictsByState } from '../../lib/db';
+
+const { slug } = Astro.params;
+const state = await getStateBySlug(Astro.locals.runtime.env.DB, slug);
+if (!state) return Astro.redirect('/404');
+
+const districts = await getDistrictsByState(Astro.locals.runtime.env.DB, state.id);
+---
+<Layout title={`${state.name} Pincodes`}>
+  <h1>{state.name} — Districts</h1>
+  <ul>
+    {districts.map(d => <li><a href={`/state/${state.slug}/${d.slug}`}>{d.name}</a></li>)}
+  </ul>
+</Layout>

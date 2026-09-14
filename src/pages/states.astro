@@ -1,0 +1,13 @@
+---
+// SSR page — renders from D1 on demand
+export const prerender = false;
+import { getStates } from '../../lib/db';
+
+const states = await getStates(Astro.locals.runtime.env.DB);
+---
+<Layout title="India Pincode Directory">
+  <h1>All States</h1>
+  <ul>
+    {states.map(s => <li><a href={`/state/${s.slug}`}>{s.name}</a></li>)}
+  </ul>
+</Layout>

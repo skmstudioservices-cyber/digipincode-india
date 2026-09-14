@@ -1,0 +1,21 @@
+---
+// Sub-district page — SSR, lists villages
+export const prerender = false;
+import { getStateBySlug, getDistrictBySlug, getSubDistrictBySlug, getVillages } from '../../lib/db';
+
+const { slug, district, subdistrict } = Astro.params;
+const state = await getStateBySlug(Astro.locals.runtime.env.DB, slug);
+if (!state) return Astro.redirect('/404');
+const dist = await getDistrictBySlug(Astro.locals.runtime.env.DB, state.id, district);
+if (!dist) return Astro.redirect('/404');
+const sd = await getSubDistrictBySlug(Astro.locals.runtime.env.DB, dist.id, subdistrict);
+if (!sd) return Astro.redirect('/404');
+
+const villages = await getVillages(Astro.locals.runtime.env.DB, sd.id);
+---
+<Layout title={`${sd.name} — Villages`}>
+  <h1>{sd.name} — {villages.length} Villages</h1>
+  <ul>
+    {villages.map(v => <li><a href={`/pincode/${v.pincode}`}>{v.name}</a></li>)}
+  </ul>
+</Layout>

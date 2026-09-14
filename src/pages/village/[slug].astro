@@ -1,0 +1,35 @@
+---
+// Village page — SSR from D1, includes LGD panchayat + AI description + DIGIPIN
+export const prerender = false;
+import { getVillageBySlug, getPanchayatByVillage } from '../../lib/db';
+
+const { slug } = Astro.params;
+const village = await getVillageBySlug(Astro.locals.runtime.env.DB, slug);
+if (!village) return Astro.redirect('/404');
+
+const panchayat = await getPanchayatByVillage(Astro.locals.runtime.env.DB, village.lgd_code);
+---
+<Layout title={`${village.name} — Pincode ${village.pincode}`}>
+  <h1>{village.name}</h1>
+  <p class="pincode">Pincode: <a href={`/pincode/${village.pincode}`}>{village.pincode}</a></p>
+
+  {village.ai_description && <p class="desc">{village.ai_description}</p>}
+
+  <table class="details">
+    <tr><th>Census Code</th><td>{village.census_code}</td></tr>
+    <tr><th>LGD Code</th><td>{village.lgd_code}</td></tr>
+    <tr><th>DIGIPIN</th><td>{village.digipin || '—'}</td></tr>
+    <tr><th>Population</th><td>{village.population?.toLocaleString()}</td></tr>
+    <tr><th>Households</th><td>{village.households?.toLocaleString()}</td></tr>
+    {village.lat && village.lon && (
+      <tr><th>Coordinates</th><td>{village.lat}, {village.lon}</td></tr>
+    )}
+  </table>
+
+  {panchayat && (
+    <section>
+      <h2>Panchayat</h2>
+      <p><a href={`/panchayat/${panchayat.lgd_code}`}>{panchayat.local_body_name}</a></p>
+    </section>
+  )}
+</Layout>

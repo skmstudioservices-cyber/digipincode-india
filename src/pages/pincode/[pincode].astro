@@ -1,0 +1,49 @@
+---
+// Pincode page — the money page. SSR from D1.
+export const prerender = false;
+import { getPincode, getVillagesByPincode, getPanchayatsByPincode } from '../../lib/db';
+
+const { pincode } = Astro.params;
+const data = await getPincode(Astro.locals.runtime.env.DB, pincode);
+if (!data) return Astro.redirect('/404');
+
+const villages = await getVillagesByPincode(Astro.locals.runtime.env.DB, pincode);
+const panchayats = await getPanchayatsByPincode(Astro.locals.runtime.env.DB, pincode);
+---
+<Layout title={`Pincode ${pincode} — ${data.office_name} | India Pincode Directory`}>
+  <nav class="breadcrumb">
+    <a href="/">Home</a> ›
+    <a href={`/state/${data.state_slug}`}>{data.state_name}</a> ›
+    <a href={`/state/${data.state_slug}/${data.district_slug}`}>{data.district_name}</a>
+  </nav>
+
+  <h1>Pincode {pincode} — {data.office_name}</h1>
+
+  <table class="details">
+    <tr><th>Office</th><td>{data.office_name} ({data.office_type})</td></tr>
+    <tr><th>State</th><td>{data.state_name}</td></tr>
+    <tr><th>District</th><td>{data.district_name}</td></tr>
+    <tr><th>Taluk</th><td>{data.taluk}</td></tr>
+    <tr><th>Division</th><td>{data.division}</td></tr>
+    <tr><th>Region</th><td>{data.region}</td></tr>
+    <tr><th>Circle</th><td>{data.circle}</td></tr>
+    <tr><th>Delivery</th><td>{data.delivery}</td></tr>
+  </table>
+
+  <h2>Villages under {pincode}</h2>
+  <ul>
+    {villages.map(v => (
+      <li>
+        <a href={`/village/${v.slug}`}>{v.name}</a>
+        {v.ai_description ? <p class="desc">{v.ai_description}</p> : null}
+      </li>
+    ))}
+  </ul>
+
+  <h2>Panchayats under {pincode}</h2>
+  <ul>
+    {panchayats.map(p => (
+      <li><a href={`/panchayat/${p.lgd_code}`}>{p.local_body_name}</a></li>
+    ))}
+  </ul>
+</Layout>

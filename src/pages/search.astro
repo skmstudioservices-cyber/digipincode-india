@@ -1,0 +1,25 @@
+---
+// Search — SSR, queries D1
+export const prerender = false;
+import { searchAll } from '../../lib/db';
+
+const q = Astro.url.searchParams.get('q')?.trim() || '';
+let results = [];
+if (q) results = await searchAll(Astro.locals.runtime.env.DB, q);
+---
+<Layout title={q ? `Search: ${q}` : 'Search'}>
+  <h1>Search</h1>
+  <form action="/search" method="get">
+    <input type="search" name="q" value={q} />
+    <button type="submit">Search</button>
+  </form>
+
+  {q && (
+    <ul>
+      {results.map(r => (
+        <li><a href={r.url}>{r.title}</a></li>
+      ))}
+      {results.length === 0 && <li>No results for “{q}”</li>}
+    </ul>
+  )}
+</Layout>
