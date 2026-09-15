@@ -1,6 +1,5 @@
 {
   "name": "digipincode",
-  "type": "module",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -16,6 +15,7 @@
     "astro": "^5.0.0"
   },
   "devDependencies": {
+    "@astrojs/sitemap": "^3.4.1",
     "@cloudflare/workers-types": "^4.20260702.1",
     "wrangler": "~4.86.0"
   }

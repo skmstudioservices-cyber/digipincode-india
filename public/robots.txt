@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://digipincode.india-in.workers.dev/sitemap-index.xml
