@@ -5,12 +5,15 @@ on:
     branches: [main]
   workflow_dispatch:
 
+concurrency:
+  group: deploy-main
+  cancel-in-progress: false
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      deployments: write
     steps:
       - uses: actions/checkout@v4
 
@@ -22,32 +25,53 @@ jobs:
       - name: Install dependencies
         run: npm install --no-audit --no-fund
 
-      - name: Build Astro site
-        run: npm run build
-
-      - name: Resolve D1 database ID
+      # ------------------------------------------------------------------
+      # Cloudflare Workers Builds is the PRIMARY deploy path for the
+      # digipincode worker. This workflow only deploys it as a FALLBACK,
+      # when CF Builds failed or stayed silent. skm-ai-worker is NOT
+      # covered by CF Builds, so it always deploys from here.
+      # ------------------------------------------------------------------
+      - name: Wait for Cloudflare Workers Builds result
+        id: cfcheck
         env:
           CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CF_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          DB_ID=$(curl -sf -H "Authorization: Bearer $CF_API_TOKEN" \
-            "https://api.cloudflare.com/client/v4/accounts/$CF_ACCOUNT_ID/d1/database" \
-            | jq -r '.result[] | select(.name=="pincode-india") | .uuid' | head -n1 || true)
-          if [ -z "${DB_ID:-}" ]; then
-            echo "Database 'pincode-india' not found - creating it..."
-            DB_ID=$(curl -sf -X POST -H "Authorization: Bearer $CF_API_TOKEN" \
-              -H "Content-Type: application/json" \
-              "https://api.cloudflare.com/client/v4/accounts/$CF_ACCOUNT_ID/d1/database" \
-              -d '{"name":"pincode-india"}' | jq -r '.result.uuid')
-          fi
-          if [ -z "${DB_ID:-}" ] || [ "$DB_ID" = "null" ]; then
-            echo "ERROR: could not resolve D1 database ID. Check that the API token has D1 edit permission."
-            exit 1
-          fi
-          echo "Resolved D1 database ID: $DB_ID"
-          sed -i "s/YOUR_D1_DATABASE_ID/$DB_ID/g" wrangler.jsonc skm-ai-worker/wrangler.jsonc
+          finish() { echo "skip=$1" >> "$GITHUB_OUTPUT"; exit 0; }
+          for i in $(seq 1 27); do
+            # 1) Did CF Workers Builds already deploy this exact commit?
+            deps=$(curl -s -H "Authorization: Bearer $CF_API_TOKEN" \
+              "https://api.cloudflare.com/client/v4/accounts/$CF_ACCOUNT_ID/workers/scripts/digipincode/deployments" || true)
+            if echo "$deps" | grep -q "$GITHUB_SHA"; then
+              echo "Cloudflare Workers Builds already deployed $GITHUB_SHA - skipping duplicate deploy."
+              finish true
+            fi
+            # 2) Did Cloudflare's own check on this commit reach a conclusion?
+            checks=$(curl -s -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/check-runs" || true)
+            cf=$(echo "$checks" | jq -r '[.check_runs[]? | select(.app.slug != "github-actions") | select((.name|ascii_downcase)|test("cloudflare|workers|pages")) | .conclusion] | first // empty' || true)
+            if [ "$cf" = "success" ]; then
+              echo "Cloudflare build check succeeded - skipping duplicate deploy."
+              finish true
+            fi
+            if [ "$cf" = "failure" ] || [ "$cf" = "timed_out" ] || [ "$cf" = "cancelled" ]; then
+              echo "Cloudflare Workers Builds FAILED - GitHub Actions deploying as fallback."
+              finish false
+            fi
+            echo "Attempt $i/27: Cloudflare Workers Builds still pending..."
+            sleep 20
+          done
+          echo "No Cloudflare result within ~9 minutes - deploying as fallback."
+          finish false
 
+      - name: Build Astro site
+        run: npm run build
+
+      # Migrations always run (idempotent - CREATE TABLE IF NOT EXISTS),
+      # even when the deploy below is skipped, so schema changes always
+      # land regardless of which deploy path wins.
       - name: Run D1 migrations
         uses: cloudflare/wrangler-action@v3
         with:
@@ -56,7 +80,8 @@ jobs:
           command: d1 execute pincode-india --file=./schema.sql --remote
           workingDirectory: .
 
-      - name: Deploy Astro site to Cloudflare Workers
+      - name: Deploy digipincode Worker (fallback only)
+        if: steps.cfcheck.outputs.skip != 'true'
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -64,7 +89,7 @@ jobs:
           command: deploy --name digipincode
           workingDirectory: .
 
-      - name: Deploy AI worker
+      - name: Deploy skm-ai-worker
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}

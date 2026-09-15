@@ -1,0 +1,28 @@
+name: Site Health Check
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check digipincode homepage
+        run: |
+          code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 30 "https://digipincode.india-in.workers.dev/")
+          echo "digipincode homepage: HTTP $code"
+          if [ "$code" != "200" ]; then
+            echo "::error::digipincode.india-in.workers.dev returned HTTP $code"
+            exit 1
+          fi
+
+      - name: Check skm-ai-worker responds
+        run: |
+          code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 30 "https://skm-ai-worker.india-in.workers.dev/")
+          echo "skm-ai-worker root: HTTP $code"
+          if [ "$code" = "000" ] || [ "$code" = "522" ] || [ "$code" = "523" ]; then
+            echo "::error::skm-ai-worker.india-in.workers.dev unreachable (HTTP $code)"
+            exit 1
+          fi
