@@ -1,7 +1,8 @@
 ---
+import Layout from '../layouts/Base.astro';
 // Search — SSR, queries D1
 export const prerender = false;
-import { searchAll } from '../../lib/db';
+import { searchAll } from '../lib/db';
 
 const q = Astro.url.searchParams.get('q')?.trim() || '';
 let results = [];

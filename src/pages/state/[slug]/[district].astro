@@ -1,7 +1,8 @@
 ---
+import Layout from '../../../layouts/Base.astro';
 // District page — SSR, lists sub-districts
 export const prerender = false;
-import { getStateBySlug, getDistrictBySlug, getSubDistricts } from '../../lib/db';
+import { getStateBySlug, getDistrictBySlug, getSubDistricts } from '../../../lib/db';
 
 const { slug, district } = Astro.params;
 const state = await getStateBySlug(Astro.locals.runtime.env.DB, slug);

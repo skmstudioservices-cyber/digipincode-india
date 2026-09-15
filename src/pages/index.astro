@@ -1,23 +1,29 @@
 ---
-layout: ../layouts/Base.astro
----
-<section class="hero">
-  <h1>India Pincode Directory</h1>
-  <p>Every pincode, village, and panchayat in India — searchable.</p>
-  <form action="/search" method="get" class="search">
-    <input type="search" name="q" placeholder="Search pincode, village, district…" />
-    <button type="submit">Search</button>
-  </form>
-</section>
+import Layout from '../layouts/Base.astro';
+import { getStates } from '../lib/db';
 
-<section class="states">
-  <h2>Browse by State</h2>
-  <ul>
-    {states.map((s) => (
-      <li><a href={`/state/${s.slug}`}>{s.name}</a></li>
-    ))}
-  </ul>
-</section>
+export const prerender = false;
+const states = await getStates(Astro.locals.runtime.env.DB);
+---
+<Layout title="India Pincode Directory">
+  <section class="hero">
+    <h1>India Pincode Directory</h1>
+    <p>Every pincode, village, and panchayat in India — searchable.</p>
+    <form action="/search" method="get" class="search">
+      <input type="search" name="q" placeholder="Search pincode, village, district…" />
+      <button type="submit">Search</button>
+    </form>
+  </section>
+
+  <section class="states">
+    <h2>Browse by State</h2>
+    <ul>
+      {states.map((s) => (
+        <li><a href={`/state/${s.slug}`}>{s.name}</a></li>
+      ))}
+    </ul>
+  </section>
+</Layout>
 
 <style>
   .hero { text-align: center; padding: 3rem 1rem; }
