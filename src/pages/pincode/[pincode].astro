@@ -10,8 +10,24 @@ if (!data) return Astro.redirect('/404');
 
 const villages = await getVillagesByPincode(Astro.locals.runtime.env.DB, pincode);
 const panchayats = await getPanchayatsByPincode(Astro.locals.runtime.env.DB, pincode);
+
+const BASE = 'https://digipincode.india-in.workers.dev';
+const breadcrumb = {
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  itemListElement: [
+    { '@type': 'ListItem', position: 1, name: 'Home', item: `${BASE}/` },
+    { '@type': 'ListItem', position: 2, name: data.state_name, item: `${BASE}/state/${data.state_slug}` },
+    { '@type': 'ListItem', position: 3, name: data.district_name, item: `${BASE}/state/${data.state_slug}/${data.district_slug}` },
+    { '@type': 'ListItem', position: 4, name: `Pincode ${pincode}` },
+  ],
+};
 ---
-<Layout title={`Pincode ${pincode} — ${data.office_name} | India Pincode Directory`}>
+<Layout
+  title={`Pincode ${pincode} — ${data.office_name}, ${data.district_name} | India Pincode Directory`}
+  description={`${pincode} pincode: ${data.office_name} (${data.office_type}), ${data.district_name}, ${data.state_name}. Villages, panchayats and post office details for pincode ${pincode}.`}
+>
+  <script type="application/ld+json" set:html={JSON.stringify(breadcrumb)} />
   <nav class="breadcrumb">
     <a href="/">Home</a> ›
     <a href={`/state/${data.state_slug}`}>{data.state_name}</a> ›

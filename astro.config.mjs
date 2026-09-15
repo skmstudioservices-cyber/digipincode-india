@@ -1,6 +1,5 @@
 import { defineConfig } from 'astro/config';
 import cloudflare from '@astrojs/cloudflare';
-import sitemap from '@astrojs/sitemap';
 
 export default defineConfig({
   output: 'server', // SSR + selective prerender (hybrid)
@@ -8,5 +7,4 @@ export default defineConfig({
     platformProxy: { enabled: true },
   }),
   site: 'https://digipincode.india-in.workers.dev',
-  integrations: [sitemap()],
 });

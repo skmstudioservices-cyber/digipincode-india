@@ -5,7 +5,10 @@ import { getStates } from '../lib/db';
 export const prerender = false;
 const states = await getStates(Astro.locals.runtime.env.DB);
 ---
-<Layout title="India Pincode Directory">
+<Layout
+  title="India Pincode Directory — Search 6 Lakh Villages, Panchayats & Pincodes"
+  description="Find any Indian pincode, village, or panchayat with LGD codes and local body details. Complete directory of 6 lakh villages and 1.5 lakh+ pincodes, searchable by state and district."
+>
   <section class="hero">
     <h1>India Pincode Directory</h1>
     <p>Every pincode, village, and panchayat in India — searchable.</p>
@@ -32,3 +35,4 @@ const states = await getStates(Astro.locals.runtime.env.DB);
   .states li { padding: .25rem 0; }
   @media (max-width: 600px) { .states ul { columns: 1; } }
 </style>
+

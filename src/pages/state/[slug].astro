@@ -9,8 +9,26 @@ const state = await getStateBySlug(Astro.locals.runtime.env.DB, slug);
 if (!state) return Astro.redirect('/404');
 
 const districts = await getDistrictsByState(Astro.locals.runtime.env.DB, state.id);
+
+const BASE = 'https://digipincode.india-in.workers.dev';
+const breadcrumb = {
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  itemListElement: [
+    { '@type': 'ListItem', position: 1, name: 'Home', item: `${BASE}/` },
+    { '@type': 'ListItem', position: 2, name: state.name, item: `${BASE}/state/${state.slug}` },
+  ],
+};
 ---
-<Layout title={`${state.name} Pincodes`}>
+<Layout
+  title={`${state.name} Pincode Directory — All Districts & Pincodes`}
+  description={`Browse all districts and pincodes in ${state.name}. Complete ${state.name} pincode list with village, panchayat and post office details.`}
+>
+  <script type="application/ld+json" set:html={JSON.stringify(breadcrumb)} />
+  <nav class="breadcrumb">
+    <a href="/">Home</a> › {state.name}
+  </nav>
+
   <h1>{state.name} — Districts</h1>
   <ul>
     {districts.map(d => <li><a href={`/state/${state.slug}/${d.slug}`}>{d.name}</a></li>)}
