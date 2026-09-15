@@ -6,6 +6,7 @@
   "observability": {
     "enabled": true,
     "logs": {
+      "enabled": true,
       "invocation_logs": true,
       "head_sampling_rate": 1
     }
@@ -14,7 +15,7 @@
     {
       "binding": "DB",
       "database_name": "pincode-india",
-      "database_id": "YOUR_D1_DATABASE_ID"
+      "database_id": "908096d2-3de5-43eb-8fdb-88252e3ac2e8"
     }
   ]
 }
