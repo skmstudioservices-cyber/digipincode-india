@@ -53,7 +53,7 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: d1 execute pincode-india --file=./schema.sql
+          command: d1 execute pincode-india --file=./schema.sql --remote
           workingDirectory: .
 
       - name: Deploy Astro site to Cloudflare Workers
