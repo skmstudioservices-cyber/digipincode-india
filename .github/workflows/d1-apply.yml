@@ -1,0 +1,31 @@
+name: D1 Apply Seed Data
+
+on:
+  workflow_dispatch:
+    inputs:
+      max_rows:
+        description: 'Target max total rows in DB after this run (D1 free tier allows ~100k row writes/day)'
+        default: '90000'
+      release_asset:
+        description: 'Download URL of the seed zip (release asset)'
+        default: 'https://github.com/skmstudioservices-cyber/digipincode-india/releases/download/d1-data-v1/d1-populate-sql.zip'
+        required: true
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Download seed data
+        run: |
+          curl -sL "${{ github.event.inputs.release_asset }}" -o seed.zip
+          unzip -q seed.zip -d populate
+          python3 -c "import json; m=json.load(open('populate/manifest.json')); print('manifest files:', len(m['files']), 'total rows:', m['total_rows'])"
+      - name: Apply seed SQL (budget-aware)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: node scripts/apply-populate.mjs "${{ github.event.inputs.max_rows }}"
