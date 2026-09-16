@@ -1,0 +1,13 @@
+---
+// TODO(Antigravity): implement per seo/PLAN-antigravity-brief.md — WS2
+// DigiPIN for a pincode area: /digipin/{pincode}  (e.g. /digipin/110001)
+// 1. Validate pincode param (6 digits) -> else 404
+// 2. D1: fetch the pincode row (lat/lng + office name — check schema.sql for columns)
+// 3. encodeDigipin(lat, lng) from src/lib/digipin.ts -> show DigiPIN big
+// 4. Sections: office details, link back to /pincode/{pincode}, "what is digipin" FAQ
+import Base from '../../layouts/Base.astro';
+import { encodeDigipin } from '../../lib/digipin';
+---
+<Base title="DigiPIN Lookup">
+  <!-- TODO: implement -->
+</Base>
