@@ -1,18 +1,20 @@
 #!/usr/bin/env node
 // Applies D1 seed SQL files (from the d1-data-v1 release asset, unzipped into populate/)
 // in manifest order. Tracks applied files in a `seed_applied` table so daily re-runs
-// (D1 free tier = ~100k row writes/day) continue where they left off.
+// (D1 free tier = ~100k row writes/day per database) continue where they left off.
+// Target DB: pincode-india-db (apac location hint — closest available region to India).
 // Usage: node scripts/apply-populate.mjs [max_rows_to_write_this_run]   (default 90000)
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 
 const maxRows = parseInt(process.argv[2] || '90000', 10);
+const DB = process.env.D1_DB || 'pincode-india-db';
 const dir = 'populate';
 const manifest = JSON.parse(fs.readFileSync(`${dir}/manifest.json`, 'utf8'));
 const tables = ['states', 'districts', 'sub_districts', 'pincodes', 'villages'];
 
 function run(args) {
-  return execFileSync('npx', ['wrangler', 'd1', 'execute', 'pincode-india', '--remote', '--json', ...args], {
+  return execFileSync('npx', ['wrangler', 'd1', 'execute', DB, '--remote', '--json', ...args], {
     encoding: 'utf8',
     maxBuffer: 64 * 1024 * 1024,
   });
@@ -52,7 +54,7 @@ for (const f of manifest.files) {
   budget -= f.rows;
 }
 
-console.log(`Wrote ${applied} rows across files this run (daily write limit guard: ${maxRows}).`);
+console.log(`Wrote ${applied} rows across files this run (daily write limit guard: ${maxRows}). Target DB: ${DB}`);
 if (stoppedAt) console.log(`Stopped before ${stoppedAt.file} — re-run after the UTC daily reset to continue.`);
 if (applied === 0 && !stoppedAt) console.log('All seed files applied. You can remove the d1-apply schedule now.');
 
