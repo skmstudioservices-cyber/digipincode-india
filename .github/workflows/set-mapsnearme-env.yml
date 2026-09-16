@@ -1,0 +1,30 @@
+name: Set mapsnearme Pages env vars
+
+on:
+  workflow_dispatch:
+    inputs:
+      supabase_url:
+        description: 'Supabase project URL'
+        required: true
+      supabase_anon_key:
+        description: 'Supabase anon (publishable) key'
+        required: true
+
+jobs:
+  set-env:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Set Pages env vars
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          SB_URL: ${{ github.event.inputs.supabase_url }}
+          SB_KEY: ${{ github.event.inputs.supabase_anon_key }}
+        run: |
+          set -x
+          printf '%s' "$SB_URL" | npx wrangler@latest pages secret put SUPABASE_URL --project-name=mapsnearme
+          printf '%s' "$SB_KEY" | npx wrangler@latest pages secret put SUPABASE_ANON_KEY --project-name=mapsnearme
+          echo "=== mapsnearme Pages env vars set ==="
