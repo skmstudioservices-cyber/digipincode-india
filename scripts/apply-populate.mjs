@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // Applies D1 seed SQL files (from the d1-data-v1 release asset, unzipped into populate/)
-// in manifest order, respecting a global row budget for the D1 free-tier daily write limit.
-// Usage: node scripts/apply-populate.mjs [max_rows]   (default 90000)
+// in manifest order. Tracks applied files in a `seed_applied` table so daily re-runs
+// (D1 free tier = ~100k row writes/day) continue where they left off.
+// Usage: node scripts/apply-populate.mjs [max_rows_to_write_this_run]   (default 90000)
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 
@@ -29,36 +30,32 @@ function count(table) {
   return Number(j[0]?.results?.[0]?.n ?? 0);
 }
 
-const counts = {};
-let total = 0;
-for (const t of tables) {
-  counts[t] = count(t);
-  total += counts[t];
-}
-console.log('Current rows:', JSON.stringify(counts), 'total', total);
+// 1. tracking table
+run(['--command', 'CREATE TABLE IF NOT EXISTS seed_applied (file TEXT PRIMARY KEY, rows INTEGER, applied_at TEXT DEFAULT (datetime(\'now\')))']);
 
-let budget = maxRows - total;
-if (budget <= 0) {
-  console.log(`Budget exhausted: DB already at ${total} rows (max ${maxRows}). Re-dispatch tomorrow with a higher max_rows after the UTC reset.`);
-  process.exit(0);
-}
-console.log(`Budget for this run: ${budget} rows.`);
+// 2. already-applied files
+const appliedSet = new Set(
+  parseJsonOut(run(['--command', 'SELECT file FROM seed_applied']))[0]?.results?.map((r) => r.file) ?? []
+);
 
+let budget = maxRows;
 let applied = 0;
-let stopped = null;
+let stoppedAt = null;
 for (const f of manifest.files) {
-  if (f.rows > budget) {
-    stopped = f;
-    break;
-  }
+  if (appliedSet.has(f.file)) continue;
+  if (f.rows > budget) { stoppedAt = f; break; }
   process.stdout.write(`Applying ${f.file} (${f.table}, ${f.rows} rows)... `);
   run(['--file', `${dir}/${f.file}`]);
+  run(['--command', `INSERT OR IGNORE INTO seed_applied (file, rows) VALUES ('${f.file}', ${f.rows})`]);
   console.log('ok');
   applied += f.rows;
   budget -= f.rows;
 }
-console.log(`Applied ${applied} rows across files this run.`);
-if (stopped) console.log(`Stopped before ${stopped.file} (${stopped.rows} rows needed, ${budget} left). Re-dispatch after UTC reset to continue.`);
 
+console.log(`Wrote ${applied} rows across files this run (daily write limit guard: ${maxRows}).`);
+if (stoppedAt) console.log(`Stopped before ${stoppedAt.file} — re-run after the UTC daily reset to continue.`);
+if (applied === 0 && !stoppedAt) console.log('All seed files applied. You can remove the d1-apply schedule now.');
+
+const counts = {};
 for (const t of tables) counts[t] = count(t);
-console.log('Final rows:', JSON.stringify(counts));
+console.log('Current rows:', JSON.stringify(counts));
