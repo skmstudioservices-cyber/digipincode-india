@@ -40,14 +40,19 @@ jobs:
         run: |
           echo "${CLOUDFLARE_ACCOUNT_ID}" | npx --yes wrangler secret put CF_ACCOUNT_ID --name voice-brain-proxy
           echo "${CLOUDFLARE_API_TOKEN}" | npx --yes wrangler secret put CF_API_TOKEN --name voice-brain-proxy
-          if [ -n "${PK}" ]; then echo "${PK}" | npx --yes wrangler secret put PROXY_KEY --name voice-brain-proxy; fi
+          if [ -n "${PK}" ]; then printf '%s' "${PK}" | npx --yes wrangler secret put PROXY_KEY --name voice-brain-proxy; fi
       - name: Verify proxy end-to-end
         if: inputs.proxy_key != ''
         env:
           PK: ${{ inputs.proxy_key }}
         run: |
-          sleep 10
-          curl -s -X POST "https://voice-brain-proxy.india-in.workers.dev/chat" \
-            -H "Content-Type: application/json" -H "x-proxy-key: ${PK}" \
-            -d '{"model":"@cf/meta/llama-3.1-8b-instruct-fp8-fast","messages":[{"role":"user","content":"reply with the single word: ok"}]}' | head -c 400
-          echo
+          sleep 30
+          for i in 1 2 3 4 5; do
+            R=$(curl -s -X POST "https://voice-brain-proxy.india-in.workers.dev/chat" \
+              -H "Content-Type: application/json" -H "x-proxy-key: ${PK}" \
+              -d '{"model":"@cf/meta/llama-3.1-8b-instruct-fp8-fast","messages":[{"role":"user","content":"reply with the single word: ok"}]}')
+            echo "attempt $i: $(echo "$R" | head -c 300)"
+            if echo "$R" | grep -q response; then echo 'PROXY WORKS'; exit 0; fi
+            sleep 20
+          done
+          echo 'PROXY VERIFY FAILED'; exit 1
