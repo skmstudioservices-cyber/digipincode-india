@@ -3,7 +3,7 @@ name: CF Infra
 # Creates India-closest (apac) D1 databases and KV namespaces with -db / -KV naming.
 # STANDING RULE: all databases must be created in India region where available
 # (Supabase = Mumbai ap-south-1; D1 = apac hint — India is not offered for D1; KV = global edge).
-# Naming rule: every resource name ends with -db (D1) or KV prefix suffix _KV.
+# Naming rule: every resource name ends with -db (D1) or _KV (KV).
 
 on:
   workflow_dispatch:
@@ -27,10 +27,10 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           set +e
-          npx wrangler d1 create pincode-india-db --location-hint apac 2>&1 | tail -5
-          npx wrangler d1 create mapsnearme-db --location-hint apac 2>&1 | tail -5
-          npx wrangler kv namespace create MAPSNEARME_ADS_KV 2>&1 | tail -5
-          npx wrangler kv namespace create SESSION_KV 2>&1 | tail -5
+          npx wrangler d1 create pincode-india-db --location apac
+          npx wrangler d1 create mapsnearme-db --location apac
+          npx wrangler kv namespace create MAPSNEARME_ADS_KV
+          npx wrangler kv namespace create SESSION_KV
       - name: Cleanup old resources (only after migration verified)
         if: inputs.mode == 'cleanup'
         env:
