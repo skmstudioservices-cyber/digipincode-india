@@ -7,17 +7,26 @@ permissions:
   contents: write
 
 jobs:
-  diagnose-mapsnearme:
+  verify-sites:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Screenshot mapsnearme deployment + production via CF Browser Rendering
+      - name: Curl checks + live screenshot via CF Browser Rendering
         env:
           CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CF_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           set -x
           mkdir -p shots
+          echo "=== RAW HTTP CHECKS ==="
+          for u in "https://mapsnearme.pages.dev/" "https://mapsnearme.pages.dev/city/delhi" "https://digipincode.india-in.workers.dev/" "https://digipincode.india-in.workers.dev/search?q=110001"; do
+            echo "--- $u"
+            curl -sS -o /dev/null -w "HTTP %{http_code} | size %{size_download}\n" -L "$u" || true
+          done
+          echo "=== digipincode homepage title ==="
+          curl -sS -L "https://digipincode.india-in.workers.dev/" | grep -oE "<title>[^<]*</title>" || echo "no title"
+          echo "=== mapsnearme content snippet ==="
+          curl -sS -L "https://mapsnearme.pages.dev/" | grep -oE "Verified Businesses|Businesses Near You|Search Now|160\+|150\+" | sort -u || true
           shot() {
             url="$1"; out="$2"; w="$3"; h="$4"
             for attempt in 1 2 3; do
@@ -36,17 +45,9 @@ jobs:
             done
             echo "FAILED to capture $out after 3 attempts"
           }
-          echo "=== RAW HTTP CHECKS (curl from runner) ==="
-          for u in "https://mapsnearme.pages.dev/" "https://4531cabe.mapsnearme.pages.dev/" "https://mapsnearme.india-in.workers.dev/"; do
-            echo "--- $u"
-            curl -sS -o /dev/null -w "HTTP %{http_code} | size %{size_download}\n" -L "$u" || true
-          done
-          echo "=== HTML BODY SNIPPET (production) ==="
-          curl -sS -L "https://mapsnearme.pages.dev/" | head -c 600 || true
-          echo ""
-          shot "https://4531cabe.mapsnearme.pages.dev/" "deploy4531-desktop.jpg" 1440 900
+          shot "https://mapsnearme.pages.dev/" "live-final-desktop.jpg" 1440 900
           sleep 65
-          shot "https://mapsnearme.pages.dev/" "prod-desktop.jpg" 1440 900
+          shot "https://digipincode.india-in.workers.dev/" "digipincode-desktop.jpg" 1440 900
           ls -la shots/
       - name: Commit captures to design-captures branch
         run: |
@@ -56,5 +57,5 @@ jobs:
           mkdir -p design
           cp -v shots/*.jpg design/ 2>/dev/null || echo "no screenshots captured"
           git add design || true
-          git commit -m "chore: mapsnearme diagnosis captures" || echo "nothing to commit"
+          git commit -m "chore: final Phase 0/1 verification captures" || echo "nothing to commit"
           git push origin design-captures --force
