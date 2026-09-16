@@ -1,0 +1,9 @@
+-- TODO(Antigravity): implement per seo/PLAN-antigravity-brief.md — WS1
+-- Only if needed for fast /city/* lookups. Read root schema.sql FIRST for exact
+-- table and column names — adjust the statements below to match the real schema.
+-- Candidates (verify names before running):
+--   CREATE INDEX IF NOT EXISTS idx_pincode_district ON <pincode_table>(district);
+--   CREATE INDEX IF NOT EXISTS idx_pincode_office_name ON <pincode_table>(office_name);
+--   CREATE INDEX IF NOT EXISTS idx_pincode_lat_lng ON <pincode_table>(latitude, longitude);
+-- Applied via the existing D1 migration step in .github/workflows/deploy.yml on merge to main.
+-- TODO(Antigravity)
