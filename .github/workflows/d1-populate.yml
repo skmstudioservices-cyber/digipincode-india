@@ -1,0 +1,51 @@
+name: D1 Populate
+
+on:
+  workflow_dispatch:
+    inputs:
+      sql:
+        description: 'Extra read-only SQL (SELECT only) to run after the default checks'
+        required: false
+        default: ''
+
+jobs:
+  d1:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Table counts
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: d1 execute pincode-india --remote --json --command "SELECT 'states' AS tbl, COUNT(*) AS n FROM states UNION ALL SELECT 'districts', COUNT(*) FROM districts UNION ALL SELECT 'sub_districts', COUNT(*) FROM sub_districts UNION ALL SELECT 'villages', COUNT(*) FROM villages UNION ALL SELECT 'pincodes', COUNT(*) FROM pincodes UNION ALL SELECT 'lgd_panchayats', COUNT(*) FROM lgd_panchayats UNION ALL SELECT 'digipin', COUNT(*) FROM digipin"
+      - name: Sample states + districts
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: d1 execute pincode-india --remote --json --command "SELECT id, code, name, slug FROM states ORDER BY id LIMIT 6"
+      - name: Sample districts
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: d1 execute pincode-india --remote --json --command "SELECT id, state_id, code, name, slug FROM districts ORDER BY id LIMIT 6"
+      - name: Sample sub_districts
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: d1 execute pincode-india --remote --json --command "SELECT id, district_id, code, name, slug FROM sub_districts ORDER BY id LIMIT 6"
+      - name: Sample villages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: d1 execute pincode-india --remote --json --command "SELECT id, sub_district_id, name, slug, pincode, census_code FROM villages ORDER BY id LIMIT 6"
+      - name: Custom SQL (optional)
+        if: ${{ github.event.inputs.sql != '' }}
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: d1 execute pincode-india --remote --json --command "${{ github.event.inputs.sql }}"
