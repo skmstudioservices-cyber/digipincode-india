@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: 'create | cleanup'
+        description: 'create | cleanup | replicate'
         default: 'create'
 
 jobs:
@@ -42,6 +42,21 @@ jobs:
           npx --yes wrangler kv namespace delete --namespace-id 293bfcfd31c64edab87964ad1de5e27e || true   # MAPSNEARME_ADS (old, empty)
           # old empty D1 (never used; replaced by apac mapsnearme-db)
           npx --yes wrangler d1 delete mapsnearme -y || true
+      - name: Enable D1 read replication (free; auto-replicas in all D1 regions)
+        if: inputs.mode == 'replicate'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          # pincode-india-db + mapsnearme-db (old wnam pincode-india skipped — it gets deleted after cutover)
+          for db in 74274a3f-9fca-42ec-9fbf-c707ffbc56a4 03a74322-da9e-485d-af1c-e73249d19039; do
+            echo "--- enabling read replication on $db"
+            curl -s -X PATCH "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/d1/database/${db}" \
+              -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+              -H "Content-Type: application/json" \
+              --data '{"read_replication":{"mode":"auto"}}'
+            echo
+          done
       - name: List all D1 + KV
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
