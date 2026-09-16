@@ -1,0 +1,22 @@
+---
+// TODO(Antigravity): implement per seo/PLAN-antigravity-brief.md — WS1
+// Single city hub page: /city/{slug}  (e.g. /city/delhi, /city/bangalore)
+// 1. getSlug() from Astro.params.slug; resolve ALIASES (banglore->bangalore etc.)
+//    via src/lib/cities.ts; if unknown city -> 404
+// 2. D1 query: ALL pincodes for that city — read schema.sql first for exact
+//    table/column names; group by district; keep to 1-2 queries, no N+1
+// 3. Sections (in order):
+//    a. H1 "{City} Pin Code — Complete List" + intro (state, pincode count)
+//    b. Pincode table/grid, each deep-linked to /pincode/{pincode}
+//    c. Popular areas subsection (localities from the same D1 rows)
+//    d. FAQ block with schema.org FAQPage JSON-LD, real query phrasings:
+//       "What is the pincode of {City}?", "How many pincodes are there in {City}?"
+//    e. Internal links: state page, district pages, 5-10 nearby cities
+// 4. SEO: title "{City} Pin Code List 2026 | All Pincodes of {City}, {State}";
+//    meta description with pincode count; server-render everything
+import Base from '../../layouts/Base.astro';
+import { getCityBySlug, getAllCities } from '../../lib/cities';
+---
+<Base title="City Pin Code">
+  <!-- TODO: implement -->
+</Base>
