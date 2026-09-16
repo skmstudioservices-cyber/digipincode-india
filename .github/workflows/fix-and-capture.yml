@@ -45,7 +45,7 @@ jobs:
                 "https://api.cloudflare.com/client/v4/accounts/$CF_ACCOUNT_ID/browser-rendering/screenshot" \
                 -H "Authorization: Bearer $CF_API_TOKEN" \
                 -H "Content-Type: application/json" \
-                -d "{\"url\": \"$url\", \"viewport\": {\"width\": $w, \"height\": $h, \"deviceScaleFactor": 1}, \"gotoOptions\": {\"waitUntil\": \"networkidle0\", \"timeout\": 60000}, \"screenshotOptions\": {\"fullPage\": true, \"type\": \"jpeg\"}}" \
+                -d "{\"url\": \"$url\", \"viewport\": {\"width\": $w, \"height\": $h, \"deviceScaleFactor\": 1}, \"gotoOptions\": {\"waitUntil\": \"networkidle0\", \"timeout\": 60000}, \"screenshotOptions\": {\"fullPage\": true, \"type\": \"jpeg\"}}" \
                 -o "shots/$out" -w "%{http_code}")
               echo "attempt $attempt: HTTP $code for $url -> shots/$out"
               if [ "$code" = "200" ] && file "shots/$out" | grep -q JPEG; then
