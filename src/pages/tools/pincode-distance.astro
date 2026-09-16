@@ -1,0 +1,15 @@
+---
+// TODO(Antigravity): implement per seo/PLAN-antigravity-brief.md — WS3
+// Pincode-to-pincode distance tool: /tools/pincode-distance?from=110001&to=560001
+// 1. Two inputs (from/to, 6-digit) — form GET; result URL must keep ?from=&to=
+//    so it is indexable and shareable
+// 2. On submit: fetch both pincode rows from D1 (lat/long — see schema.sql),
+//    compute haversine distance in km, show both office names + distance
+// 3. Progressive enhancement only: plain form works without JS; optional
+//    client fetch to POST /api/distance for instant results
+// 4. SSR the result when ?from&to are present (for SEO + no-JS)
+import Base from '../../layouts/Base.astro';
+---
+<Base title="Pincode to Pincode Distance Calculator">
+  <!-- TODO: implement -->
+</Base>
