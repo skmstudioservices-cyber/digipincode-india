@@ -21,17 +21,31 @@ jobs:
         run: |
           set -x
           npx wrangler@latest kv namespace create SESSION || echo "(may already exist)"
-          echo "=== ALL KV NAMESPACES ==="
-          npx wrangler@latest kv namespace list || true
           echo "=== VIA REST API (JSON) ==="
           curl -sS "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/storage/kv/namespaces" \
             -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" | jq . || true
+
+  inspect-astro-output:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Build digipincode + dump output structure
+        run: |
+          npm install --no-audit --no-fund
+          npm run build
+          echo "=== DIST TREE (depth 3) ==="
+          find dist -maxdepth 3 | sort | head -80
+          echo "=== GENERATED WRANGLER CONFIG ==="
+          find dist -name 'wrangler.json' -exec sh -c 'echo "--- $1"; cat "$1"' _ {} \;
 
   capture-design:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Screenshot Vercel design sites via CF Browser Rendering (rate-limit safe)
+      - name: Screenshot design refs + live mapsnearme via CF Browser Rendering
         env:
           CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CF_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -56,13 +70,9 @@ jobs:
             done
             echo "FAILED to capture $out after 3 attempts"
           }
-          shot "https://skm-studio-map.vercel.app/"  "map-desktop.jpg" 1440 900
+          shot "https://mapsnearme.pages.dev/" "live-mapsnearme-desktop.jpg" 1440 900
           sleep 65
-          shot "https://skm-studio-map.vercel.app/"  "map-mobile.jpg" 390 844
-          sleep 65
-          shot "https://skm-studio-maps.vercel.app/" "maps-desktop.jpg" 1440 900
-          sleep 65
-          shot "https://skm-studio-maps.vercel.app/" "maps-mobile.jpg" 390 844
+          shot "https://mapsnearme.pages.dev/" "live-mapsnearme-mobile.jpg" 390 844
           ls -la shots/
       - name: Commit captures to design-captures branch
         run: |
@@ -72,5 +82,5 @@ jobs:
           mkdir -p design
           cp -v shots/*.jpg design/ 2>/dev/null || echo "no screenshots captured"
           git add design || true
-          git commit -m "chore: design reference captures (Vercel previews)" || echo "nothing to commit"
+          git commit -m "chore: live mapsnearme captures" || echo "nothing to commit"
           git push origin design-captures --force
