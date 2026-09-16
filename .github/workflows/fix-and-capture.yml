@@ -1,0 +1,64 @@
+name: Fix digipincode & capture design
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  create-session-kv:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Create SESSION KV namespace (idempotent)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -x
+          npx wrangler@latest kv namespace create SESSION || echo "namespace create returned non-zero (may already exist)"
+          echo "=== ALL KV NAMESPACES (JSON) ==="
+          npx wrangler@latest kv namespace list --json
+
+  capture-design:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Screenshot Vercel design sites via CF Browser Rendering
+        env:
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -x
+          mkdir -p shots
+          shot() {
+            url="$1"; out="$2"; w="$3"; h="$4"
+            code=$(curl -sS -X POST \
+              "https://api.cloudflare.com/client/v4/accounts/$CF_ACCOUNT_ID/browser-rendering/screenshot" \
+              -H "Authorization: Bearer $CF_API_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d "{\"url\": \"$url\", \"viewport\": {\"width\": $w, \"height\": $h, \"deviceScaleFactor\": 1}, \"gotoOptions\": {\"waitUntil\": \"networkidle0\", \"timeout\": 60000}, \"screenshotOptions\": {\"fullPage\": true, \"type\": \"jpeg\"}}" \
+              -o "shots/$out" -w "%{http_code}")
+            echo "HTTP $code for $url -> shots/$out"
+            file "shots/$out" || true
+            if [ "$code" != "200" ]; then echo "--- error body ---"; cat "shots/$out"; fi
+          }
+          shot "https://skm-studio-map.vercel.app/"  "map-desktop.jpg" 1440 900
+          shot "https://skm-studio-map.vercel.app/"  "map-mobile.jpg" 390 844
+          shot "https://skm-studio-maps.vercel.app/" "maps-desktop.jpg" 1440 900
+          shot "https://skm-studio-maps.vercel.app/" "maps-mobile.jpg" 390 844
+          ls -la shots/
+      - name: Commit captures to design-captures branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B design-captures
+          mkdir -p design
+          cp -v shots/*.jpg design/ 2>/dev/null || echo "no screenshots captured"
+          git add design || true
+          git commit -m "chore: design reference captures (Vercel previews)" || echo "nothing to commit"
+          git push origin design-captures --force
