@@ -6,12 +6,15 @@ on:
   workflow_dispatch:
     inputs:
       max_rows:
-        description: 'Max rows to WRITE this run (D1 free tier allows ~100k row writes/day)'
+        description: 'Max rows to WRITE this run (D1 free tier allows ~100k row writes/day per database)'
         default: '90000'
       release_asset:
         description: 'Download URL of the seed zip (release asset)'
         default: 'https://github.com/skmstudioservices-cyber/digipincode-india/releases/download/d1-data-v1/d1-populate-sql.zip'
         required: true
+
+env:
+  D1_DB: pincode-india-db   # apac location (closest to India). Old DB `pincode-india` stays live until cutover.
 
 jobs:
   apply:
@@ -26,6 +29,12 @@ jobs:
           curl -sL "${{ github.event.inputs.release_asset || 'https://github.com/skmstudioservices-cyber/digipincode-india/releases/download/d1-data-v1/d1-populate-sql.zip' }}" -o seed.zip
           unzip -q seed.zip -d populate
           python3 -c "import json; m=json.load(open('populate/manifest.json')); print('manifest files:', len(m['files']), 'total rows:', m['total_rows'])"
+      - name: Ensure schema on target DB
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: d1 execute pincode-india-db --remote --file=./schema.sql
       - name: Apply seed SQL (budget-aware, resumable)
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
