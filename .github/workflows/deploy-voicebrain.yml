@@ -2,6 +2,10 @@ name: Deploy Voice Brain
 
 on:
   workflow_dispatch:
+    inputs:
+      proxy_key:
+        description: 'PROXY_KEY for voice-brain-proxy (set once; re-run with a new value to rotate)'
+        default: ''
 
 jobs:
   deploy:
@@ -18,8 +22,32 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: npx --yes wrangler pages project create voice-brain --production-branch=main || true
-      - name: Deploy
+      - name: Deploy site
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: npx --yes wrangler pages deploy . --project-name=voice-brain --branch=main --commit-dirty=true
+      - name: Deploy proxy worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx --yes wrangler deploy --config worker/wrangler.toml
+      - name: Set worker secrets
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          PK: ${{ inputs.proxy_key }}
+        run: |
+          echo "${CLOUDFLARE_ACCOUNT_ID}" | npx --yes wrangler secret put CF_ACCOUNT_ID --name voice-brain-proxy
+          echo "${CLOUDFLARE_API_TOKEN}" | npx --yes wrangler secret put CF_API_TOKEN --name voice-brain-proxy
+          if [ -n "${PK}" ]; then echo "${PK}" | npx --yes wrangler secret put PROXY_KEY --name voice-brain-proxy; fi
+      - name: Verify proxy end-to-end
+        if: inputs.proxy_key != ''
+        env:
+          PK: ${{ inputs.proxy_key }}
+        run: |
+          sleep 10
+          curl -s -X POST "https://voice-brain-proxy.india-in.workers.dev/chat" \
+            -H "Content-Type: application/json" -H "x-proxy-key: ${PK}" \
+            -d '{"model":"@cf/meta/llama-3.1-8b-instruct-fp8-fast","messages":[{"role":"user","content":"reply with the single word: ok"}]}' | head -c 400
+          echo
