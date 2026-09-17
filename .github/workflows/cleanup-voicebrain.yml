@@ -1,0 +1,27 @@
+name: Cleanup Old Voice Brain Resources
+
+on:
+  workflow_dispatch:
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete old Pages project (voice-brain → voice-brain-15a.pages.dev) and old worker (voice-brain-proxy)
+        env:
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          echo '--- deleting Pages project voice-brain...'
+          curl -s -X DELETE "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT}/pages/projects/voice-brain" \
+            -H "Authorization: Bearer ${CF_TOKEN}" | head -c 300; echo
+          echo '--- deleting Worker voice-brain-proxy...'
+          curl -s -X DELETE "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT}/workers/scripts/voice-brain-proxy" \
+            -H "Authorization: Bearer ${CF_TOKEN}" | head -c 300; echo
+          sleep 10
+          echo '--- old URLs should now be dead (4xx/5xx expected):'
+          curl -s -o /dev/null -w 'voice-brain-15a.pages.dev: %{http_code}\n' --max-time 20 https://voice-brain-15a.pages.dev || true
+          curl -s -o /dev/null -w 'voice-brain-proxy worker: %{http_code}\n' --max-time 20 https://voice-brain-proxy.india-in.workers.dev || true
+          echo '--- new URLs should be live (200 expected):'
+          curl -s -o /dev/null -w 'skm-voice-agent.pages.dev: %{http_code}\n' --max-time 20 https://skm-voice-agent.pages.dev || true
+          curl -s -o /dev/null -w 'skm-voice-agent-proxy worker: %{http_code}\n' --max-time 20 https://skm-voice-agent-proxy.india-in.workers.dev || true
