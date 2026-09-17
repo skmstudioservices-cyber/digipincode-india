@@ -1,8 +1,7 @@
 name: D1 Apply Seed Data
-
 on:
   schedule:
-    - cron: '35 0 * * *'  # daily just after the UTC/D1 write-limit reset (limit is PER ACCOUNT on the free tier), until all seed files are applied
+    - cron: '50 23 * * *'  # 23:50 UTC - 10 min before the 00:00 UTC D1 write-limit reset, so seed writes consume the ENDING day's quota and the new day stays free for other work (limit is PER ACCOUNT ~100k rows/day on free tier)
   workflow_dispatch:
     inputs:
       max_rows:
@@ -14,7 +13,7 @@ on:
         required: true
 
 env:
-  D1_DB: pincode-india-db   # apac location (closest to India). Old DB `pincode-india` (wnam) stays live until cutover.
+  D1_DB: pincode-india-db   # apac location (closest to India). Old DB `pincode-india` (wnam) has been deleted - cutover done.
 
 jobs:
   apply:
