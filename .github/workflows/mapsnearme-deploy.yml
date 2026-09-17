@@ -1,0 +1,35 @@
+name: mapsnearme Pages Deploy (bridge)
+
+# Deploys the mapsnearme repo to CF Pages using THIS repo's Cloudflare secrets.
+# Reason: the mapsnearme repo itself has no CLOUDFLARE_* secrets configured,
+# so its own deploy.yml fails with an empty token. Use this until the secrets
+# are added to the mapsnearme repo.
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout mapsnearme (main)
+        uses: actions/checkout@v4
+        with:
+          repository: skmstudioservices-cyber/mapsnearme
+          ref: main
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Build Astro site
+        run: npm run build
+
+      - name: Deploy to Cloudflare Pages (mapsnearme)
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy dist --project-name=mapsnearme --branch=main --commit-dirty=true
