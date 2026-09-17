@@ -1,0 +1,20 @@
+name: GSC Verification Token Audit
+
+on:
+  workflow_dispatch:
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch verification tokens from all live sites
+        run: |
+          for site in "https://digipincode.india-in.workers.dev/" "https://examstatus.india-in.workers.dev/" "https://mapsnearme.pages.dev" "https://skmtools.pages.dev/" "https://skmstudio.com/"; do
+            echo "===== SITE: $site ====="
+            html=$(curl -s -L --max-time 30 "$site")
+            if [ -z "$html" ]; then
+              echo "(no response body)"
+              continue
+            fi
+            echo "$html" | grep -o 'name="google-site-verification" content="[^"]*"' || echo "(no verification tag found)"
+          done
