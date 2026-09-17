@@ -28,7 +28,8 @@
     {
       "binding": "DB",
       "database_name": "pincode-india-db",
-      "database_id": "74274a3f-9fca-42ec-9fbf-c707ffbc56a4"
+      "database_id": "74274a3f-9fca-42ec-9fbf-c707ffbc56a4",
+      "read_replication": { "mode": "auto" }
     }
   ]
 }
