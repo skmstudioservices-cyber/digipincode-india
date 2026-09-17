@@ -64,9 +64,9 @@ jobs:
       - name: Verify live site is OUR app
         run: |
           sleep 15
-          P=$(curl -s https://voice-brain.pages.dev)
+          P=$(curl -s https://voice-brain-15a.pages.dev)
           if echo "$P" | grep -q 'Unlock Workspace'; then echo 'PAGES STILL SHOWS FOREIGN LOCK SCREEN'; exit 1; fi
-          if echo "$P" | grep -q 'Voice Brain'; then echo 'PAGES OK - our app is live'; else echo 'PAGES MISSING OUR APP'; exit 1; fi
+          if echo "$P" | grep -q 'Voice Brain'; then echo 'PAGES OK - our app is live on voice-brain-15a'; else echo 'PAGES MISSING OUR APP'; exit 1; fi
           W=$(curl -s https://voice-brain-proxy.india-in.workers.dev)
           if echo "$W" | grep -q 'Unlock Workspace'; then echo 'WORKER STILL SHOWS FOREIGN LOCK SCREEN'; exit 1; fi
           if echo "$W" | grep -q '__VB_PROXY_KEY__'; then echo 'WORKER KEY NOT INJECTED (placeholder unreplaced)'; exit 1; fi
