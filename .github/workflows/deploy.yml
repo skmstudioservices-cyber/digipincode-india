@@ -1,5 +1,4 @@
 name: Deploy to Cloudflare Workers
-
 on:
   push:
     branches: [main]
@@ -77,7 +76,7 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: d1 execute pincode-india --file=./schema.sql --remote
+          command: d1 execute pincode-india-db --file=./schema.sql --remote
           workingDirectory: .
 
       - name: Deploy digipincode Worker (fallback only)
