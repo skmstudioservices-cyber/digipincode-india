@@ -1,0 +1,30 @@
+name: Site Speed Diagnostics
+
+on:
+  workflow_dispatch:
+
+jobs:
+  diag:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Timing + status for all sites
+        run: |
+          check() {
+            label="$1"; url="$2"
+            for i in 1 2 3; do
+              out=$(curl -s -o /dev/null -w "code=%{http_code} dns=%{time_namelookup}s connect=%{time_connect}s tls=%{time_appconnect}s ttfb=%{time_starttransfer}s total=%{time_total}s size=%{size_download}B" --max-time 40 "$url")
+              echo "$label try$i: $out"
+            done
+          }
+          echo "===== DIGIPINCODE ====="
+          check "home" "https://digipincode.india-in.workers.dev/"
+          check "pincode-page" "https://digipincode.india-in.workers.dev/pincode/110001"
+          check "search-api" "https://digipincode.india-in.workers.dev/search?q=110001"
+          check "sitemap" "https://digipincode.india-in.workers.dev/sitemap-index.xml"
+          echo "===== MAPSNEARME ====="
+          check "pages-home" "https://mapsnearme.pages.dev/"
+          check "workers-home" "https://mapsnearme.india-in.workers.dev/"
+          check "pages-sitemap" "https://mapsnearme.pages.dev/sitemap-index.xml"
+          echo "===== VOICE AGENT ====="
+          check "proxy" "https://skm-voice-agent-proxy.india-in.workers.dev/"
+          check "pages" "https://skm-voice-agent.pages.dev/"
