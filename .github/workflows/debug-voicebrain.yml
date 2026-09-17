@@ -1,4 +1,4 @@
-name: Debug Voice Brain UI
+name: Debug Voice Agent UI
 
 on:
   workflow_dispatch:
@@ -13,14 +13,14 @@ jobs:
           node-version: '22'
       - name: HTTP checks
         run: |
-          for u in https://voice-brain.pages.dev https://voice-brain-proxy.india-in.workers.dev; do
+          for u in https://skm-voice-agent.pages.dev https://skm-voice-agent-proxy.india-in.workers.dev; do
             echo "=== $u"
             curl -s -o /dev/null -w "status=%{http_code} type=%{content_type} size=%{size_download}\n" "$u"
           done
           echo "=== key injected on worker URL? (first 10 chars)"
-          curl -s https://voice-brain-proxy.india-in.workers.dev | grep -oE 'window.__VB_PROXY_KEY__ = "[^"]{1,10}' || echo "NOT FOUND / placeholder unreplaced"
+          curl -s https://skm-voice-agent-proxy.india-in.workers.dev | grep -oE 'window.__VB_PROXY_KEY__ = "[^"]{1,10}' || echo "NOT FOUND / placeholder unreplaced"
           echo "=== /chat without key (expect 401)"
-          curl -s -o /dev/null -w "%{http_code}\n" -X POST https://voice-brain-proxy.india-in.workers.dev/chat -H 'Content-Type: application/json' -d '{}'
+          curl -s -o /dev/null -w "%{http_code}\n" -X POST https://skm-voice-agent-proxy.india-in.workers.dev/chat -H 'Content-Type: application/json' -d '{}'
       - name: Browser check (console errors + screenshots)
         run: |
           npm init -y >/dev/null 2>&1
@@ -28,7 +28,7 @@ jobs:
           npx playwright install --with-deps chromium >/dev/null 2>&1
           cat > check.mjs <<'EOF'
           import { chromium } from 'playwright';
-          for (const [name, url] of [['pages', 'https://voice-brain.pages.dev'], ['worker', 'https://voice-brain-proxy.india-in.workers.dev']]) {
+          for (const [name, url] of [['pages', 'https://skm-voice-agent.pages.dev'], ['worker', 'https://skm-voice-agent-proxy.india-in.workers.dev']]) {
             const browser = await chromium.launch();
             const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
             const errors = [];
