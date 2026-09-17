@@ -21,8 +21,8 @@
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "pincode-india",
-      "database_id": "908096d2-3de5-43eb-8fdb-88252e3ac2e8"
+      "database_name": "pincode-india-db",
+      "database_id": "74274a3f-9fca-42ec-9fbf-c707ffbc56a4"
     }
   ],
   "ai": {
