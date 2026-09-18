@@ -1,7 +1,7 @@
 ---
 import Layout from '../layouts/Base.astro';
 import { getStates } from '../lib/db';
-import { chhathDates2026 } from '../data/chhath';
+import { chhathCities, chhathDates2026 } from '../data/chhath';
 
 export const prerender = false;
 const states = await getStates(Astro.locals.runtime.env.DB);
@@ -23,7 +23,7 @@ const states = await getStates(Astro.locals.runtime.env.DB);
     <h2>🌊 Chhath Puja 2026 — Ghat Directory</h2>
     <p>
       {chhathDates2026[0].date.split(', ')[1]} se {chhathDates2026[3].date.split(', ')[1]} — find Chhath ghats, ponds and beaches
-      in 20 cities: Patna, Delhi, Varanasi, Lucknow, Mumbai, Bengaluru, Hyderabad & more.
+      in {chhathCities.length} cities: Patna, Delhi, Varanasi, Lucknow, Mumbai, Bengaluru, Hyderabad & more.
     </p>
     <p><a href="/chhath/">View all Chhath Puja 2026 ghats →</a></p>
   </section>
