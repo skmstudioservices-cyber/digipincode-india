@@ -1,6 +1,7 @@
 ---
 import Layout from '../layouts/Base.astro';
 import { getStates } from '../lib/db';
+import { chhathDates2026 } from '../data/chhath';
 
 export const prerender = false;
 const states = await getStates(Astro.locals.runtime.env.DB);
@@ -18,6 +19,15 @@ const states = await getStates(Astro.locals.runtime.env.DB);
     </form>
   </section>
 
+  <section class="chhath-banner">
+    <h2>🌊 Chhath Puja 2026 — Ghat Directory</h2>
+    <p>
+      {chhathDates2026[0].date.split(', ')[1]} se {chhathDates2026[3].date.split(', ')[1]} — find Chhath ghats, ponds and beaches
+      in 20 cities: Patna, Delhi, Varanasi, Lucknow, Mumbai, Bengaluru, Hyderabad & more.
+    </p>
+    <p><a href="/chhath/">View all Chhath Puja 2026 ghats →</a></p>
+  </section>
+
   <section class="states">
     <h2>Browse by State</h2>
     <ul>
@@ -31,8 +41,17 @@ const states = await getStates(Astro.locals.runtime.env.DB);
 <style>
   .hero { text-align: center; padding: 3rem 1rem; }
   .search input { padding: .6rem; width: 60%; max-width: 480px; }
+  .chhath-banner {
+    background: #fff8ec;
+    border: 1px solid #f0dcb4;
+    border-radius: 10px;
+    padding: 1.2rem 1.5rem;
+    margin: 0 0 2rem;
+    text-align: center;
+  }
+  .chhath-banner h2 { margin: 0 0 .4rem; font-size: 1.25rem; }
+  .chhath-banner p { margin: .3rem 0; }
   .states ul { columns: 3; list-style: none; padding: 0; }
   .states li { padding: .25rem 0; }
   @media (max-width: 600px) { .states ul { columns: 1; } }
 </style>
-
