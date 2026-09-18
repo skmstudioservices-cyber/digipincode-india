@@ -1,0 +1,123 @@
+---
+import Layout from '../../layouts/Base.astro';
+import { chhathCities, chhathDates2026 } from '../../data/chhath';
+
+export const prerender = false;
+
+const { city: citySlug } = Astro.params;
+const city = chhathCities.find((c) => c.slug === citySlug);
+if (!city) return Astro.redirect('/chhath/');
+
+const BASE = 'https://digipincode.india-in.workers.dev';
+const others = chhathCities.filter((c) => c.slug !== city.slug);
+
+const jsonLd = JSON.stringify({
+  '@context': 'https://schema.org',
+  '@graph': [
+    {
+      '@type': 'Event',
+      name: `Chhath Puja 2026 — ${city.name}`,
+      startDate: '2026-11-15',
+      endDate: '2026-11-16',
+      eventStatus: 'https://schema.org/EventScheduled',
+      eventAttendanceMode: 'https://schema.org/OfflineEventAttendanceMode',
+      location: {
+        '@type': 'Place',
+        name: `Chhath Ghats, ${city.name}`,
+        address: { '@type': 'PostalAddress', addressLocality: city.name, addressRegion: city.state, addressCountry: 'IN' },
+      },
+      description: `Chhath Puja 2026 (13-16 November) ghats and sites in ${city.name} on the ${city.water}. ${city.notes}`,
+      url: `${BASE}/chhath/${city.slug}`,
+    },
+    {
+      '@type': 'BreadcrumbList',
+      itemListElement: [
+        { '@type': 'ListItem', position: 1, name: 'Home', item: `${BASE}/` },
+        { '@type': 'ListItem', position: 2, name: 'Chhath Puja 2026 Ghats', item: `${BASE}/chhath/` },
+        { '@type': 'ListItem', position: 3, name: city.name, item: `${BASE}/chhath/${city.slug}` },
+      ],
+    },
+  ],
+});
+
+const title = `Chhath Puja 2026 Ghats in ${city.name} — Complete List (13-16 November)`;
+const description = `Chhath Puja 2026 ghats in ${city.name}, ${city.state} — ${city.ghats.slice(0, 4).join(', ')} and more on the ${city.water}. Dates: 13-16 November 2026, with administration advisories and tips.`;
+---
+
+<Layout title={title} description={description}>
+  <script slot="head" type="application/ld+json" set:html={jsonLd} is:inline />
+
+  <section class="hero">
+    <p class="crumb"><a href="/chhath/">Chhath Puja 2026</a> › {city.name}</p>
+    <h1>Chhath Puja 2026 Ghats in {city.name}</h1>
+    <p>
+      Chhath Puja 2026 in {city.name}, {city.state} falls on <strong>13-16 November 2026</strong>.
+      Devotees offer arghya to the Sun God at {city.ghats.length}+ major sites on the {city.water}.
+    </p>
+  </section>
+
+  <section class="dates">
+    <h2>Dates & Rituals</h2>
+    <table>
+      <thead><tr><th>Day</th><th>Ritual</th><th>Date</th></tr></thead>
+      <tbody>
+        {chhathDates2026.map((d) => (
+          <tr><td>{d.day}</td><td>{d.ritual}</td><td><strong>{d.date}</strong></td></tr>
+        ))}
+      </tbody>
+    </table>
+  </section>
+
+  <section class="ghats">
+    <h2>Major Chhath Ghats & Sites in {city.name}</h2>
+    <p class="sub">Water body: <strong>{city.water}</strong></p>
+    <ul class="ghat-list">
+      {city.ghats.map((g) => (
+        <li>{g}</li>
+      ))}
+    </ul>
+  </section>
+
+  <section class="notes">
+    <h2>Good to Know — {city.name}</h2>
+    <p>{city.notes}</p>
+    <p class="disclaimer">
+      Note: compiled from district administration advisories and news reports from the 2024-25
+      festival seasons. Ghat lists and bans change yearly — confirm with the latest local advisory.
+    </p>
+  </section>
+
+  <section class="related">
+    <h2>Chhath Ghats in Other Cities</h2>
+    <ul class="other-cities">
+      {others.map((c) => (
+        <li><a href={`/chhath/${c.slug}`}>{c.name}</a></li>
+      ))}
+    </ul>
+    <p>
+      <a href="https://mapsnearme.pages.dev/search" target="_blank" rel="noopener">
+        Find businesses near Chhath ghats on mapsnearme →
+      </a>
+    </p>
+  </section>
+</Layout>
+
+<style>
+  .hero { text-align: center; padding: 2rem 1rem 1rem; }
+  .crumb { font-size: .85rem; }
+  .dates { padding: 1rem; }
+  table { border-collapse: collapse; width: 100%; max-width: 640px; margin: 0 auto; }
+  th, td { border: 1px solid #ddd; padding: .5rem .75rem; text-align: left; }
+  th { background: #f5f5f5; }
+  .ghats { padding: 1rem; }
+  .sub { color: #555; }
+  .ghat-list { columns: 2; list-style: none; padding: 0; max-width: 860px; }
+  .ghat-list li { padding: .4rem 0; border-bottom: 1px dashed #e5e5e5; }
+  .ghat-list li::before { content: '🌊 '; }
+  .notes { padding: 1rem; max-width: 760px; }
+  .disclaimer { color: #777; font-size: .85rem; }
+  .related { padding: 1rem; }
+  .other-cities { list-style: none; padding: 0; columns: 3; }
+  .other-cities li { padding: .25rem 0; }
+  @media (max-width: 600px) { .ghat-list, .other-cities { columns: 1; } }
+</style>
