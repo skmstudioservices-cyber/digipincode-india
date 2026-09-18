@@ -46,7 +46,7 @@ INSERT OR IGNORE INTO keywords (site, keyword, intent, cluster, target_url, stat
 ('digipincode','nahay khay kharna dates 2026','info','seasonal','/chhath/','created','Day 1-2 ritual queries.'),
 ('digipincode','chhath puja vidhi samagri list','info','seasonal','','planned','Content gap — samagri list article banti hai.'),
 ('digipincode','chhath puja song geet list','info','seasonal','','planned','Sharda Sinha songs intent — content gap, traffic heavy.'),
-('digipincode','chhath mathar arghya sunrise','info','seasonal','','planned','Bhojpuri phrasing variant.'),
+('digipincode','chhath mathar arghya sunrise','info','seasonal','','planned','Bhojpuri phrasing variant.');
 
 -- ===== MAPSNEARME (first keyword set — Phase 4 pages live, internal search logging ON) =====
 INSERT OR IGNORE INTO keywords (site, keyword, intent, cluster, target_url, status, notes) VALUES
@@ -67,7 +67,7 @@ INSERT OR IGNORE INTO keywords (site, keyword, intent, cluster, target_url, stat
 ('mapsnearme','chhath ghat near me businesses','commercial','seasonal-bridge','/search','planned','Bridge: digipincode Chhath traffic → mapsnearme.'),
 ('mapsnearme','shop open near me now','commercial','local-combo','/search','planned','Hours intent — future feature.'),
 ('mapsnearme','[city] local services directory','commercial','local-combo','/search','planned','PATTERN: city directory intent.'),
-('mapsnearme','hotels near [landmark]','commercial','local-combo','/search','planned','PATTERN: landmark-based — needs landmark data later.'),
+('mapsnearme','hotels near [landmark]','commercial','local-combo','/search','planned','PATTERN: landmark-based — needs landmark data later.');
 
 -- ===== MAPSNEARME NEGATIVE =====
 INSERT OR IGNORE INTO negative_keywords (site, keyword, reason) VALUES
@@ -90,5 +90,4 @@ INSERT OR IGNORE INTO negative_keywords (site, keyword, reason) VALUES
 ('mapsnearme','jobs near me','Job portal intent — nahi serve karte.'),
 ('mapsnearme','matrimony near me','Matrimony intent — nahi.'),
 ('mapsnearme','property dealer contact list buy','Data-buying intent — nahi.'),
-('mapsnearme','dhaba cooking recipe','Recipe intent — content mismatch.')
-;
+('mapsnearme','dhaba cooking recipe','Recipe intent — content mismatch.');
