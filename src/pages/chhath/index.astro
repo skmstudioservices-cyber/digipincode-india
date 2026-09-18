@@ -4,14 +4,22 @@ import { chhathCities, chhathDates2026 } from '../../data/chhath';
 
 export const prerender = false;
 
-const byState = chhathCities.reduce<Record<string, typeof chhathCities>>((acc, c) => {
+const q = Astro.url.searchParams.get('q')?.trim().toLowerCase() || '';
+const filtered = q
+  ? chhathCities.filter((c) =>
+      c.name.toLowerCase().includes(q) ||
+      c.state.toLowerCase().includes(q) ||
+      c.water.toLowerCase().includes(q))
+  : chhathCities;
+
+const byState = filtered.reduce<Record<string, typeof chhathCities>>((acc, c) => {
   (acc[c.state] ??= []).push(c);
   return acc;
 }, {});
 
-const title = 'Chhath Puja 2026 Ghats — Complete Ghat List for 20 Indian Cities (13-16 Nov)';
+const title = 'Chhath Puja 2026 Ghats — Complete Ghat List for 39 Indian Cities (13-16 Nov)';
 const description =
-  'Chhath Puja 2026 dates (13-16 November) and the complete list of Chhath ghats in Patna, Delhi, Varanasi, Lucknow, Mumbai, Bengaluru, Hyderabad and 13 more cities — rivers, ponds, beaches and administration advisories.';
+  'Chhath Puja 2026 dates (13-16 November) and the complete list of Chhath ghats in 39 cities — Patna, Delhi, Varanasi, Lucknow, Mumbai, Bengaluru, Hyderabad, Guwahati, Jaipur and more — rivers, ponds, lakes, beaches and administration advisories.';
 ---
 
 <Layout title={title} description={description}>
@@ -19,8 +27,13 @@ const description =
     <h1>Chhath Puja 2026 — Ghat Directory</h1>
     <p>
       Chhath Puja 2026 will be celebrated from <strong>13 to 16 November 2026</strong>.
-      Find the major Chhath ghats, ponds, lakes and beaches in 20 cities across India.
+      Find the major Chhath ghats, ponds, lakes and beaches in {chhathCities.length} cities across India —
+      with arghya timings for each city.
     </p>
+    <form action="/chhath/" method="get" class="csearch">
+      <input type="search" name="q" placeholder="Search city, state or river — e.g. Patna, Bihar, Ganga" value={q} />
+      <button type="submit">Find Ghats</button>
+    </form>
   </section>
 
   <section class="dates">
@@ -36,7 +49,8 @@ const description =
   </section>
 
   <section class="cities">
-    <h2>Chhath Ghats by City</h2>
+    <h2>{q ? `Search Results (${filtered.length})` : 'Chhath Ghats by City'}</h2>
+    {q && filtered.length === 0 && <p>No cities found matching "{q}" — try a city, state or river name.</p>}
     {Object.entries(byState).map(([state, cities]) => (
       <div class="state-block">
         <h3>{state}</h3>
@@ -64,6 +78,9 @@ const description =
 
 <style>
   .hero { text-align: center; padding: 2rem 1rem 1rem; }
+  .csearch { margin: 1rem auto; max-width: 520px; display: flex; gap: .5rem; }
+  .csearch input { padding: .6rem; flex: 1; }
+  .csearch button { padding: .6rem 1.2rem; }
   .dates { padding: 1rem; }
   table { border-collapse: collapse; width: 100%; max-width: 640px; margin: 0 auto; }
   th, td { border: 1px solid #ddd; padding: .5rem .75rem; text-align: left; }
