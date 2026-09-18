@@ -1,0 +1,23 @@
+name: Chhath Verify
+
+on:
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check all 39 Chhath city pages
+        run: |
+          ok=0; fail=0
+          for slug in patna bhagalpur munger muzaffarpur purnia katihar gaya darbhanga begusarai siwan buxar hajipur delhi varanasi prayagraj kanpur lucknow ranchi bokaro kolkata dehradun haridwar bhopal indore mumbai pune nagpur jaipur chandigarh guwahati bhubaneswar surat ahmedabad vadodara bengaluru hyderabad ludhiana jalandhar chennai; do
+            code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 20 "https://digipincode.india-in.workers.dev/chhath/$slug")
+            echo "$slug: $code"
+            if [ "$code" = "200" ]; then ok=$((ok+1)); else fail=$((fail+1)); fi
+          done
+          echo "OK=$ok FAIL=$fail"
+          hub=$(curl -s --max-time 20 "https://digipincode.india-in.workers.dev/chhath/" | grep -c "39 cities" || true)
+          echo "hub-mentions-39: $hub"
+          sm=$(curl -s --max-time 20 "https://digipincode.india-in.workers.dev/sitemap-chhath.xml" | grep -c "<loc>" || true)
+          echo "sitemap-urls: $sm"
+          [ "$fail" = "0" ] && [ "$sm" = "40" ] || exit 1
