@@ -1,12 +1,27 @@
 ---
 import Layout from '../layouts/Base.astro';
-// Search — SSR, queries D1
+// Search — SSR, queries D1; logs internal searches to seo-keywords-db (internal_search table)
 export const prerender = false;
 import { searchAll } from '../lib/db';
 
 const q = Astro.url.searchParams.get('q')?.trim() || '';
 let results = [];
 if (q) results = await searchAll(Astro.locals.runtime.env.DB, q);
+
+// Log every internal search — free keyword research (SEO intelligence loop)
+if (q) {
+  try {
+    const seo = (Astro.locals.runtime.env as any).SEO_DB;
+    if (seo?.prepare) {
+      await seo
+        .prepare('INSERT INTO internal_search (site, term, results) VALUES (?, ?, ?)')
+        .bind('digipincode', q.slice(0, 120), results.length)
+        .run();
+    }
+  } catch {
+    /* logging must never break search */
+  }
+}
 ---
 <Layout title={q ? `Search: ${q}` : 'Search'}>
   <h1>Search</h1>
