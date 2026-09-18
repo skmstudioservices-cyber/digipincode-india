@@ -30,6 +30,11 @@
       "database_name": "pincode-india-db",
       "database_id": "74274a3f-9fca-42ec-9fbf-c707ffbc56a4",
       "read_replication": { "mode": "auto" }
+    },
+    {
+      "binding": "SEO_DB",
+      "database_name": "seo-keywords-db",
+      "database_id": "b3d0300d-7362-489e-91e9-d2dfece64b63"
     }
   ]
 }
