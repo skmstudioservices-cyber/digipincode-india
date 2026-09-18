@@ -1,0 +1,78 @@
+---
+import Layout from '../../layouts/Base.astro';
+import { chhathCities, chhathDates2026 } from '../../data/chhath';
+
+export const prerender = false;
+
+const byState = chhathCities.reduce<Record<string, typeof chhathCities>>((acc, c) => {
+  (acc[c.state] ??= []).push(c);
+  return acc;
+}, {});
+
+const title = 'Chhath Puja 2026 Ghats — Complete Ghat List for 20 Indian Cities (13-16 Nov)';
+const description =
+  'Chhath Puja 2026 dates (13-16 November) and the complete list of Chhath ghats in Patna, Delhi, Varanasi, Lucknow, Mumbai, Bengaluru, Hyderabad and 13 more cities — rivers, ponds, beaches and administration advisories.';
+---
+
+<Layout title={title} description={description}>
+  <section class="hero">
+    <h1>Chhath Puja 2026 — Ghat Directory</h1>
+    <p>
+      Chhath Puja 2026 will be celebrated from <strong>13 to 16 November 2026</strong>.
+      Find the major Chhath ghats, ponds, lakes and beaches in 20 cities across India.
+    </p>
+  </section>
+
+  <section class="dates">
+    <h2>Chhath Puja 2026 Dates</h2>
+    <table>
+      <thead><tr><th>Day</th><th>Ritual</th><th>Date</th></tr></thead>
+      <tbody>
+        {chhathDates2026.map((d) => (
+          <tr><td>{d.day}</td><td>{d.ritual}</td><td><strong>{d.date}</strong></td></tr>
+        ))}
+      </tbody>
+    </table>
+  </section>
+
+  <section class="cities">
+    <h2>Chhath Ghats by City</h2>
+    {Object.entries(byState).map(([state, cities]) => (
+      <div class="state-block">
+        <h3>{state}</h3>
+        <ul>
+          {cities.map((c) => (
+            <li>
+              <a href={`/chhath/${c.slug}`}>Chhath Puja Ghats in {c.name}</a>
+              <span class="muted"> — {c.ghats.length}+ sites on the {c.water}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    ))}
+  </section>
+
+  <section class="note">
+    <h2>Disclaimer</h2>
+    <p>
+      Ghat lists are compiled from district administration advisories and news reports from the
+      2024-25 festival seasons. Municipal lists change every year (some ghats are declared unsafe
+      and banned) — always confirm with the latest local administration advisory before the festival.
+    </p>
+  </section>
+</Layout>
+
+<style>
+  .hero { text-align: center; padding: 2rem 1rem 1rem; }
+  .dates { padding: 1rem; }
+  table { border-collapse: collapse; width: 100%; max-width: 640px; margin: 0 auto; }
+  th, td { border: 1px solid #ddd; padding: .5rem .75rem; text-align: left; }
+  th { background: #f5f5f5; }
+  .cities { padding: 1rem; }
+  .state-block { margin: 1rem 0; }
+  .state-block ul { list-style: none; padding: 0; columns: 2; }
+  .state-block li { padding: .3rem 0; }
+  .muted { color: #666; font-size: .9em; }
+  .note { padding: 1rem; max-width: 720px; margin: 0 auto; }
+  @media (max-width: 600px) { .state-block ul { columns: 1; } }
+</style>
