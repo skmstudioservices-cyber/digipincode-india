@@ -1,0 +1,147 @@
+name: Site Monitor
+
+# Har 3 ghante: saare sites ka health check (HTTP + content markers)
+# + homepage ke same-site links ka orphan/broken-link audit.
+# Failure pe auto-issue create hota hai (duplicate pe comment),
+# sab healthy hone pe issue auto-close.
+
+on:
+  schedule:
+    - cron: '0 */3 * * *'
+  workflow_dispatch:
+
+permissions:
+  issues: write
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check sites + orphan links
+        run: |
+          python3 - <<'PYEOF'
+          import re, urllib.request, urllib.error, datetime, sys
+
+          SITES = [
+              ("https://mapsnearme.india-in.workers.dev/", ["near me"], "full"),
+              ("https://mapsnearme.india-in.workers.dev/dashboard", ["mapsnearme admin"], "full"),
+              ("https://mapsnearme.pages.dev/", ["near me"], "full"),
+              ("https://dashboardmapsnearme.pages.dev/dashboard/", ["mapsnearme admin"], "full"),
+              ("https://digipincode.india-in.workers.dev/", ["pincode", "pin code"], "full"),
+              ("https://examstatus.india-in.workers.dev/", ["exam"], "full"),
+              ("https://skm-voice-agent-proxy.india-in.workers.dev/", [], "no5xx"),
+          ]
+
+          def fetch(url):
+              req = urllib.request.Request(url, headers={"User-Agent": "SKM-site-monitor/1.0"})
+              try:
+                  with urllib.request.urlopen(req, timeout=30) as r:
+                      return r.status, r.read().decode("utf-8", "replace")
+              except urllib.error.HTTPError as e:
+                  try:
+                      return e.code, e.read().decode("utf-8", "replace")
+                  except Exception:
+                      return e.code, ""
+              except Exception as e:
+                  return 0, str(e)
+
+          fails = []
+
+          print("=== SITE HEALTH CHECKS ===")
+          for url, markers, mode in SITES:
+              code, body = fetch(url)
+              problems = []
+              if mode == "no5xx":
+                  if code == 0 or code >= 500:
+                      problems.append("unreachable/5xx (HTTP %s)" % code)
+              else:
+                  if code != 200:
+                      problems.append("HTTP %s" % code)
+                  elif markers and not any(m in body.lower() for m in markers):
+                      problems.append("content marker missing: " + " / ".join(markers))
+              status = "OK  " if not problems else "FAIL"
+              line = "%s %s (HTTP %s)" % (status, url, code)
+              if problems:
+                  line += " -> " + "; ".join(problems)
+              print(line)
+              if problems:
+                  fails.append("- SITE: %s -> %s" % (url, "; ".join(problems)))
+
+          print()
+          print("=== ORPHAN / BROKEN LINK CHECK (homepage, same-site only) ===")
+          for url, markers, mode in SITES:
+              if mode == "no5xx":
+                  continue
+              base_code, html = fetch(url)
+              if base_code != 200 or not html:
+                  print("SKIP link check for %s (homepage not 200)" % url)
+                  continue
+              origin = re.match(r"https?://[^/]+", url).group(0)
+              seen = set()
+              links = []
+              for href in re.findall(r'href="([^"]+)"', html):
+                  if href.startswith(("mailto:", "tel:", "javascript:", "data:", "#")):
+                      continue
+                  if href.startswith("http"):
+                      absu = href
+                  else:
+                      absu = origin + (href if href.startswith("/") else "/" + href)
+                  absu = absu.split("#")[0]
+                  if not absu.startswith(origin):
+                      continue
+                  if absu.rstrip("/") == url.rstrip("/"):
+                      continue
+                  if absu in seen:
+                      continue
+                  seen.add(absu)
+                  links.append(absu)
+                  if len(links) >= 30:
+                      break
+              for l in links:
+                  c, _ = fetch(l)
+                  if c >= 400 or c == 0:
+                      print("FAIL %s (HTTP %s)" % (l, c))
+                      fails.append("- BROKEN LINK: %s (HTTP %s) [linked from %s]" % (l, c, url))
+                  else:
+                      print("OK   %s (%s)" % (l, c))
+
+          now = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+          if fails:
+              report = "**Site Monitor - issues found at %s**\n\n%s" % (now, "\n".join(fails))
+              with open("/tmp/monitor-report.txt", "w") as f:
+                  f.write(report)
+              print()
+              print("RESULT: FAILURES DETECTED")
+              sys.exit(1)
+          else:
+              with open("/tmp/monitor-report.txt", "w") as f:
+                  f.write("**Site Monitor - all sites healthy at %s**" % now)
+              print()
+              print("RESULT: ALL HEALTHY")
+          PYEOF
+
+      - name: Open issue on failures
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          BODY=$(cat /tmp/monitor-report.txt)
+          NUM=$(gh issue list -R "$REPO" --state open --search 'in:title "Sites DOWN"' --json number --jq '.[0].number // 0')
+          if [ -z "$NUM" ] || [ "$NUM" = "0" ]; then
+            gh issue create -R "$REPO" --title "Sites DOWN - auto-detected by Site Monitor" --body "$BODY" --label bug \
+              || gh issue create -R "$REPO" --title "Sites DOWN - auto-detected by Site Monitor" --body "$BODY"
+          else
+            gh issue comment "$NUM" -R "$REPO" --body "$BODY"
+          fi
+
+      - name: Close resolved issues (all healthy)
+        if: success()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          for NUM in $(gh issue list -R "$REPO" --state open --search 'in:title "Sites DOWN"' --json number --jq '.[].number'); do
+            [ -n "$NUM" ] && gh issue close "$NUM" -R "$REPO" --comment "All sites healthy again - auto-closed by Site Monitor."
+          done
+          exit 0
