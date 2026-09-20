@@ -1,0 +1,49 @@
+---
+import Layout from '../layouts/Base.astro';
+import { SITE } from '../config/site';
+export const prerender = false;
+---
+<Layout
+  title={`About Us — ${SITE.title}`}
+  description={`Who we are, what data powers ${SITE.name}, and how the ${SITE.title} is built.`}
+>
+  <nav class="breadcrumb">
+    <a href="/">Home</a> › <span>About Us</span>
+  </nav>
+  <h1>About Us</h1>
+  <p>
+    {SITE.name} is an independent India pincode, village and panchayat directory.
+    Our goal is simple: make every pincode, village, and local body in India easy
+    to find, with clean pages that load fast on any phone.
+  </p>
+
+  <h2>What we cover</h2>
+  <ul>
+    <li>All-India pincode lookup — 1.5 lakh+ pincodes</li>
+    <li>Village and panchayat directory — 6 lakh+ villages with LGD codes</li>
+    <li>State and district-wise browsing</li>
+    <li>Seasonal directories such as the <a href="/chhath/">Chhath Puja 2026 ghat guide</a></li>
+  </ul>
+
+  <h2>Where our data comes from</h2>
+  <p>
+    Our directory is built from public datasets, including government open-data
+    sources such as LGD (Local Government Directory) and India Post pincode
+    records. We organise and cross-link this data so you can go from a state, to
+    a district, to a pincode, to a village in a few taps.
+  </p>
+
+  <h2>Why we built this</h2>
+  <p>
+    Finding a correct pincode or village code in India usually means digging
+    through slow PDFs or cluttered portals. We wanted one fast, mobile-friendly
+    place — <a href="/search">start a search</a> or <a href="/states">browse by state</a>.
+  </p>
+
+  <h2>Run by</h2>
+  <p>
+    SKM Studio Network — a small independent studio building useful Indian web
+    services. Questions or corrections? <a href="/contact">Contact us</a> — we
+    read every message.
+  </p>
+</Layout>
