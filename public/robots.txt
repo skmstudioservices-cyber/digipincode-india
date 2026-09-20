@@ -57,4 +57,5 @@ Disallow: /
 User-agent: YandexBot
 Disallow: /
 
-Sitemap: https://digipincode.india-in.workers.dev/sitemap-index.xml
+# Sitemap convention: always /sitemap.xml
+Sitemap: https://digipincode.india-in.workers.dev/sitemap.xml
