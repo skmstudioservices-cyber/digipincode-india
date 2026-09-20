@@ -1,0 +1,46 @@
+---
+import Layout from '../layouts/Base.astro';
+import { SITE } from '../config/site';
+export const prerender = false;
+---
+<Layout
+  title={`Contact Us — ${SITE.title}`}
+  description={`Get in touch with the ${SITE.name} team for corrections, feedback, or business queries.`}
+>
+  <nav class="breadcrumb">
+    <a href="/">Home</a> › <span>Contact Us</span>
+  </nav>
+  <h1>Contact Us</h1>
+  <p>
+    Found a wrong pincode? A village missing? A ghat listed in the wrong city?
+    Tell us — corrections keep this directory useful.
+  </p>
+
+  <h2>Email</h2>
+  <p>
+    Write to us at
+    <a href={`mailto:${SITE.email}`}>{SITE.email}</a>.
+    We usually reply within 2-3 working days.
+  </p>
+
+  <h2>What to include</h2>
+  <ul>
+    <li>The page link (URL) you are reporting</li>
+    <li>What is wrong, and what the correct information should be</li>
+    <li>A source link if you have one (India Post, LGD, state portal)</li>
+  </ul>
+
+  <h2>Common requests</h2>
+  <ul>
+    <li>Data corrections — pincode, village name, spelling, district mapping</li>
+    <li>Feedback on search — tell us what you searched and didn't find</li>
+    <li>Business and partnership queries</li>
+  </ul>
+
+  <h2>Quick links</h2>
+  <p>
+    <a href="/search">Search pincodes</a> ·
+    <a href="/states">Browse states</a> ·
+    <a href="/about">About us</a>
+  </p>
+</Layout>
