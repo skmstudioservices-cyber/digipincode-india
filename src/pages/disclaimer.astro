@@ -1,0 +1,54 @@
+---
+import Layout from '../layouts/Base.astro';
+import { SITE } from '../config/site';
+export const prerender = false;
+---
+<Layout
+  title={`Disclaimer — ${SITE.title}`}
+  description={`Important disclaimer about the information published on ${SITE.name}.`}
+>
+  <nav class="breadcrumb">
+    <a href="/">Home</a> › <span>Disclaimer</span>
+  </nav>
+  <h1>Disclaimer</h1>
+  <p>Last updated: 21 September 2026</p>
+
+  <h2>Informational purpose only</h2>
+  <p>
+    All content on {SITE.name} is published for general information only.
+    It is not an official government website and is not affiliated with
+    India Post, any ministry, or any state government body.
+  </p>
+
+  <h2>Verify before you rely</h2>
+  <p>
+    Pincodes, village names, LGD codes, and event details (such as festival
+    dates and ghat locations) can change. Before using any information for
+    official purposes — postal address, exam form, application, or travel —
+    please verify it with:
+  </p>
+  <ul>
+    <li><a href="https://www.indiapost.gov.in" rel="noopener">India Post</a> — official pincode source</li>
+    <li><a href="https://lgdirectory.gov.in" rel="noopener">LGD (Local Government Directory)</a> — village and local body codes</li>
+    <li>The concerned state or district administration for event and location details</li>
+  </ul>
+
+  <h2>External links</h2>
+  <p>
+    Links to external websites are provided for convenience. We do not control
+    their content and are not responsible for it.
+  </p>
+
+  <h2>Advertising</h2>
+  <p>
+    The site may display third-party advertisements. Ads do not mean we endorse
+    the advertised product or service. See our
+    <a href="/privacy-policy">Privacy Policy</a> for how ads work.
+  </p>
+
+  <h2>Corrections</h2>
+  <p>
+    Spotted something wrong? <a href="/contact">Tell us</a> with the page link —
+    we fix verified corrections quickly.
+  </p>
+</Layout>
