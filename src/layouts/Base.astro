@@ -1,4 +1,5 @@
 ---
+import { SITE, NAV_LINKS, FOOTER_LINKS } from '../config/site';
 interface Props {
   title?: string;
   description?: string;
@@ -23,7 +24,7 @@ const {
   <meta property="og:description" content={description} />
   <meta property="og:url" content={Astro.url.href} />
   <link rel="canonical" href={Astro.url.href} />
-  <link rel="sitemap" href="/sitemap-index.xml" />
+  <link rel="sitemap" href="/sitemap.xml" />
   <script is:inline src="https://analytics.ahrefs.com/analytics.js" data-key="gOliiXpzU4P4bK1z+5QfgA" async></script>
   <script>
     import { initFeedbackButtons } from '../components/FeedbackWidget';
@@ -34,17 +35,27 @@ const {
 <body>
   <header>
     <nav>
-      <a href="/">Digipincode</a>
-      <a href="/search">Search</a>
-      <a href="/states">States</a>
-      <a href="/chhath/">Chhath 2026</a>
+      {NAV_LINKS.map((l) => <a href={l.href}>{l.label}</a>)}
     </nav>
   </header>
   <main>
     <slot />
   </main>
   <footer>
-    <p>Digipincode — 6 lakh villages, panchayats & pincodes</p>
+    <div class="footer-cols">
+      <div>
+        <p><strong>{SITE.name}</strong> — 6 lakh villages, panchayats & pincodes</p>
+        <p>
+          <a href="/search">Search</a> ·
+          <a href="/states">States</a> ·
+          <a href="/chhath/">Chhath 2026</a>
+        </p>
+      </div>
+      <div>
+        {FOOTER_LINKS.map((l) => <p><a href={l.href}>{l.label}</a></p>)}
+      </div>
+    </div>
+    <p>© {new Date().getFullYear()} {SITE.name} · SKM Studio Network</p>
   </footer>
 </body>
 </html>
@@ -52,10 +63,12 @@ const {
 <style>
   body { font-family: system-ui, sans-serif; max-width: 960px; margin: 0 auto; padding: 1rem; color: #1a1a1a; }
   header { border-bottom: 1px solid #ddd; padding: .5rem 0; }
-  header nav { display: flex; gap: 1rem; }
+  header nav { display: flex; flex-wrap: wrap; gap: .5rem .75rem; }
   header nav a { text-decoration: none; color: #1a1a1a; font-weight: 600; }
   main { padding: 1rem 0; }
   footer { border-top: 1px solid #ddd; padding: .5rem 0; font-size: .85rem; color: #666; }
+  .footer-cols { display: flex; flex-wrap: wrap; gap: 1rem 2rem; justify-content: space-between; }
+  .footer-cols p { margin: .25rem 0; }
   table.details { border-collapse: collapse; margin: 1rem 0; }
   table.details th { text-align: left; padding: .4rem .8rem; background: #f5f5f5; border: 1px solid #ddd; }
   table.details td { padding: .4rem .8rem; border: 1px solid #ddd; }
