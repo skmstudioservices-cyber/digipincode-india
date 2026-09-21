@@ -1,0 +1,56 @@
+name: Diag State 500s
+on:
+  workflow_dispatch:
+
+jobs:
+  diag:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Discover state slugs + core pages
+        run: |
+          curl -s --max-time 30 "https://digipincode.india-in.workers.dev/states" -o /tmp/states.html
+          grep -oE 'href="/state/[^"]+"' /tmp/states.html | sed 's|href="/state/||; s|"||' | sort -u > /tmp/states.txt
+          echo "states found: $(wc -l < /tmp/states.txt)"
+
+      - name: Hit core pages x3
+        run: |
+          for u in "/" "/states" "/sitemap.xml" "/sitemap-index.xml"; do
+            for i in 1 2 3; do
+              code=$(curl -s -o /tmp/b -w "%{http_code}" --max-time 30 "https://digipincode.india-in.workers.dev$u")
+              echo "CORE $u try$i -> $code"
+              if [ "$code" != "200" ]; then head -c 300 /tmp/b; echo; fi
+            done
+          done
+
+      - name: Hit each state page x3 and capture failures
+        run: |
+          fails=0; total=0
+          while read -r s; do
+            for i in 1 2 3; do
+              total=$((total+1))
+              code=$(curl -s -o /tmp/body.html -w "%{http_code}" --max-time 30 "https://digipincode.india-in.workers.dev/state/$s")
+              if [ "$code" != "200" ]; then
+                fails=$((fails+1))
+                echo "FAIL /state/$s try$i HTTP $code"
+                head -c 400 /tmp/body.html; echo; echo "---"
+              fi
+            done
+          done < /tmp/states.txt
+          echo "STATES_TOTAL=$total STATES_FAILURES=$fails"
+
+      - name: Query Workers observability for errors
+        env:
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          now=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          past=$(date -u -d '8 hours ago' +%Y-%m-%dT%H:%M:%SZ)
+          cat > /tmp/q.json <<EOF
+          {"queryId":"diag500","timeframe":{"from":"$past","to":"$now"},"parameters":{"datasets":["cloudflare-workers"],"filters":[{"key":"\$metadata.error","operation":"eq","value":"true","type":"string"}],"limit":100},"view":"events"}
+          EOF
+          curl -s -X POST "https://api.cloudflare.com/client/v4/accounts/$CF_ACCOUNT_ID/workers/observability/telemetry/query" \
+            -H "Authorization: Bearer $CF_API_TOKEN" -H "Content-Type: application/json" \
+            --data @/tmp/q.json -o /tmp/telemetry.json
+          echo "=== observability error events (first 9000 chars) ==="
+          head -c 9000 /tmp/telemetry.json
+          echo
