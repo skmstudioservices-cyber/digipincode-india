@@ -16,6 +16,12 @@ const orgLd = {
     { '@type': 'Organization', '@id': `${BASE}/#org`, name: 'Digipincode — SKM Studio Network', url: `${BASE}/` },
   ],
 };
+const POPULAR = [
+  ['Delhi', '110001'], ['Mumbai', '400001'], ['Kolkata', '700001'], ['Chennai', '600001'],
+  ['Bengaluru', '560001'], ['Hyderabad', '500001'], ['Pune', '411001'], ['Ahmedabad', '380001'],
+  ['Jaipur', '302001'], ['Lucknow', '226001'], ['Patna', '800001'], ['Bhopal', '462001'],
+  ['Chandigarh', '160001'], ['Guwahati', '781001'], ['Kochi', '682001'], ['Nagpur', '440001'],
+];
 ---
 <!DOCTYPE html>
 <html lang="en">
@@ -60,6 +66,15 @@ const orgLd = {
     <slot />
   </main>
   <footer class="site-foot">
+    <nav class="linkfarm" aria-label="Popular pages">
+      <h4>Popular right now</h4>
+      <div class="lf-links">
+        {POPULAR.map(([city, pin]) => <a href={`/pincode/${pin}`}>{city} {pin}</a>)}
+        <a href="/states">All States</a>
+        <a href="/search">Search</a>
+        <a href="/saved">🔖 Saved pages</a>
+      </div>
+    </nav>
     <div class="footer-cols">
       <div>
         <p><strong>{SITE.name}</strong></p>
@@ -69,6 +84,7 @@ const orgLd = {
         <p><a href="/search">Search</a></p>
         <p><a href="/states">All States</a></p>
         <p><a href="/chhath/">Chhath 2026</a></p>
+        <p><a href="/saved">Saved pages</a></p>
       </div>
       <div>
         {FOOTER_LINKS.map((l) => <p><a href={l.href}>{l.label}</a></p>)}
@@ -76,6 +92,27 @@ const orgLd = {
     </div>
     <p class="muted">© {new Date().getFullYear()} {SITE.name} · SKM Studio Network · Data: India Post & LGD Directory</p>
   </footer>
+  <button id="save-page-btn" class="save-btn" type="button" title="Save this page to your favourites">🔖 Save</button>
+  <script is:inline>
+    (function () {
+      var b = document.getElementById('save-page-btn');
+      if (!b) return;
+      var key = 'dpc-saved';
+      var url = location.pathname;
+      var title = document.title.replace(/\s*\|.*/, '');
+      function get() { try { return JSON.parse(localStorage.getItem(key)) || []; } catch (e) { return []; } }
+      function isSaved() { return get().some(function (x) { return x.url === url; }); }
+      function render() { b.textContent = isSaved() ? '✓ Saved' : '🔖 Save'; b.setAttribute('aria-pressed', isSaved() ? 'true' : 'false'); }
+      b.addEventListener('click', function () {
+        var list = get();
+        if (isSaved()) { list = list.filter(function (x) { return x.url !== url; }); }
+        else { list.unshift({ url: url, title: title }); }
+        try { localStorage.setItem(key, JSON.stringify(list.slice(0, 200))); } catch (e) {}
+        render();
+      });
+      render();
+    })();
+  </script>
 </body>
 </html>
 
@@ -87,6 +124,27 @@ const orgLd = {
   * { box-sizing: border-box; }
   body { font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; max-width: 1020px; margin: 0 auto; padding: 0 .9rem 2rem; color: var(--text); background: var(--bg); line-height: 1.6; }
   a { color: var(--blue); }
+
+  /* ---- animations (respect reduced motion) ---- */
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  .hero { animation: fadeIn .45s ease both; }
+  .card, .fact { animation: fadeUp .45s ease both; }
+  .card:nth-child(2), .fact:nth-child(2) { animation-delay: .05s; }
+  .card:nth-child(3), .fact:nth-child(3) { animation-delay: .1s; }
+  .card:nth-child(4), .fact:nth-child(4) { animation-delay: .15s; }
+  .card:nth-child(5), .fact:nth-child(5) { animation-delay: .2s; }
+  .card:nth-child(n+6), .fact:nth-child(n+6) { animation-delay: .25s; }
+  details.faq { animation: fadeUp .4s ease both; }
+  details.faq:nth-child(2) { animation-delay: .06s; }
+  details.faq:nth-child(3) { animation-delay: .12s; }
+  details.faq:nth-child(n+4) { animation-delay: .18s; }
+  .card { transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease; }
+  .card:hover { transform: translateY(-3px); box-shadow: 0 6px 18px rgba(18,38,63,.12); border-left-color: var(--accent); }
+  @media (prefers-reduced-motion: reduce) {
+    .hero, .card, .fact, details.faq { animation: none; }
+    .card { transition: none; }
+  }
 
   .site-head { position: sticky; top: 0; z-index: 50; background: var(--navy); margin: 0 -.9rem; padding: .6rem .9rem; display: flex; flex-wrap: wrap; gap: .4rem 1rem; align-items: center; justify-content: space-between; box-shadow: 0 2px 10px rgba(18,38,63,.25); }
   .site-head .brand { color: #fff; font-weight: 700; font-size: 1.05rem; text-decoration: none; display: flex; align-items: center; gap: .4rem; }
@@ -141,6 +199,21 @@ const orgLd = {
   .note { background: #fff7e8; border-left: 4px solid var(--accent); padding: .7rem 1rem; font-size: .88rem; border-radius: 0 10px 10px 0; margin: 1rem 0; }
   .updated { font-size: .8rem; color: var(--muted); margin-top: 2rem; }
   ul.plain { padding-left: 1.2rem; } ul.plain li { margin: .3rem 0; }
+
+  .save-btn { position: fixed; bottom: 16px; left: 16px; z-index: 9998; border: none; border-radius: 8px; padding: 10px 14px; font-size: 14px; font-weight: 600; cursor: pointer; color: #fff; background: var(--blue); box-shadow: 0 2px 8px rgba(0,0,0,.25); font-family: system-ui, sans-serif; }
+  .save-btn:hover { background: #14497e; }
+  .save-btn[aria-pressed="true"] { background: #2a9d8f; }
+  @media (max-width: 480px) { .save-btn { bottom: 10px; left: 10px; padding: 9px 12px; font-size: 13px; } }
+
+  .linkfarm { margin: 1.6rem 0 .6rem; padding: 1rem; background: #fff; border: 1px solid var(--line); border-radius: 12px; }
+  .linkfarm h3, .linkfarm h4 { margin: 0 0 .5rem; font-size: .95rem; color: var(--navy); }
+  .lf-links { display: flex; flex-wrap: wrap; gap: .35rem .4rem; }
+  .lf-links a { text-decoration: none; font-size: .82rem; padding: .28rem .6rem; background: #eef3fa; border-radius: 999px; color: var(--navy); border: 1px solid var(--line); }
+  .lf-links a:hover { background: #dde9f7; border-color: var(--blue); }
+  .site-foot .linkfarm { background: rgba(255,255,255,.06); border-color: rgba(255,255,255,.15); }
+  .site-foot .linkfarm h4 { color: #cfe0f5; }
+  .site-foot .lf-links a { background: rgba(255,255,255,.08); color: #cfe0f5; border-color: rgba(255,255,255,.15); }
+  .site-foot .lf-links a:hover { background: rgba(255,255,255,.16); color: #fff; }
 
   .site-foot { background: var(--navy); color: #cfe0f5; margin: 2rem -.9rem -2rem; padding: 1.6rem 1rem 1.2rem; }
   .site-foot a { color: #fff; }
