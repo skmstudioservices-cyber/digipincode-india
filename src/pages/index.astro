@@ -11,11 +11,17 @@ const states = await getStates(Astro.locals.runtime.env.DB);
   description="Find any Indian pincode, village, or panchayat with LGD codes and local body details. Complete directory of 6 lakh villages and 1.5 lakh+ pincodes, searchable by state and district."
 >
   <section class="hero">
-    <h1>India Pincode Directory</h1>
-    <p>Every pincode, village, and panchayat in India — searchable.</p>
-    <form action="/search" method="get" class="search">
-      <input type="search" name="q" placeholder="Search pincode, village, district…" />
-      <button type="submit">Search</button>
+    <h1>📮 India Pincode Directory</h1>
+    <p class="sub">Every pincode, village, and panchayat in India — searchable.</p>
+    <div class="chips">
+      <span class="chip">🏘️ 6 lakh villages</span>
+      <span class="chip">📮 1.5 lakh+ pincodes</span>
+      <span class="chip">🏛️ Panchayat & LGD data</span>
+      <span class="chip">🛰️ DIGIPIN codes</span>
+    </div>
+    <form action="/search" method="get" class="search" style="margin-top:1rem;display:flex;gap:.5rem;flex-wrap:wrap">
+      <input type="search" name="q" placeholder="Search pincode, village, district…" style="flex:1;min-width:220px;padding:.7rem .9rem;border:1px solid var(--line);border-radius:10px;font-size:1rem" />
+      <button type="submit" style="padding:.7rem 1.3rem;border:none;border-radius:10px;background:#fff;color:var(--navy);font-weight:700;font-size:.95rem;cursor:pointer">Search</button>
     </form>
   </section>
 
@@ -28,19 +34,37 @@ const states = await getStates(Astro.locals.runtime.env.DB);
     <p><a href="/chhath/">View all Chhath Puja 2026 ghats →</a></p>
   </section>
 
-  <section class="states">
-    <h2>Browse by State</h2>
-    <ul>
-      {states.map((s) => (
-        <li><a href={`/state/${s.slug}`}>{s.name}</a></li>
-      ))}
-    </ul>
+  <h2>Browse by State</h2>
+  <p class="intro">Pick a state to drill down: <strong>state → district → tehsil → village → pincode</strong>. Every level has verified data — populations, LGD codes, post offices, panchayats and DIGIPIN where available.</p>
+  <div class="cards">
+    {states.map(s => (
+      <div class="card">
+        <a href={`/state/${s.slug}`}>{s.name}</a>
+        <p class="d">Districts · tehsils · villages · pincodes</p>
+      </div>
+    ))}
+  </div>
+
+  <section class="linkfarm" aria-label="Popular pages">
+    <h3>Popular right now</h3>
+    <div class="lf-links">
+      <a href="/pincode/110001">Delhi 110001</a>
+      <a href="/pincode/400001">Mumbai 400001</a>
+      <a href="/pincode/700001">Kolkata 700001</a>
+      <a href="/pincode/600001">Chennai 600001</a>
+      <a href="/pincode/560001">Bengaluru 560001</a>
+      <a href="/pincode/500001">Hyderabad 500001</a>
+      <a href="/pincode/411001">Pune 411001</a>
+      <a href="/pincode/302001">Jaipur 302001</a>
+      <a href="/pincode/226001">Lucknow 226001</a>
+      <a href="/pincode/800001">Patna 800001</a>
+      <a href="/states">All states</a>
+      <a href="/search">Search everything</a>
+    </div>
   </section>
 </Layout>
 
 <style>
-  .hero { text-align: center; padding: 3rem 1rem; }
-  .search input { padding: .6rem; width: 60%; max-width: 480px; }
   .chhath-banner {
     background: #fff8ec;
     border: 1px solid #f0dcb4;
@@ -51,7 +75,4 @@ const states = await getStates(Astro.locals.runtime.env.DB);
   }
   .chhath-banner h2 { margin: 0 0 .4rem; font-size: 1.25rem; }
   .chhath-banner p { margin: .3rem 0; }
-  .states ul { columns: 3; list-style: none; padding: 0; }
-  .states li { padding: .25rem 0; }
-  @media (max-width: 600px) { .states ul { columns: 1; } }
 </style>

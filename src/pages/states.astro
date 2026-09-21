@@ -6,9 +6,44 @@ import { getStates } from '../lib/db';
 
 const states = await getStates(Astro.locals.runtime.env.DB);
 ---
-<Layout title="India Pincode Directory">
-  <h1>All States</h1>
-  <ul>
-    {states.map(s => <li><a href={`/state/${s.slug}`}>{s.name}</a></li>)}
-  </ul>
+<Layout
+  title="All States of India — Pincode, Village & Panchayat Directory | Digipincode"
+  description={`Browse all ${states.length} states and union territories of India — each with its full district, tehsil, village, panchayat and pincode directory.`}
+>
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    <a href="/">Home</a> › All States
+  </nav>
+
+  <section class="hero">
+    <h1>🗺️ All States of India</h1>
+    <p class="sub">{states.length} states & union territories · complete pincode, village & panchayat directory</p>
+    <div class="chips">
+      <span class="chip">🏘️ 6 lakh villages</span>
+      <span class="chip">📮 1.5 lakh+ pincodes</span>
+      <span class="chip">🏛️ LGD panchayat data</span>
+    </div>
+  </section>
+
+  <p class="intro">
+    Pick any state to browse its <strong>districts → tehsils → villages → pincodes</strong>.
+    Every page in the chain carries verified data: populations, LGD and census codes, post offices, panchayat administration and DIGIPIN where available.
+  </p>
+
+  <div class="cards">
+    {states.map(s => (
+      <div class="card">
+        <a href={`/state/${s.slug}`}>{s.name}</a>
+        <p class="d">Districts · tehsils · villages · pincodes</p>
+      </div>
+    ))}
+  </div>
+
+  <section class="linkfarm" aria-label="Popular pages">
+    <h3>Popular right now</h3>
+    <div class="lf-links">
+      {states.map(s => <a href={`/state/${s.slug}`}>{s.name}</a>)}
+    </div>
+  </section>
+
+  <p class="updated">✅ Data verified September 2026 · <a href="/">Back to search</a></p>
 </Layout>
