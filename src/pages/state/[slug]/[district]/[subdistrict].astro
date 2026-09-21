@@ -1,8 +1,8 @@
 ---
 import Layout from '../../../../layouts/Base.astro';
-// Sub-district page — SSR, lists villages
+// Sub-district page v3 — THICK: stats, largest villages, pincode chips, link farm
 export const prerender = false;
-import { getStateBySlug, getDistrictBySlug, getSubDistrictBySlug, getVillages } from '../../../../lib/db';
+import { getStateBySlug, getDistrictBySlug, getSubDistrictBySlug, getVillages, getSubDistricts } from '../../../../lib/db';
 
 const { slug, district, subdistrict } = Astro.params;
 const state = await getStateBySlug(Astro.locals.runtime.env.DB, slug);
@@ -13,13 +13,20 @@ const sd = await getSubDistrictBySlug(Astro.locals.runtime.env.DB, dist.id, subd
 if (!sd) return Astro.redirect('/404');
 
 const villages = await getVillages(Astro.locals.runtime.env.DB, sd.id);
+// Non-critical enrichment — degrade gracefully instead of 500ing
+let siblings: any[] = [];
+try { siblings = await getSubDistricts(Astro.locals.runtime.env.DB, dist.id); } catch {}
+
+const sorted = [...villages].sort((a, b) => (b.population || 0) - (a.population || 0));
+const top = sorted.slice(0, 8);
+const totalPop = villages.reduce((s, v) => s + (v.population || 0), 0);
+const pincodes = [...new Set(villages.map(v => v.pincode).filter(Boolean))];
 
 const BASE = 'https://digipincode.india-in.workers.dev';
 const url = `${BASE}/state/${state.slug}/${dist.slug}/${sd.slug}`;
-const firstPincodes = [...new Set(villages.map(v => v.pincode))].slice(0, 6);
 const faq = [
-  [`How many villages are in ${sd.name}?`, `${sd.name} in ${dist.name}, ${state.name} has ${villages.length} village${villages.length === 1 ? '' : 's'} listed in our directory.`],
-  [`Which pincodes cover ${sd.name}?`, firstPincodes.length ? `${sd.name} villages use pincodes such as ${firstPincodes.join(', ')}. Open any village page for its exact pincode.` : `Pincode details for ${sd.name} villages are listed on each village page.`],
+  [`How many villages are in ${sd.name}?`, `${sd.name} in ${dist.name}, ${state.name} has ${villages.length} village${villages.length === 1 ? '' : 's'} listed in our directory${totalPop ? ` with a combined population of about ${totalPop.toLocaleString('en-IN')}` : ''}.`],
+  [`Which pincodes cover ${sd.name}?`, pincodes.length ? `${sd.name} villages use ${pincodes.length} pincodes: ${pincodes.slice(0, 8).join(', ')}${pincodes.length > 8 ? ' and more' : ''}. Open any village page for its exact pincode.` : `Pincode details for ${sd.name} villages are listed on each village page.`],
   [`How do I find a village's panchayat in ${sd.name}?`, `Every village page shows its panchayat name, block and LGD code — open a village below to see its full profile.`],
 ];
 const faqLd = { '@context': 'https://schema.org', '@type': 'FAQPage', mainEntity: faq.map(([q, a]) => ({ '@type': 'Question', name: q, acceptedAnswer: { '@type': 'Answer', text: a } })) };
@@ -37,7 +44,7 @@ const shareText = encodeURIComponent(`${sd.name}, ${dist.name} — all ${village
 ---
 <Layout
   title={`${sd.name}, ${dist.name} — All ${villages.length} Villages with Pincodes | ${state.name}`}
-  description={`All ${villages.length} villages in ${sd.name} (${dist.name}, ${state.name}) with pincodes, population, LGD codes, DIGIPIN and panchayat details.`}
+  description={`All ${villages.length} villages in ${sd.name} (${dist.name}, ${state.name}) with pincodes, population, LGD codes, DIGIPIN and panchayat details${totalPop ? `. Combined population: ${totalPop.toLocaleString('en-IN')}.` : '.'}`}
 >
   <Fragment slot="head">
     <script type="application/ld+json" set:html={JSON.stringify(breadcrumb)} />
@@ -50,10 +57,11 @@ const shareText = encodeURIComponent(`${sd.name}, ${dist.name} — all ${village
 
   <section class="hero">
     <h1>{sd.name}</h1>
-    <p class="sub">{dist.name}, {state.name} · {villages.length} villages with pincodes & panchayat data</p>
+    <p class="sub">{dist.name}, {state.name} · {villages.length} villages{totalPop ? ` · ${totalPop.toLocaleString('en-IN')} people` : ''} · pincodes & panchayat data</p>
     <div class="chips">
       <span class="chip">🏘️ {villages.length} villages</span>
-      {firstPincodes.length > 0 && <span class="chip">📮 {firstPincodes.length}+ pincodes</span>}
+      {pincodes.length > 0 && <span class="chip">📮 {pincodes.length} pincodes</span>}
+      {totalPop > 0 && <span class="chip">👥 {totalPop.toLocaleString('en-IN')} people</span>}
       <span class="chip">🇮🇳 {state.name}</span>
     </div>
   </section>
@@ -63,12 +71,40 @@ const shareText = encodeURIComponent(`${sd.name}, ${dist.name} — all ${village
     Each village below has its own page with pincode, population, households, LGD and census codes, DIGIPIN and panchayat administration.
   </p>
 
+  {pincodes.length > 0 && (
+    <>
+      <h2>Pincodes in {sd.name}</h2>
+      <div class="cards">
+        {pincodes.map(p => (
+          <div class="card">
+            <a href={`/pincode/${p}`}>📮 Pincode {p}</a>
+            <p class="d">Post office & served villages</p>
+          </div>
+        ))}
+      </div>
+    </>
+  )}
+
+  {top.length > 0 && (
+    <>
+      <h2>Largest villages in {sd.name}</h2>
+      <div class="cards">
+        {top.map(v => (
+          <div class="card">
+            <a href={`/village/${v.slug}`}>{v.name}</a>
+            <p class="d">📮 {v.pincode}{v.population ? ` · 👥 ${v.population.toLocaleString('en-IN')}` : ''}</p>
+          </div>
+        ))}
+      </div>
+    </>
+  )}
+
   <h2>All villages in {sd.name}</h2>
   <div class="cards">
     {villages.map(v => (
       <div class="card">
         <a href={`/village/${v.slug}`}>{v.name}</a>
-        <p class="d">📮 Pincode {v.pincode}{v.population ? ` · 👥 ${v.population.toLocaleString('en-IN')}` : ''}</p>
+        <p class="d">📮 {v.pincode}{v.population ? ` · 👥 ${v.population.toLocaleString('en-IN')}` : ''}{v.lgd_code ? ` · LGD ${v.lgd_code}` : ''}</p>
       </div>
     ))}
   </div>
@@ -89,6 +125,14 @@ const shareText = encodeURIComponent(`${sd.name}, ${dist.name} — all ${village
     <a class="tg" href={`https://t.me/share/url?url=${shareUrl}&text=${shareText}`} target="_blank" rel="noopener">Telegram</a>
     <button class="cp" onclick={`navigator.clipboard.writeText('${url}');this.textContent='Copied!'`}>Copy link</button>
   </div>
+
+  <section class="linkfarm" aria-label="More in this area">
+    <h3>Explore {dist.name} district</h3>
+    <div class="lf-links">
+      {siblings.map(s => <a href={`/state/${state.slug}/${dist.slug}/${s.slug}`}>{s.name}</a>)}
+      <a href={`/state/${state.slug}/${dist.slug}`}>{dist.name} district ›</a>
+    </div>
+  </section>
 
   <p class="updated">✅ Data verified September 2026 · <a href={`/state/${state.slug}/${dist.slug}`}>More sub-districts in {dist.name}</a></p>
 </Layout>

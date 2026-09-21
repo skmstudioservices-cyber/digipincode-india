@@ -1,0 +1,54 @@
+---
+import Layout from '../layouts/Base.astro';
+// Saved pages — client-side list from localStorage (favourites saved via the Save button)
+export const prerender = true;
+---
+<Layout title="Saved Pages — Your Favourites | Digipincode" description="Your saved pincode, village and panchayat pages on Digipincode.">
+  <Fragment slot="head">
+    <meta name="robots" content="noindex, nofollow" />
+  </Fragment>
+
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    <a href="/">Home</a> › Saved pages
+  </nav>
+
+  <section class="hero">
+    <h1>🔖 Your saved pages</h1>
+    <p class="sub">Pages you saved with the Save button — stored privately on this device.</p>
+  </section>
+
+  <div id="saved-list" class="cards">
+    <p class="intro">Loading…</p>
+  </div>
+
+  <script is:inline>
+    (function () {
+      var list = document.getElementById('saved-list');
+      var key = 'dpc-saved';
+      function get() { try { return JSON.parse(localStorage.getItem(key)) || []; } catch (e) { return []; } }
+      function render() {
+        var items = get();
+        if (!items.length) {
+          list.innerHTML = '<p class="intro">No saved pages yet. Open any pincode, village or district page and tap <strong>🔖 Save</strong> (bottom-left) to keep it here for quick access.</p>';
+          return;
+        }
+        list.innerHTML = items.map(function (x, i) {
+          return '<div class="card"><a href="' + x.url + '">' + x.title.replace(/</g, '<') + '</a>' +
+                 '<p class="d">' + x.url + '</p>' +
+                 '<button class="cp" style="margin-top:.5rem" data-i="' + i + '">Remove</button></div>';
+        }).join('');
+        list.querySelectorAll('button[data-i]').forEach(function (b) {
+          b.addEventListener('click', function () {
+            var items2 = get();
+            items2.splice(Number(b.dataset.i), 1);
+            localStorage.setItem(key, JSON.stringify(items2));
+            render();
+          });
+        });
+      }
+      render();
+    })();
+  </script>
+
+  <p class="note">Saved pages live in your browser's local storage on this device — nothing is sent to any server.</p>
+</Layout>
