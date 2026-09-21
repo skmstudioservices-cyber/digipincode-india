@@ -22,6 +22,20 @@ const POPULAR = [
   ['Jaipur', '302001'], ['Lucknow', '226001'], ['Patna', '800001'], ['Bhopal', '462001'],
   ['Chandigarh', '160001'], ['Guwahati', '781001'], ['Kochi', '682001'], ['Nagpur', '440001'],
 ];
+// Facilities shown on every page — simple English, honest collection status.
+const FACILITIES = [
+  ['🛣️', 'Road'],
+  ['🚰', 'Drinking water'],
+  ['⚡', 'Electricity'],
+  ['🏫', 'School'],
+  ['🏥', 'Hospital / clinic'],
+  ['🚌', 'Bus stop'],
+  ['🚆', 'Railway station'],
+  ['📶', 'Mobile network'],
+  ['🏦', 'Bank / ATM'],
+  ['⭐', 'Famous for'],
+];
+const COLLECTING = 'Coming soon — we are collecting this from government records';
 ---
 <!DOCTYPE html>
 <html lang="en">
@@ -64,6 +78,15 @@ const POPULAR = [
       <span><strong>Regularly updated & verified:</strong> we're continuously expanding this directory towards <strong>10 lakh+ (1 million+) unique, individually verified records</strong> — pincodes, villages, panchayats, LGD codes and post offices. Data is checked and validated on an ongoing basis, so keep visiting for the freshest information.</span>
     </div>
     <slot />
+    <section class="facilities" aria-label="Facilities and basic details">
+      <h2>Facilities & basic details</h2>
+      <p class="intro">We are adding these details for every place in India, one by one. The information below is being collected from government records (Census 2011 and District Census Handbooks). Where a value is not collected yet, we clearly say so — we never fill guessed or wrong data. If you know a place well and something is missing or wrong, please tap the <strong>⚠️ Report an Issue</strong> button and tell us.</p>
+      <div class="factgrid">
+        {FACILITIES.map(([icon, label]) => (
+          <div class="fact"><div class="k">{icon} {label}</div><div class="v collecting">{COLLECTING}</div></div>
+        ))}
+      </div>
+    </section>
   </main>
   <footer class="site-foot">
     <nav class="linkfarm" aria-label="Popular pages">
@@ -125,7 +148,6 @@ const POPULAR = [
   body { font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; max-width: 1020px; margin: 0 auto; padding: 0 .9rem 2rem; color: var(--text); background: var(--bg); line-height: 1.6; }
   a { color: var(--blue); }
 
-  /* ---- animations (respect reduced motion) ---- */
   @keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
   @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
   .hero { animation: fadeIn .45s ease both; }
@@ -155,6 +177,9 @@ const POPULAR = [
 
   .update-banner { display: flex; gap: .6rem; align-items: flex-start; background: linear-gradient(90deg, #e8f4ec, #eaf2fb); border: 1px solid #cfe6d8; border-left: 4px solid #2a9d8f; border-radius: 10px; padding: .7rem .9rem; margin: 0 0 1rem; font-size: clamp(.8rem, 2.6vw, .88rem); line-height: 1.55; color: var(--text); }
   .update-banner .ub-icon { font-size: 1.1rem; flex-shrink: 0; }
+
+  .facilities { margin-top: 2.5rem; }
+  .facilities .v.collecting { color: #8a6d3b; font-weight: 500; font-size: .82rem; line-height: 1.45; }
 
   .hero { background: linear-gradient(135deg, var(--navy), var(--blue)); color: #fff; border-radius: 16px; padding: clamp(1.2rem, 4vw, 2.2rem); margin: 1rem 0; }
   .hero h1 { color: #fff; font-size: clamp(1.35rem, 4.5vw, 2.1rem); line-height: 1.25; margin: 0 0 .4rem; }
