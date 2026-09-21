@@ -1,0 +1,18 @@
+name: IndexNow Debug
+
+on:
+  workflow_dispatch:
+
+jobs:
+  debug:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Debug key file + single URL submit
+        run: |
+          set -x
+          curl -sS -o /dev/null -w "KEYFILE_HTTP:%{http_code}\n" https://digipincode.india-in.workers.dev/e26fc0fb7d7041ab8426b5cb01418673.txt
+          echo "KEYFILE_BODY:[$(curl -sS https://digipincode.india-in.workers.dev/e26fc0fb7d7041ab8426b5cb01418673.txt)]"
+          echo "--- single URL GET submit ---"
+          curl -sS -w "\nHTTP:%{http_code}\n" "https://api.indexnow.org/IndexNow?url=https%3A%2F%2Fdigipincode.india-in.workers.dev%2F&key=e26fc0fb7d7041ab8426b5cb01418673"
+          echo "--- single URL POST submit (with keyLocation) ---"
+          curl -sS -w "\nHTTP:%{http_code}\n" -X POST "https://api.indexnow.org/IndexNow" -H "Content-Type: application/json; charset=utf-8" -d '{"host":"digipincode.india-in.workers.dev","key":"e26fc0fb7d7041ab8426b5cb01418673","keyLocation":"https://digipincode.india-in.workers.dev/e26fc0fb7d7041ab8426b5cb01418673.txt","urlList":["https://digipincode.india-in.workers.dev/"]}'
