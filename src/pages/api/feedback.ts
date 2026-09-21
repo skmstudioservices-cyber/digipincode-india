@@ -1,4 +1,4 @@
-// POST /api/feedback — stores feature requests & update reports in D1
+// POST /api/feedback — stores feature requests, update reports & issue reports in D1
 export const prerender = false;
 
 export async function POST({ request, locals }) {
@@ -10,10 +10,10 @@ export async function POST({ request, locals }) {
     return new Response(JSON.stringify({ error: 'Invalid JSON' }), { status: 400 });
   }
 
-  const type = body.type === 'update' ? 'update' : 'feature';
+  const type = ['update', 'feature', 'issue'].includes(body.type) ? body.type : 'feature';
   const message = String(body.message || '').trim().slice(0, 2000);
   const email = String(body.email || '').trim().slice(0, 200);
-  const url = String(body.url || '').slice(0, 500);
+  const url = String(body.url || '').trim().slice(0, 500);
 
   if (!message) {
     return new Response(JSON.stringify({ error: 'Message required' }), { status: 400 });

@@ -53,6 +53,10 @@ const orgLd = {
     </nav>
   </header>
   <main>
+    <div class="update-banner" role="note">
+      <span class="ub-icon">🔄</span>
+      <span><strong>Regularly updated & verified:</strong> we're continuously expanding this directory towards <strong>10 lakh+ (1 million+) unique, individually verified records</strong> — pincodes, villages, panchayats, LGD codes and post offices. Data is checked and validated on an ongoing basis, so keep visiting for the freshest information.</span>
+    </div>
     <slot />
   </main>
   <footer class="site-foot">
@@ -90,6 +94,9 @@ const orgLd = {
   .site-head nav a { color: #cfe0f5; text-decoration: none; font-weight: 600; font-size: clamp(.8rem, 2.4vw, .9rem); padding: .35rem .65rem; border-radius: 7px; }
   .site-head nav a:hover { background: rgba(255,255,255,.12); color: #fff; }
   main { padding: 1rem 0 2rem; }
+
+  .update-banner { display: flex; gap: .6rem; align-items: flex-start; background: linear-gradient(90deg, #e8f4ec, #eaf2fb); border: 1px solid #cfe6d8; border-left: 4px solid #2a9d8f; border-radius: 10px; padding: .7rem .9rem; margin: 0 0 1rem; font-size: clamp(.8rem, 2.6vw, .88rem); line-height: 1.55; color: var(--text); }
+  .update-banner .ub-icon { font-size: 1.1rem; flex-shrink: 0; }
 
   .hero { background: linear-gradient(135deg, var(--navy), var(--blue)); color: #fff; border-radius: 16px; padding: clamp(1.2rem, 4vw, 2.2rem); margin: 1rem 0; }
   .hero h1 { color: #fff; font-size: clamp(1.35rem, 4.5vw, 2.1rem); line-height: 1.25; margin: 0 0 .4rem; }
