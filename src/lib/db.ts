@@ -61,7 +61,16 @@ export async function getPanchayatsByPincode(db: DB, pincode: string) {
 }
 
 export async function getVillageBySlug(db: DB, slug: string) {
-  return db.prepare('SELECT * FROM villages WHERE slug = ?').bind(slug).first();
+  return db.prepare(`
+    SELECT v.*, s.name AS state_name, s.slug AS state_slug,
+           d.name AS district_name, d.slug AS district_slug,
+           sd.name AS sub_district_name, sd.slug AS sub_district_slug
+    FROM villages v
+    LEFT JOIN sub_districts sd ON sd.id = v.sub_district_id
+    LEFT JOIN districts d ON d.id = sd.district_id
+    LEFT JOIN states s ON s.id = d.state_id
+    WHERE v.slug = ?
+  `).bind(slug).first();
 }
 
 export async function getPanchayatByVillage(db: DB, lgdCode: string) {
@@ -76,6 +85,37 @@ export async function getPanchayatByCode(db: DB, lgdCode: string) {
 export async function getVillagesByPanchayat(db: DB, lgdCode: string) {
   const { results } = await db.prepare('SELECT * FROM villages WHERE lgd_code = ? ORDER BY name').bind(lgdCode).all();
   return results;
+}
+
+// Hierarchy helpers (thick content) — full state › district › tehsil context for a village
+export async function getVillageHierarchy(db: DB, subDistrictId: number) {
+  if (!subDistrictId) return null;
+  return db.prepare(`
+    SELECT sd.name AS sd_name, sd.slug AS sd_slug,
+           d.id AS district_id, d.name AS district_name, d.slug AS district_slug,
+           s.id AS state_id, s.name AS state_name, s.slug AS state_slug
+    FROM sub_districts sd
+    JOIN districts d ON d.id = sd.district_id
+    JOIN states s ON s.id = d.state_id
+    WHERE sd.id = ?
+  `).bind(subDistrictId).first();
+}
+
+export async function getSiblingVillages(db: DB, subDistrictId: number, excludeSlug: string, limit = 12) {
+  const { results } = await db.prepare(`
+    SELECT name, slug, pincode, population FROM villages
+    WHERE sub_district_id = ? AND slug != ?
+    ORDER BY population DESC, name LIMIT ?
+  `).bind(subDistrictId, excludeSlug, limit).all();
+  return results;
+}
+
+export async function getSubdistrictVillageStats(db: DB, subDistrictId: number) {
+  if (!subDistrictId) return null;
+  return db.prepare(`
+    SELECT COUNT(*) AS village_count, SUM(population) AS total_population
+    FROM villages WHERE sub_district_id = ?
+  `).bind(subDistrictId).first();
 }
 
 export async function searchAll(db: DB, q: string) {

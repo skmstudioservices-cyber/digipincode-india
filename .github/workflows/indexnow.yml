@@ -1,0 +1,17 @@
+name: IndexNow Submit
+
+on:
+  schedule:
+    - cron: '30 0 * * 0' # Sunday 06:00 IST — notify Bing & IndexNow partners of all URLs
+  workflow_dispatch:
+
+jobs:
+  submit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Submit all sitemap URLs to IndexNow
+        run: node scripts/indexnow-submit.mjs
