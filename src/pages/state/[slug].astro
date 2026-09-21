@@ -1,14 +1,20 @@
 ---
 import Layout from '../../layouts/Base.astro';
-// State page — SSR, lists districts
+// State page v3 — thick: district cards with sub-district counts + link farm
 export const prerender = false;
-import { getStateBySlug, getDistrictsByState } from '../../lib/db';
+import { getStateBySlug, getDistrictsByState, getSubdistrictCountsByState } from '../../lib/db';
 
 const { slug } = Astro.params;
 const state = await getStateBySlug(Astro.locals.runtime.env.DB, slug);
 if (!state) return Astro.redirect('/404');
 
 const districts = await getDistrictsByState(Astro.locals.runtime.env.DB, state.id);
+// Non-critical enrichment — degrade gracefully instead of 500ing
+let sdCounts: Record<string, number> = {};
+try {
+  const rows = await getSubdistrictCountsByState(Astro.locals.runtime.env.DB, state.id);
+  for (const r of rows) sdCounts[r.district_id] = r.sd_count;
+} catch {}
 
 const BASE = 'https://digipincode.india-in.workers.dev';
 const url = `${BASE}/state/${state.slug}`;
@@ -54,7 +60,7 @@ const shareText = encodeURIComponent(`${state.name} — all districts, pincodes,
 
   <p class="intro">
     Browse every <strong>pincode, village and panchayat in {state.name}</strong> district by district.
-    Each district page lists its sub-districts (tehsils/taluks), and each sub-district page lists every village with its pincode, population, LGD code and DIGIPIN where available.
+    Each district page lists its sub-districts (tehsils/taluks) with village counts, and each sub-district page lists every village with its pincode, population, LGD code and DIGIPIN where available.
   </p>
 
   <h2>Districts of {state.name}</h2>
@@ -62,7 +68,7 @@ const shareText = encodeURIComponent(`${state.name} — all districts, pincodes,
     {districts.map(d => (
       <div class="card">
         <a href={`/state/${state.slug}/${d.slug}`}>{d.name}</a>
-        <p class="d">Sub-districts, villages & pincodes</p>
+        <p class="d">{sdCounts[d.id] ? `${sdCounts[d.id]} sub-districts · villages & pincodes` : 'Sub-districts, villages & pincodes'}</p>
       </div>
     ))}
   </div>
@@ -83,6 +89,14 @@ const shareText = encodeURIComponent(`${state.name} — all districts, pincodes,
     <a class="tg" href={`https://t.me/share/url?url=${shareUrl}&text=${shareText}`} target="_blank" rel="noopener">Telegram</a>
     <button class="cp" onclick={`navigator.clipboard.writeText('${url}');this.textContent='Copied!'`}>Copy link</button>
   </div>
+
+  <section class="linkfarm" aria-label="More in this state">
+    <h3>Explore {state.name} by district</h3>
+    <div class="lf-links">
+      {districts.map(d => <a href={`/state/${state.slug}/${d.slug}`}>{d.name}</a>)}
+      <a href="/states">All India states ›</a>
+    </div>
+  </section>
 
   <p class="updated">✅ Data verified September 2026 · <a href="/states">All India states</a></p>
 </Layout>

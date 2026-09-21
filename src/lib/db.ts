@@ -165,6 +165,39 @@ export async function getSubdistrictVillageStats(db: DB, subDistrictId: number) 
   );
 }
 
+// District-level thick content (scoped queries — safe for D1 free tier)
+export async function getSubdistrictCountsByState(db: DB, stateId: number) {
+  const { results } = await withRetry(() =>
+    db.prepare(`
+    SELECT district_id, COUNT(*) AS sd_count FROM sub_districts
+    WHERE district_id IN (SELECT id FROM districts WHERE state_id = ?)
+    GROUP BY district_id
+  `).bind(stateId).all()
+  );
+  return results;
+}
+
+export async function getDistrictVillageStats(db: DB, districtId: number) {
+  return withRetry(() =>
+    db.prepare(`
+    SELECT COUNT(*) AS village_count, SUM(v.population) AS total_population
+    FROM villages v JOIN sub_districts sd ON sd.id = v.sub_district_id
+    WHERE sd.district_id = ?
+  `).bind(districtId).first()
+  );
+}
+
+export async function getTopVillagesByDistrict(db: DB, districtId: number, limit = 12) {
+  const { results } = await withRetry(() =>
+    db.prepare(`
+    SELECT v.name, v.slug, v.pincode, v.population, v.lgd_code, v.sub_district_id
+    FROM villages v JOIN sub_districts sd ON sd.id = v.sub_district_id
+    WHERE sd.district_id = ? ORDER BY v.population DESC, v.name LIMIT ?
+  `).bind(districtId, limit).all()
+  );
+  return results;
+}
+
 export async function searchAll(db: DB, q: string) {
   const like = `%${q}%`;
   const pincodes = await withRetry(() =>
