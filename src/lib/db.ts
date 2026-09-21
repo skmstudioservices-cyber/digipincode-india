@@ -3,65 +3,103 @@ import type { D1Database } from '@cloudflare/workers-types';
 
 type DB = D1Database;
 
+// ---------------------------------------------------------------------------
+// withRetry: transient D1 read errors (intermittent HTTP 500s observed on
+// SSR pages since 21 Sep 2026) recover on a second attempt — re-fetches of
+// failing URLs succeed moments later. We retry twice with a short backoff,
+// then rethrow so real errors still surface.
+// ---------------------------------------------------------------------------
+async function withRetry<T>(op: () => Promise<T>, tries = 3): Promise<T> {
+  let lastErr: unknown;
+  for (let i = 0; i < tries; i++) {
+    try {
+      return await op();
+    } catch (e) {
+      lastErr = e;
+      if (i < tries - 1) {
+        await new Promise((r) => setTimeout(r, 150 * (i + 1) * (i + 1)));
+      }
+    }
+  }
+  throw lastErr;
+}
+
 export async function getStates(db: DB) {
-  const { results } = await db.prepare('SELECT * FROM states ORDER BY name').all();
+  const { results } = await withRetry(() => db.prepare('SELECT * FROM states ORDER BY name').all());
   return results;
 }
 
 export async function getStateBySlug(db: DB, slug: string) {
-  return db.prepare('SELECT * FROM states WHERE slug = ?').bind(slug).first();
+  return withRetry(() => db.prepare('SELECT * FROM states WHERE slug = ?').bind(slug).first());
 }
 
 export async function getDistrictsByState(db: DB, stateId: number) {
-  const { results } = await db.prepare('SELECT * FROM districts WHERE state_id = ? ORDER BY name').bind(stateId).all();
+  const { results } = await withRetry(() =>
+    db.prepare('SELECT * FROM districts WHERE state_id = ? ORDER BY name').bind(stateId).all()
+  );
   return results;
 }
 
 export async function getDistrictBySlug(db: DB, stateId: number, slug: string) {
-  return db.prepare('SELECT * FROM districts WHERE state_id = ? AND slug = ?').bind(stateId, slug).first();
+  return withRetry(() =>
+    db.prepare('SELECT * FROM districts WHERE state_id = ? AND slug = ?').bind(stateId, slug).first()
+  );
 }
 
 export async function getSubDistricts(db: DB, districtId: number) {
-  const { results } = await db.prepare('SELECT * FROM sub_districts WHERE district_id = ? ORDER BY name').bind(districtId).all();
+  const { results } = await withRetry(() =>
+    db.prepare('SELECT * FROM sub_districts WHERE district_id = ? ORDER BY name').bind(districtId).all()
+  );
   return results;
 }
 
 export async function getSubDistrictBySlug(db: DB, districtId: number, slug: string) {
-  return db.prepare('SELECT * FROM sub_districts WHERE district_id = ? AND slug = ?').bind(districtId, slug).first();
+  return withRetry(() =>
+    db.prepare('SELECT * FROM sub_districts WHERE district_id = ? AND slug = ?').bind(districtId, slug).first()
+  );
 }
 
 export async function getVillages(db: DB, subDistrictId: number) {
-  const { results } = await db.prepare('SELECT * FROM villages WHERE sub_district_id = ? ORDER BY name').bind(subDistrictId).all();
+  const { results } = await withRetry(() =>
+    db.prepare('SELECT * FROM villages WHERE sub_district_id = ? ORDER BY name').bind(subDistrictId).all()
+  );
   return results;
 }
 
 export async function getPincode(db: DB, pincode: string) {
-  return db.prepare(`
+  return withRetry(() =>
+    db.prepare(`
     SELECT p.*, s.name AS state_name, s.slug AS state_slug,
            d.name AS district_name, d.slug AS district_slug
     FROM pincodes p
     JOIN states s ON s.id = p.state_id
     JOIN districts d ON d.id = p.district_id
     WHERE p.pincode = ?
-  `).bind(pincode).first();
+  `).bind(pincode).first()
+  );
 }
 
 export async function getVillagesByPincode(db: DB, pincode: string) {
-  const { results } = await db.prepare('SELECT * FROM villages WHERE pincode = ? ORDER BY name').bind(pincode).all();
+  const { results } = await withRetry(() =>
+    db.prepare('SELECT * FROM villages WHERE pincode = ? ORDER BY name').bind(pincode).all()
+  );
   return results;
 }
 
 export async function getPanchayatsByPincode(db: DB, pincode: string) {
-  const { results } = await db.prepare(`
+  const { results } = await withRetry(() =>
+    db.prepare(`
     SELECT DISTINCT l.* FROM lgd_panchayats l
     JOIN villages v ON v.lgd_code = l.lgd_code
     WHERE v.pincode = ?
-  `).bind(pincode).all();
+  `).bind(pincode).all()
+  );
   return results;
 }
 
 export async function getVillageBySlug(db: DB, slug: string) {
-  return db.prepare(`
+  return withRetry(() =>
+    db.prepare(`
     SELECT v.*, s.name AS state_name, s.slug AS state_slug,
            d.name AS district_name, d.slug AS district_slug,
            sd.name AS sub_district_name, sd.slug AS sub_district_slug
@@ -70,27 +108,31 @@ export async function getVillageBySlug(db: DB, slug: string) {
     LEFT JOIN districts d ON d.id = sd.district_id
     LEFT JOIN states s ON s.id = d.state_id
     WHERE v.slug = ?
-  `).bind(slug).first();
+  `).bind(slug).first()
+  );
 }
 
 export async function getPanchayatByVillage(db: DB, lgdCode: string) {
   if (!lgdCode) return null;
-  return db.prepare('SELECT * FROM lgd_panchayats WHERE lgd_code = ?').bind(lgdCode).first();
+  return withRetry(() => db.prepare('SELECT * FROM lgd_panchayats WHERE lgd_code = ?').bind(lgdCode).first());
 }
 
 export async function getPanchayatByCode(db: DB, lgdCode: string) {
-  return db.prepare('SELECT * FROM lgd_panchayats WHERE lgd_code = ?').bind(lgdCode).first();
+  return withRetry(() => db.prepare('SELECT * FROM lgd_panchayats WHERE lgd_code = ?').bind(lgdCode).first());
 }
 
 export async function getVillagesByPanchayat(db: DB, lgdCode: string) {
-  const { results } = await db.prepare('SELECT * FROM villages WHERE lgd_code = ? ORDER BY name').bind(lgdCode).all();
+  const { results } = await withRetry(() =>
+    db.prepare('SELECT * FROM villages WHERE lgd_code = ? ORDER BY name').bind(lgdCode).all()
+  );
   return results;
 }
 
 // Hierarchy helpers (thick content) — full state › district › tehsil context for a village
 export async function getVillageHierarchy(db: DB, subDistrictId: number) {
   if (!subDistrictId) return null;
-  return db.prepare(`
+  return withRetry(() =>
+    db.prepare(`
     SELECT sd.name AS sd_name, sd.slug AS sd_slug,
            d.id AS district_id, d.name AS district_name, d.slug AS district_slug,
            s.id AS state_id, s.name AS state_name, s.slug AS state_slug
@@ -98,42 +140,53 @@ export async function getVillageHierarchy(db: DB, subDistrictId: number) {
     JOIN districts d ON d.id = sd.district_id
     JOIN states s ON s.id = d.state_id
     WHERE sd.id = ?
-  `).bind(subDistrictId).first();
+  `).bind(subDistrictId).first()
+  );
 }
 
 export async function getSiblingVillages(db: DB, subDistrictId: number, excludeSlug: string, limit = 12) {
-  const { results } = await db.prepare(`
+  const { results } = await withRetry(() =>
+    db.prepare(`
     SELECT name, slug, pincode, population FROM villages
     WHERE sub_district_id = ? AND slug != ?
     ORDER BY population DESC, name LIMIT ?
-  `).bind(subDistrictId, excludeSlug, limit).all();
+  `).bind(subDistrictId, excludeSlug, limit).all()
+  );
   return results;
 }
 
 export async function getSubdistrictVillageStats(db: DB, subDistrictId: number) {
   if (!subDistrictId) return null;
-  return db.prepare(`
+  return withRetry(() =>
+    db.prepare(`
     SELECT COUNT(*) AS village_count, SUM(population) AS total_population
     FROM villages WHERE sub_district_id = ?
-  `).bind(subDistrictId).first();
+  `).bind(subDistrictId).first()
+  );
 }
 
 export async function searchAll(db: DB, q: string) {
   const like = `%${q}%`;
-  const pincodes = await db.prepare(`
+  const pincodes = await withRetry(() =>
+    db.prepare(`
     SELECT pincode AS title, '/pincode/' || pincode AS url FROM pincodes
     WHERE pincode LIKE ? OR office_name LIKE ? LIMIT 20
-  `).bind(like, like).all();
+  `).bind(like, like).all()
+  );
 
-  const villages = await db.prepare(`
+  const villages = await withRetry(() =>
+    db.prepare(`
     SELECT name AS title, '/village/' || slug AS url FROM villages
     WHERE name LIKE ? LIMIT 20
-  `).bind(like).all();
+  `).bind(like).all()
+  );
 
-  const panchayats = await db.prepare(`
+  const panchayats = await withRetry(() =>
+    db.prepare(`
     SELECT local_body_name AS title, '/panchayat/' || lgd_code AS url FROM lgd_panchayats
     WHERE local_body_name LIKE ? LIMIT 20
-  `).bind(like).all();
+  `).bind(like).all()
+  );
 
   return [...pincodes.results, ...villages.results, ...panchayats.results].slice(0, 50);
 }
