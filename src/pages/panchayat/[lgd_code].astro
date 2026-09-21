@@ -9,23 +9,101 @@ const panchayat = await getPanchayatByCode(Astro.locals.runtime.env.DB, lgd_code
 if (!panchayat) return Astro.redirect('/404');
 
 const villages = await getVillagesByPanchayat(Astro.locals.runtime.env.DB, lgd_code);
+
+const BASE = 'https://digipincode.india-in.workers.dev';
+const url = `${BASE}/panchayat/${panchayat.lgd_code}`;
+const villageNames = villages.slice(0, 4).map(v => v.name).join(', ');
+const faq = [
+  [`What is ${panchayat.local_body_name}?`, `${panchayat.local_body_name} is a ${panchayat.local_body_type} in ${panchayat.block_name} block, ${panchayat.district_name} district, ${panchayat.state_name}, with LGD code ${panchayat.lgd_code}.`],
+  [`How many villages are under ${panchayat.local_body_name}?`, villages.length ? `${panchayat.local_body_name} administers ${villages.length} village${villages.length === 1 ? '' : 's'}, including ${villageNames}.` : `Village mapping for this panchayat is being updated.`],
+  [`What is the population of ${panchayat.local_body_name}?`, panchayat.population ? `As per census data, ${panchayat.local_body_name} covers a population of ${panchayat.population.toLocaleString('en-IN')} across ${panchayat.households?.toLocaleString('en-IN') ?? '—'} households in ${panchayat.area_km2} km².` : `Population data is not available for this panchayat yet.`],
+];
+const faqLd = { '@context': 'https://schema.org', '@type': 'FAQPage', mainEntity: faq.map(([q, a]) => ({ '@type': 'Question', name: q, acceptedAnswer: { '@type': 'Answer', text: a } })) };
+const breadcrumb = {
+  '@context': 'https://schema.org', '@type': 'BreadcrumbList',
+  itemListElement: [
+    { '@type': 'ListItem', position: 1, name: 'Home', item: `${BASE}/` },
+    { '@type': 'ListItem', position: 2, name: `${panchayat.district_name} Panchayats`, item: `${BASE}/states` },
+    { '@type': 'ListItem', position: 3, name: panchayat.local_body_name, item: `${BASE}/panchayat/${panchayat.lgd_code}` },
+  ],
+};
+const shareUrl = encodeURIComponent(url);
+const shareText = encodeURIComponent(`${panchayat.local_body_name} — ${panchayat.district_name}, ${panchayat.state_name}`);
 ---
-<Layout title={`${panchayat.local_body_name} — Panchayat`}>
-  <h1>{panchayat.local_body_name}</h1>
-  <p>{panchayat.local_body_type} · {panchayat.district_name}, {panchayat.state_name}</p>
+<Layout
+  title={`${panchayat.local_body_name}, ${panchayat.district_name} — Villages, Population & LGD Code`}
+  description={`${panchayat.local_body_name} (${panchayat.local_body_type}) in ${panchayat.district_name}, ${panchayat.state_name}: ${villages.length} villages, population, households, area, LGD code and block details.`}
+>
+  <Fragment slot="head">
+    <script type="application/ld+json" set:html={JSON.stringify(breadcrumb)} />
+    <script type="application/ld+json" set:html={JSON.stringify(faqLd)} />
+  </Fragment>
 
-  <table class="details">
-    <tr><th>LGD Code</th><td>{panchayat.lgd_code}</td></tr>
-    <tr><th>Block</th><td>{panchayat.block_name}</td></tr>
-    <tr><th>Population</th><td>{panchayat.population?.toLocaleString()}</td></tr>
-    <tr><th>Households</th><td>{panchayat.households?.toLocaleString()}</td></tr>
-    <tr><th>Area</th><td>{panchayat.area_km2} km²</td></tr>
-    {panchayat.head_name && <tr><th>Sarpanch</th><td>{panchayat.head_name}</td></tr>}
-    {panchayat.website && <tr><th>Website</th><td><a href={panchayat.website}>{panchayat.website}</a></td></tr>}
-  </table>
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    <a href="/">Home</a> › {panchayat.district_name} › {panchayat.local_body_name}
+  </nav>
 
-  <h2>Villages</h2>
-  <ul>
-    {villages.map(v => <li><a href={`/village/${v.slug}`}>{v.name}</a></li>)}
-  </ul>
+  <section class="hero">
+    <h1>🏛️ {panchayat.local_body_name}</h1>
+    <p class="sub">{panchayat.local_body_type} · {panchayat.block_name} block · {panchayat.district_name}, {panchayat.state_name}</p>
+    <div class="chips">
+      <span class="chip">🏘️ {villages.length} villages</span>
+      {panchayat.population && <span class="chip">👥 {panchayat.population.toLocaleString('en-IN')}</span>}
+      {panchayat.area_km2 && <span class="chip">📐 {panchayat.area_km2} km²</span>}
+    </div>
+  </section>
+
+  <p class="intro">
+    <strong>{panchayat.local_body_name}</strong> is a {panchayat.local_body_type} in {panchayat.block_name} block of {panchayat.district_name} district, {panchayat.state_name}, registered with the Local Government Directory under code <strong>{panchayat.lgd_code}</strong>.
+    It administers {villages.length} village${villages.length === 1 ? '' : 's'}.
+  </p>
+
+  <div class="factgrid">
+    <div class="fact"><div class="k">LGD Code</div><div class="v">{panchayat.lgd_code}</div></div>
+    <div class="fact"><div class="k">Block</div><div class="v">{panchayat.block_name}</div></div>
+    <div class="fact"><div class="k">District</div><div class="v">{panchayat.district_name}</div></div>
+    <div class="fact"><div class="k">State</div><div class="v">{panchayat.state_name}</div></div>
+    <div class="fact"><div class="k">Population</div><div class="v">{panchayat.population?.toLocaleString('en-IN') ?? '—'}</div></div>
+    <div class="fact"><div class="k">Households</div><div class="v">{panchayat.households?.toLocaleString('en-IN') ?? '—'}</div></div>
+    <div class="fact"><div class="k">Area</div><div class="v">{panchayat.area_km2 ? `${panchayat.area_km2} km²` : '—'}</div></div>
+    {panchayat.head_name && <div class="fact"><div class="k">Sarpanch</div><div class="v">{panchayat.head_name}</div></div>}
+  </div>
+
+  {panchayat.website && (
+    <p>🌐 Official website: <a href={panchayat.website} rel="noopener">{panchayat.website}</a></p>
+  )}
+
+  {villages.length > 0 && (
+    <>
+      <h2>Villages under {panchayat.local_body_name}</h2>
+      <div class="cards">
+        {villages.map(v => (
+          <div class="card">
+            <a href={`/village/${v.slug}`}>{v.name}</a>
+            {v.pincode && <p class="d">📮 Pincode {v.pincode}</p>}
+          </div>
+        ))}
+      </div>
+    </>
+  )}
+
+  <h2>Frequently asked questions</h2>
+  {faq.map(([q, a]) => (
+    <details class="faq">
+      <summary>{q}</summary>
+      <p>{a}</p>
+    </details>
+  ))}
+
+  <div class="share">
+    <span class="lbl">Share:</span>
+    <a class="wa" href={`https://wa.me/?text=${shareText}%20${shareUrl}`} target="_blank" rel="noopener">WhatsApp</a>
+    <a class="fb" href={`https://www.facebook.com/sharer/sharer.php?u=${shareUrl}`} target="_blank" rel="noopener">Facebook</a>
+    <a class="x" href={`https://twitter.com/intent/tweet?url=${shareUrl}&text=${shareText}`} target="_blank" rel="noopener">X</a>
+    <a class="tg" href={`https://t.me/share/url?url=${shareUrl}&text=${shareText}`} target="_blank" rel="noopener">Telegram</a>
+    <button class="cp" onclick={`navigator.clipboard.writeText('${url}');this.textContent='Copied!'`}>Copy link</button>
+  </div>
+
+  <p class="note">Panchayat details from the Ministry of Panchayati Raj's Local Government Directory (LGD).</p>
+  <p class="updated">✅ Data verified September 2026</p>
 </Layout>

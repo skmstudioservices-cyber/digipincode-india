@@ -8,6 +8,14 @@ const {
   title = 'India Pincode Directory',
   description = 'Search any Indian pincode, village, or panchayat. Complete directory with LGD codes, census data, and local body information.'
 } = Astro.props;
+const BASE = 'https://digipincode.india-in.workers.dev';
+const orgLd = {
+  '@context': 'https://schema.org',
+  '@graph': [
+    { '@type': 'WebSite', '@id': `${BASE}/#website`, name: 'Digipincode', url: `${BASE}/`, inLanguage: 'en-IN' },
+    { '@type': 'Organization', '@id': `${BASE}/#org`, name: 'Digipincode — SKM Studio Network', url: `${BASE}/` },
+  ],
+};
 ---
 <!DOCTYPE html>
 <html lang="en">
@@ -20,11 +28,16 @@ const {
   <meta name="robots" content="index, follow" />
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="Digipincode" />
+  <meta property="og:locale" content="en_IN" />
   <meta property="og:title" content={title} />
   <meta property="og:description" content={description} />
   <meta property="og:url" content={Astro.url.href} />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content={title} />
+  <meta name="twitter:description" content={description} />
   <link rel="canonical" href={Astro.url.href} />
   <link rel="sitemap" href="/sitemap.xml" />
+  <script type="application/ld+json" set:html={JSON.stringify(orgLd)} />
   <script is:inline src="https://analytics.ahrefs.com/analytics.js" data-key="gOliiXpzU4P4bK1z+5QfgA" async></script>
   <script>
     import { initFeedbackButtons } from '../components/FeedbackWidget';
@@ -33,49 +46,98 @@ const {
   <slot name="head" />
 </head>
 <body>
-  <header>
-    <nav>
+  <header class="site-head">
+    <a class="brand" href="/"><span class="logo">📮</span> Digipincode</a>
+    <nav aria-label="Main menu">
       {NAV_LINKS.map((l) => <a href={l.href}>{l.label}</a>)}
     </nav>
   </header>
   <main>
     <slot />
   </main>
-  <footer>
+  <footer class="site-foot">
     <div class="footer-cols">
       <div>
-        <p><strong>{SITE.name}</strong> — 6 lakh villages, panchayats & pincodes</p>
-        <p>
-          <a href="/search">Search</a> ·
-          <a href="/states">States</a> ·
-          <a href="/chhath/">Chhath 2026</a>
-        </p>
+        <p><strong>{SITE.name}</strong></p>
+        <p class="muted">6 lakh villages, panchayats & pincodes of India — with LGD codes, census data and DIGIPIN.</p>
+      </div>
+      <div>
+        <p><a href="/search">Search</a></p>
+        <p><a href="/states">All States</a></p>
+        <p><a href="/chhath/">Chhath 2026</a></p>
       </div>
       <div>
         {FOOTER_LINKS.map((l) => <p><a href={l.href}>{l.label}</a></p>)}
       </div>
     </div>
-    <p>© {new Date().getFullYear()} {SITE.name} · SKM Studio Network</p>
+    <p class="muted">© {new Date().getFullYear()} {SITE.name} · SKM Studio Network · Data: India Post & LGD Directory</p>
   </footer>
 </body>
 </html>
 
-<style>
-  body { font-family: system-ui, sans-serif; max-width: 960px; margin: 0 auto; padding: 1rem; color: #1a1a1a; }
-  header { border-bottom: 1px solid #ddd; padding: .5rem 0; }
-  header nav { display: flex; flex-wrap: wrap; gap: .5rem .75rem; }
-  header nav a { text-decoration: none; color: #1a1a1a; font-weight: 600; }
-  main { padding: 1rem 0; }
-  footer { border-top: 1px solid #ddd; padding: .5rem 0; font-size: .85rem; color: #666; }
-  .footer-cols { display: flex; flex-wrap: wrap; gap: 1rem 2rem; justify-content: space-between; }
-  .footer-cols p { margin: .25rem 0; }
-  table.details { border-collapse: collapse; margin: 1rem 0; }
-  table.details th { text-align: left; padding: .4rem .8rem; background: #f5f5f5; border: 1px solid #ddd; }
-  table.details td { padding: .4rem .8rem; border: 1px solid #ddd; }
-  .breadcrumb { font-size: .85rem; color: #666; margin-bottom: 1rem; }
-  .breadcrumb a { color: #0066cc; }
-  .desc { color: #444; line-height: 1.5; }
-  ul { padding-left: 1.2rem; }
-  li { margin: .3rem 0; }
-  a { color: #0066cc; }
+<style is:global>
+  :root {
+    --navy: #12263f; --blue: #1a5fb4; --accent: #e85d04;
+    --bg: #f6f8fb; --line: #e3e8f0; --text: #1c2430; --muted: #5b6b7f;
+  }
+  * { box-sizing: border-box; }
+  body { font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; max-width: 1020px; margin: 0 auto; padding: 0 .9rem 2rem; color: var(--text); background: var(--bg); line-height: 1.6; }
+  a { color: var(--blue); }
+
+  .site-head { position: sticky; top: 0; z-index: 50; background: var(--navy); margin: 0 -.9rem; padding: .6rem .9rem; display: flex; flex-wrap: wrap; gap: .4rem 1rem; align-items: center; justify-content: space-between; box-shadow: 0 2px 10px rgba(18,38,63,.25); }
+  .site-head .brand { color: #fff; font-weight: 700; font-size: 1.05rem; text-decoration: none; display: flex; align-items: center; gap: .4rem; }
+  .site-head nav { display: flex; flex-wrap: wrap; gap: .15rem .3rem; }
+  .site-head nav a { color: #cfe0f5; text-decoration: none; font-weight: 600; font-size: clamp(.8rem, 2.4vw, .9rem); padding: .35rem .65rem; border-radius: 7px; }
+  .site-head nav a:hover { background: rgba(255,255,255,.12); color: #fff; }
+  main { padding: 1rem 0 2rem; }
+
+  .hero { background: linear-gradient(135deg, var(--navy), var(--blue)); color: #fff; border-radius: 16px; padding: clamp(1.2rem, 4vw, 2.2rem); margin: 1rem 0; }
+  .hero h1 { color: #fff; font-size: clamp(1.35rem, 4.5vw, 2.1rem); line-height: 1.25; margin: 0 0 .4rem; }
+  .hero .sub { color: #dbe6f5; font-size: clamp(.9rem, 2.6vw, 1.05rem); margin: 0; }
+  .chips { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .8rem; }
+  .chip { background: rgba(255,255,255,.14); border: 1px solid rgba(255,255,255,.28); color: #fff; padding: .22rem .75rem; border-radius: 999px; font-size: .8rem; }
+
+  .breadcrumb { font-size: .85rem; color: var(--muted); margin: .9rem 0; }
+  .breadcrumb a { color: var(--blue); }
+  h2 { color: var(--navy); font-size: clamp(1.15rem, 3.5vw, 1.5rem); margin: 2rem 0 .6rem; }
+  .intro { font-size: clamp(.95rem, 2.6vw, 1.05rem); line-height: 1.7; }
+
+  .factgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: .7rem; margin: 1rem 0; }
+  .fact { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: .7rem .9rem; }
+  .fact .k { font-size: .72rem; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+  .fact .v { font-weight: 700; color: var(--navy); font-size: clamp(.92rem, 2.5vw, 1.02rem); word-break: break-word; }
+
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: .7rem; margin: 1rem 0; }
+  .card { background: #fff; border: 1px solid var(--line); border-left: 4px solid var(--blue); border-radius: 12px; padding: .8rem 1rem; }
+  .card a { font-weight: 600; text-decoration: none; }
+  .card a:hover { text-decoration: underline; }
+  .card .d { font-size: .85rem; color: var(--muted); margin: .25rem 0 0; }
+
+  .tablewrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  table.details { width: 100%; border-collapse: collapse; background: #fff; font-size: .95rem; margin: 1rem 0; min-width: 460px; }
+  table.details th { text-align: left; padding: .5rem .8rem; background: #eef3fa; color: var(--navy); border: 1px solid var(--line); white-space: nowrap; }
+  table.details td { padding: .5rem .8rem; border: 1px solid var(--line); }
+
+  details.faq { background: #fff; border: 1px solid var(--line); border-radius: 10px; margin: .5rem 0; overflow: hidden; }
+  details.faq summary { cursor: pointer; font-weight: 600; padding: .8rem 1rem; color: var(--navy); list-style: none; display: flex; justify-content: space-between; gap: .5rem; }
+  details.faq summary::-webkit-details-marker { display: none; }
+  details.faq summary::after { content: '+'; font-size: 1.2rem; color: var(--blue); flex-shrink: 0; }
+  details.faq[open] summary { border-bottom: 1px solid var(--line); background: #f2f6fc; }
+  details.faq[open] summary::after { content: '−'; }
+  details.faq p, details.faq div { padding: .75rem 1rem; margin: 0; }
+
+  .share { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; margin: 1.4rem 0; }
+  .share span.lbl { font-size: .85rem; color: var(--muted); font-weight: 600; }
+  .share a, .share button { border: none; border-radius: 8px; padding: .5rem .95rem; font-size: .85rem; font-weight: 600; text-decoration: none; cursor: pointer; color: #fff; font-family: inherit; }
+  .wa { background: #25d366; } .x { background: #111; } .fb { background: #1877f2; } .tg { background: #229ed9; } .cp { background: var(--muted); }
+
+  .note { background: #fff7e8; border-left: 4px solid var(--accent); padding: .7rem 1rem; font-size: .88rem; border-radius: 0 10px 10px 0; margin: 1rem 0; }
+  .updated { font-size: .8rem; color: var(--muted); margin-top: 2rem; }
+  ul.plain { padding-left: 1.2rem; } ul.plain li { margin: .3rem 0; }
+
+  .site-foot { background: var(--navy); color: #cfe0f5; margin: 2rem -.9rem -2rem; padding: 1.6rem 1rem 1.2rem; }
+  .site-foot a { color: #fff; }
+  .footer-cols { display: flex; flex-wrap: wrap; gap: 1.5rem 2.5rem; justify-content: space-between; }
+  .footer-cols p { margin: .3rem 0; font-size: .9rem; }
+  .site-foot .muted { color: #8fa8c7; font-size: .8rem; }
 </style>

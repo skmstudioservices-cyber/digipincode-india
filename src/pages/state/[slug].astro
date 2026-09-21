@@ -11,6 +11,13 @@ if (!state) return Astro.redirect('/404');
 const districts = await getDistrictsByState(Astro.locals.runtime.env.DB, state.id);
 
 const BASE = 'https://digipincode.india-in.workers.dev';
+const url = `${BASE}/state/${state.slug}`;
+const faq = [
+  [`How many districts are there in ${state.name}?`, `Our directory lists ${districts.length} districts in ${state.name}. Select any district below to browse its sub-districts, villages and pincodes.`],
+  [`How do I find a pincode in ${state.name}?`, `Open the district you need from the list below, then drill down to the sub-district and village level. Each page shows the exact pincode, post office and LGD details.`],
+  [`What is the pincode format used in ${state.name}?`, `Like all of India, ${state.name} uses 6-digit pincodes managed by India Post. The first digit indicates the postal region.`],
+];
+const faqLd = { '@context': 'https://schema.org', '@type': 'FAQPage', mainEntity: faq.map(([q, a]) => ({ '@type': 'Question', name: q, acceptedAnswer: { '@type': 'Answer', text: a } })) };
 const breadcrumb = {
   '@context': 'https://schema.org',
   '@type': 'BreadcrumbList',
@@ -19,18 +26,63 @@ const breadcrumb = {
     { '@type': 'ListItem', position: 2, name: state.name, item: `${BASE}/state/${state.slug}` },
   ],
 };
+const shareUrl = encodeURIComponent(url);
+const shareText = encodeURIComponent(`${state.name} — all districts, pincodes, villages & panchayats`);
 ---
 <Layout
-  title={`${state.name} Pincode Directory — All Districts & Pincodes`}
-  description={`Browse all districts and pincodes in ${state.name}. Complete ${state.name} pincode list with village, panchayat and post office details.`}
+  title={`${state.name} Pincode Directory — All ${districts.length} Districts, Pincodes & Villages`}
+  description={`Complete ${state.name} pincode directory: all ${districts.length} districts with sub-districts, villages, panchayats, LGD codes and post office details.`}
 >
-  <script type="application/ld+json" set:html={JSON.stringify(breadcrumb)} />
-  <nav class="breadcrumb">
+  <Fragment slot="head">
+    <script type="application/ld+json" set:html={JSON.stringify(breadcrumb)} />
+    <script type="application/ld+json" set:html={JSON.stringify(faqLd)} />
+  </Fragment>
+
+  <nav class="breadcrumb" aria-label="Breadcrumb">
     <a href="/">Home</a> › {state.name}
   </nav>
 
-  <h1>{state.name} — Districts</h1>
-  <ul>
-    {districts.map(d => <li><a href={`/state/${state.slug}/${d.slug}`}>{d.name}</a></li>)}
-  </ul>
+  <section class="hero">
+    <h1>{state.name} Pincode Directory</h1>
+    <p class="sub">All {districts.length} districts · sub-districts · villages · panchayats · pincodes</p>
+    <div class="chips">
+      <span class="chip">🗺️ {districts.length} districts</span>
+      <span class="chip">📮 Full pincode data</span>
+      <span class="chip">🏘️ Village profiles</span>
+    </div>
+  </section>
+
+  <p class="intro">
+    Browse every <strong>pincode, village and panchayat in {state.name}</strong> district by district.
+    Each district page lists its sub-districts (tehsils/taluks), and each sub-district page lists every village with its pincode, population, LGD code and DIGIPIN where available.
+  </p>
+
+  <h2>Districts of {state.name}</h2>
+  <div class="cards">
+    {districts.map(d => (
+      <div class="card">
+        <a href={`/state/${state.slug}/${d.slug}`}>{d.name}</a>
+        <p class="d">Sub-districts, villages & pincodes</p>
+      </div>
+    ))}
+  </div>
+
+  <h2>Frequently asked questions</h2>
+  {faq.map(([q, a]) => (
+    <details class="faq">
+      <summary>{q}</summary>
+      <p>{a}</p>
+    </details>
+  ))}
+
+  <div class="share">
+    <span class="lbl">Share:</span>
+    <a class="wa" href={`https://wa.me/?text=${shareText}%20${shareUrl}`} target="_blank" rel="noopener">WhatsApp</a>
+    <a class="fb" href={`https://www.facebook.com/sharer/sharer.php?u=${shareUrl}`} target="_blank" rel="noopener">Facebook</a>
+    <a class="x" href={`https://twitter.com/intent/tweet?url=${shareUrl}&text=${shareText}`} target="_blank" rel="noopener">X</a>
+    <a class="tg" href={`https://t.me/share/url?url=${shareUrl}&text=${shareText}`} target="_blank" rel="noopener">Telegram</a>
+    <button class="cp" onclick={`navigator.clipboard.writeText('${url}');this.textContent='Copied!'`}>Copy link</button>
+  </div>
+
+  <p class="updated">✅ Data verified September 2026 · <a href="/states">All India states</a></p>
 </Layout>

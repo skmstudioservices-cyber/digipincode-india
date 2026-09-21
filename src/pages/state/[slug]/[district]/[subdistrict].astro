@@ -13,10 +13,82 @@ const sd = await getSubDistrictBySlug(Astro.locals.runtime.env.DB, dist.id, subd
 if (!sd) return Astro.redirect('/404');
 
 const villages = await getVillages(Astro.locals.runtime.env.DB, sd.id);
+
+const BASE = 'https://digipincode.india-in.workers.dev';
+const url = `${BASE}/state/${state.slug}/${dist.slug}/${sd.slug}`;
+const firstPincodes = [...new Set(villages.map(v => v.pincode))].slice(0, 6);
+const faq = [
+  [`How many villages are in ${sd.name}?`, `${sd.name} in ${dist.name}, ${state.name} has ${villages.length} village${villages.length === 1 ? '' : 's'} listed in our directory.`],
+  [`Which pincodes cover ${sd.name}?`, firstPincodes.length ? `${sd.name} villages use pincodes such as ${firstPincodes.join(', ')}. Open any village page for its exact pincode.` : `Pincode details for ${sd.name} villages are listed on each village page.`],
+  [`How do I find a village's panchayat in ${sd.name}?`, `Every village page shows its panchayat name, block and LGD code — open a village below to see its full profile.`],
+];
+const faqLd = { '@context': 'https://schema.org', '@type': 'FAQPage', mainEntity: faq.map(([q, a]) => ({ '@type': 'Question', name: q, acceptedAnswer: { '@type': 'Answer', text: a } })) };
+const breadcrumb = {
+  '@context': 'https://schema.org', '@type': 'BreadcrumbList',
+  itemListElement: [
+    { '@type': 'ListItem', position: 1, name: 'Home', item: `${BASE}/` },
+    { '@type': 'ListItem', position: 2, name: state.name, item: `${BASE}/state/${state.slug}` },
+    { '@type': 'ListItem', position: 3, name: dist.name, item: `${BASE}/state/${state.slug}/${dist.slug}` },
+    { '@type': 'ListItem', position: 4, name: sd.name, item: `${BASE}/state/${state.slug}/${dist.slug}/${sd.slug}` },
+  ],
+};
+const shareUrl = encodeURIComponent(url);
+const shareText = encodeURIComponent(`${sd.name}, ${dist.name} — all ${villages.length} villages & pincodes`);
 ---
-<Layout title={`${sd.name} — Villages`}>
-  <h1>{sd.name} — {villages.length} Villages</h1>
-  <ul>
-    {villages.map(v => <li><a href={`/pincode/${v.pincode}`}>{v.name}</a></li>)}
-  </ul>
+<Layout
+  title={`${sd.name}, ${dist.name} — All ${villages.length} Villages with Pincodes | ${state.name}`}
+  description={`All ${villages.length} villages in ${sd.name} (${dist.name}, ${state.name}) with pincodes, population, LGD codes, DIGIPIN and panchayat details.`}
+>
+  <Fragment slot="head">
+    <script type="application/ld+json" set:html={JSON.stringify(breadcrumb)} />
+    <script type="application/ld+json" set:html={JSON.stringify(faqLd)} />
+  </Fragment>
+
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    <a href="/">Home</a> › <a href={`/state/${state.slug}`}>{state.name}</a> › <a href={`/state/${state.slug}/${dist.slug}`}>{dist.name}</a> › {sd.name}
+  </nav>
+
+  <section class="hero">
+    <h1>{sd.name}</h1>
+    <p class="sub">{dist.name}, {state.name} · {villages.length} villages with pincodes & panchayat data</p>
+    <div class="chips">
+      <span class="chip">🏘️ {villages.length} villages</span>
+      {firstPincodes.length > 0 && <span class="chip">📮 {firstPincodes.length}+ pincodes</span>}
+      <span class="chip">🇮🇳 {state.name}</span>
+    </div>
+  </section>
+
+  <p class="intro">
+    <strong>{sd.name}</strong> is a sub-district (tehsil/taluk) of {dist.name} in {state.name}, covering <strong>{villages.length} villages</strong>.
+    Each village below has its own page with pincode, population, households, LGD and census codes, DIGIPIN and panchayat administration.
+  </p>
+
+  <h2>All villages in {sd.name}</h2>
+  <div class="cards">
+    {villages.map(v => (
+      <div class="card">
+        <a href={`/village/${v.slug}`}>{v.name}</a>
+        <p class="d">📮 Pincode {v.pincode}{v.population ? ` · 👥 ${v.population.toLocaleString('en-IN')}` : ''}</p>
+      </div>
+    ))}
+  </div>
+
+  <h2>Frequently asked questions</h2>
+  {faq.map(([q, a]) => (
+    <details class="faq">
+      <summary>{q}</summary>
+      <p>{a}</p>
+    </details>
+  ))}
+
+  <div class="share">
+    <span class="lbl">Share:</span>
+    <a class="wa" href={`https://wa.me/?text=${shareText}%20${shareUrl}`} target="_blank" rel="noopener">WhatsApp</a>
+    <a class="fb" href={`https://www.facebook.com/sharer/sharer.php?u=${shareUrl}`} target="_blank" rel="noopener">Facebook</a>
+    <a class="x" href={`https://twitter.com/intent/tweet?url=${shareUrl}&text=${shareText}`} target="_blank" rel="noopener">X</a>
+    <a class="tg" href={`https://t.me/share/url?url=${shareUrl}&text=${shareText}`} target="_blank" rel="noopener">Telegram</a>
+    <button class="cp" onclick={`navigator.clipboard.writeText('${url}');this.textContent='Copied!'`}>Copy link</button>
+  </div>
+
+  <p class="updated">✅ Data verified September 2026 · <a href={`/state/${state.slug}/${dist.slug}`}>More sub-districts in {dist.name}</a></p>
 </Layout>
