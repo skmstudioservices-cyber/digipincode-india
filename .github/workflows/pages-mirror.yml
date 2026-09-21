@@ -2,6 +2,8 @@ name: Mirror site to Pages (digipincode.pages.dev)
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
 
 concurrency:
   group: pages-mirror-digipincode
@@ -29,7 +31,12 @@ jobs:
         run: npm run build
 
       - name: Create Pages project (first run)
-        run: npx --yes wrangler pages project create digipincode --production-branch=main || echo "PROJECT_EXISTS_OR_NAME_TAKEN"
+        run: npx --yes wrangler pages project create digipincode --production-branch=main || echo "PROJECT_ALREADY_EXISTS"
+
+      - name: Swap wrangler config to Pages mode
+        run: |
+          mv wrangler.jsonc wrangler-workers.jsonc.bak
+          cp wrangler-pages.toml wrangler.toml
 
       - name: Deploy to Pages (mirror)
-        run: npx --yes wrangler pages deploy --project-name=digipincode --branch=main --commit-dirty=true --config wrangler-pages.toml
+        run: npx --yes wrangler pages deploy --project-name=digipincode --branch=main --commit-dirty=true
