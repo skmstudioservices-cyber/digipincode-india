@@ -1,6 +1,7 @@
 ---
 import Layout from '../../layouts/Base.astro';
 // Village page v3 — THICK: full state › district › tehsil › panchayat › post-office hierarchy on every page
+// (Facilities section renders site-wide from Base.astro)
 export const prerender = false;
 import { getVillageBySlug, getPanchayatByVillage, getPincode, getSiblingVillages, getSubdistrictVillageStats } from '../../lib/db';
 
@@ -21,23 +22,6 @@ const districtSlug = village.district_slug || '';
 const tehsilSlug = village.sub_district_slug || '';
 const where = districtName ? `${districtName}, ${stateName}` : stateName;
 const tehsilVillages = stats?.village_count ?? 0;
-
-// Village facilities — verified-value slots. amen.* will be filled from the
-// Census 2011 Village Directory / DCHB import; until then each field shows a
-// transparent collection status instead of an empty or invented value.
-const amen = (village as any).amenities || null;
-const facilities = [
-  ['🛣️ Road & approach', amen?.road_type ?? 'Aggregating — road type being verified from Census 2011 Village Directory'],
-  ['🚰 Drinking water', amen?.water_source ?? 'Collecting — primary water source from verified census records'],
-  ['⚡ Electricity', amen?.electricity ?? 'Collecting — domestic power supply status from verified records'],
-  ['🏫 Schools', amen?.schools ?? 'Aggregating — pre-primary/senior-secondary data from verified records'],
-  ['🏥 Medical facility', amen?.medical ?? 'Aggregating — nearest health facility data from verified records'],
-  ['🚌 Bus stop', amen?.bus_stop ?? 'Collecting — nearest bus stop / transport point from verified sources'],
-  ['🚆 Railway station', amen?.rail_station ?? 'Collecting — nearest railway station & distance from verified sources'],
-  ['📶 Mobile coverage', amen?.mobile ?? 'Aggregating — network coverage status from verified records'],
-  ['🏦 Banking', amen?.bank ?? 'Aggregating — banking & credit society data from verified records'],
-  ['⭐ Known for', amen?.famous_for ?? 'Collecting — local highlights are being compiled from user reports & verified sources'],
-];
 
 const BASE = 'https://digipincode.india-in.workers.dev';
 const url = `${BASE}/village/${village.slug}`;
@@ -161,14 +145,6 @@ const shareText = encodeURIComponent(`${village.name} village — Pincode ${vill
       <p class="intro">To address mail to {village.name}, write: recipient name, {village.name}, {office.taluk}, {districtName || office.district_name}, {stateName} — PIN <strong>{village.pincode}</strong>.</p>
     </>
   )}
-
-  <h2>Village facilities & infrastructure</h2>
-  <p class="intro">Infrastructure data for {village.name} is being aggregated from verified government records — Census 2011 Village Directory and District Census Handbooks. Fields below fill in as verification completes; found something that needs correcting? Use the ⚠️ <em>Report an Issue</em> button.</p>
-  <div class="factgrid">
-    {facilities.map(([label, value]) => (
-      <div class="fact"><div class="k">{label}</div><div class="v">{value}</div></div>
-    ))}
-  </div>
 
   {siblings.length > 0 && (
     <>
