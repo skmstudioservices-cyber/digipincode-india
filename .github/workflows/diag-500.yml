@@ -2,45 +2,43 @@ name: Diag State 500s
 on:
   workflow_dispatch:
 
+permissions:
+  actions: write
+
 jobs:
   diag:
     runs-on: ubuntu-latest
     steps:
-      - name: Discover state slugs
-        run: |
-          curl -s --max-time 30 "https://digipincode.india-in.workers.dev/states" -o /tmp/states.html
-          grep -oE 'href="/state/[^"]+"' /tmp/states.html | sed 's|href="/state/||; s|"||' | sort -u > /tmp/states.txt
-          echo "states found: $(wc -l < /tmp/states.txt)"
-
-      - name: Tail worker logs while hammering state pages
+      - name: Tail worker logs while Site Monitor crawls
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
         run: |
           npx --yes wrangler@latest tail digipincode --format json > /tmp/tail.jsonl 2>/tmp/tail.err &
           TAILPID=$!
           sleep 15
-          for s in $(cat /tmp/states.txt); do
-            code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 25 "https://digipincode.india-in.workers.dev/state/$s")
-            echo "PASS1 /state/$s -> $code"
+          echo "=== dispatching Site Monitor (it crawls ~130 links) ==="
+          gh workflow run site-monitor.yml -R "$REPO" --ref main
+          sleep 150
+          echo "=== own spot checks during tail window ==="
+          for i in 1 2 3 4 5 6 7 8; do
+            for u in "/states" "/sitemap.xml" "/state/goa" "/state/mizoram" "/state/haryana" "/state/chandigarh"; do
+              code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 20 "https://digipincode.india-in.workers.dev$u?cb=$i")
+              [ "$code" != "200" ] && echo "SPOT $u cb=$i -> $code"
+            done
           done
-          for s in $(cat /tmp/states.txt); do
-            code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 25 "https://digipincode.india-in.workers.dev/state/$s?r=2")
-            echo "PASS2 /state/$s -> $code"
-          done
-          for u in "/sitemap.xml" "/states" "/search"; do
-            code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 25 "https://digipincode.india-in.workers.dev$u")
-            echo "CORE $u -> $code"
-          done
+          echo "SPOT CHECKS DONE"
           kill $TAILPID 2>/dev/null || true
-          sleep 5
-          echo "=== TAIL STDERR (last 10) ==="
-          tail -10 /tmp/tail.err || true
+          sleep 6
+          echo "=== TAIL STDERR (last 6) ==="
+          tail -6 /tmp/tail.err || true
           echo "=== TAIL EVENT COUNT ==="
-          wc -l /tmp/tail.jsonl || true
-          echo "=== EXCEPTION / ERROR EVENTS ==="
-          grep -E '"outcome":"(exception|exceededCpu|exceededMemory)"|exception' /tmp/tail.jsonl | head -30 || echo "(no exception events)"
-          echo "=== NON-OK OUTCOMES SUMMARY ==="
-          grep -oE '"outcome":"[a-zA-Z]+"' /tmp/tail.jsonl | sort | uniq -c || true
-          echo "=== FIRST 3 RAW TAIL LINES ==="
-          head -3 /tmp/tail.jsonl || true
+          wc -l < /tmp/tail.jsonl || true
+          echo "=== NON-OK OUTCOMES ==="
+          grep -oE '"outcome": ?"[a-zA-Z]+"' /tmp/tail.jsonl | sort | uniq -c || echo none
+          echo "=== EXCEPTION EVENTS (first 40 lines) ==="
+          grep -B2 -A25 '"outcome": *"exception"' /tmp/tail.jsonl | head -80 || echo "(no exception events captured)"
+          echo "=== ANY 5xx-LOOKING LINES ==="
+          grep -iE '"status":50[0-4]|error|failed' /tmp/tail.jsonl | grep -v '"exceptions": \[\]' | head -20 || echo "(none)"
