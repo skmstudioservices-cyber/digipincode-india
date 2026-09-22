@@ -32,7 +32,7 @@ jobs:
         run: |
           set -e
           echo "=== seo-keywords-db: tables ==="
-          npx --yes wrangler d1 execute seo-keywords-db --remote --json --command "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name" 2>/dev/null | grep -o '"name": *"[^"]*"' | sed 's/.*: *"//;s/"$//' | tr '\n' ' ' 
+          npx --yes wrangler d1 execute seo-keywords-db --remote --json --command "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '\_cf%' ESCAPE '\' ORDER BY name" 2>/dev/null | grep -o '"name": *"[^"]*"' | sed 's/.*: *"//;s/"$//' | tr '\n' ' ' 
           echo "=== seo-keywords-db: keywords per site ==="
           npx --yes wrangler d1 execute seo-keywords-db --remote --json --command "SELECT site, COUNT(*) AS n FROM keywords GROUP BY site ORDER BY n DESC"
           echo "=== examstatus-db: info ==="
@@ -95,7 +95,7 @@ jobs:
           count() {
             npx --yes wrangler d1 execute "$1" --remote --json --command "$2" 2>/dev/null | grep -o '"n": *[0-9]*' | head -1 | grep -o '[0-9]*'
           }
-          TABLES=$(npx --yes wrangler d1 execute examstatus-db --remote --json --command "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name" 2>/dev/null | grep -o '"name": *"[^"]*"' | sed 's/.*: *"//;s/"$//' | tr '\n' ' ')
+          TABLES=$(npx --yes wrangler d1 execute examstatus-db --remote --json --command "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '\_cf%' ESCAPE '\' ORDER BY name" 2>/dev/null | grep -o '"name": *"[^"]*"' | sed 's/.*: *"//;s/"$//' | tr '\n' ' ')
           echo "tables: $TABLES"
           FAIL=0
           for t in $TABLES; do
@@ -143,7 +143,7 @@ jobs:
           count() {
             npx --yes wrangler d1 execute "$1" --remote --json --command "$2" 2>/dev/null | grep -o '"n": *[0-9]*' | head -1 | grep -o '[0-9]*'
           }
-          TABLES=$(npx --yes wrangler d1 execute examstatus-db --remote --json --command "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name" 2>/dev/null | grep -o '"name": *"[^"]*"' | sed 's/.*: *"//;s/"$//' | tr '\n' ' ')
+          TABLES=$(npx --yes wrangler d1 execute examstatus-db --remote --json --command "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '\_cf%' ESCAPE '\' ORDER BY name" 2>/dev/null | grep -o '"name": *"[^"]*"' | sed 's/.*: *"//;s/"$//' | tr '\n' ' ')
           echo "tables: $TABLES"
           FAIL=0
           for t in $TABLES; do
