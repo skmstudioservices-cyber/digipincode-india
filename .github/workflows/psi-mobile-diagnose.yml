@@ -2,6 +2,8 @@ name: PSI Mobile Diagnose
 
 on:
   workflow_dispatch:
+  schedule:
+    - cron: '20 0 * * *'  # 05:50 IST daily — verify PSI right after free-quota reset
 
 jobs:
   diagnose:
@@ -25,8 +27,6 @@ jobs:
               jq '{perf: .categories.performance.score, acc: .categories.accessibility.score, seo: .categories.seo.score, fcp: .audits["first-contentful-paint"].displayValue, lcp: .audits["largest-contentful-paint"].displayValue, tbt: .audits["total-blocking-time"].displayValue, cls: .audits["cumulative-layout-shift"].displayValue}' "/tmp/lh$name.json"
               echo "--- FAILING AUDITS (score < 1) ---"
               jq '[.audits | to_entries[] | select(.value.score != null and .value.score < 1) | {id: .key, score: .value.score, title: .value.title}]' "/tmp/lh$name.json"
-              echo "--- A11Y AUDIT ITEM DETAILS ---"
-              jq '[.audits | to_entries[] | select(.value.score == 0) | {id: .key, items: (.value.details.items // [] | .[:3])}]' "/tmp/lh$name.json"
             else
               echo "NO REPORT GENERATED"
             fi
