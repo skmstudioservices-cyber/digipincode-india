@@ -1,0 +1,6 @@
+{
+  "name": "karvachauth-build",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": { "suncalc": "^1.9.0" }
+}
