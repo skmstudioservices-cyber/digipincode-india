@@ -1,0 +1,120 @@
+name: D1 Write Queue (one-time, 22 Sep 2026)
+
+on:
+  workflow_dispatch:
+    inputs:
+      step:
+        description: 'Queue step to run'
+        required: true
+        type: choice
+        options:
+          - state
+          - q1-test
+          - q1-full
+          - q2-test
+          - q2-full
+          - q3-copy
+          - q4-examstatus-move
+
+jobs:
+  queue:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: State (read-only checks)
+        if: inputs.step == 'state'
+        run: |
+          set -e
+          echo "=== seo-keywords-db: tables ==="
+          npx --yes wrangler d1 execute seo-keywords-db --remote --json --command "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name"
+          echo "=== seo-keywords-db: keywords per site ==="
+          npx --yes wrangler d1 execute seo-keywords-db --remote --json --command "SELECT site, COUNT(*) AS n FROM keywords GROUP BY site ORDER BY n DESC"
+          echo "=== seo-keywords-db: negative_keywords per site ==="
+          npx --yes wrangler d1 execute seo-keywords-db --remote --json --command "SELECT site, COUNT(*) AS n FROM negative_keywords GROUP BY site ORDER BY n DESC"
+          echo "=== examstatus-db: info ==="
+          npx --yes wrangler d1 info examstatus-db || true
+          echo "=== examstatus-db: tables ==="
+          npx --yes wrangler d1 execute examstatus-db --remote --json --command "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name"
+
+      - name: Q1 test (emergency kw tables + 5 rows)
+        if: inputs.step == 'q1-test'
+        run: |
+          set -e
+          npx --yes wrangler d1 execute seo-keywords-db --remote --file=./seo/queue/q1-test.sql
+          echo "=== verify: test rows ==="
+          npx --yes wrangler d1 execute seo-keywords-db --remote --json --command "SELECT keyword, intent, status FROM emergency_kw_location"
+          npx --yes wrangler d1 execute seo-keywords-db --remote --json --command "SELECT COUNT(*) AS total FROM emergency_kw_location"
+
+      - name: Q1 full (all 27 emergency keywords)
+        if: inputs.step == 'q1-full'
+        run: |
+          set -e
+          npx --yes wrangler d1 execute seo-keywords-db --remote --file=./seo/queue/q1-full.sql
+          echo "=== verify: counts per category table ==="
+          npx --yes wrangler d1 execute seo-keywords-db --remote --json --command "SELECT 'location' AS tbl, COUNT(*) AS n FROM emergency_kw_location UNION ALL SELECT 'blood_stock', COUNT(*) FROM emergency_kw_blood_stock UNION ALL SELECT 'donors', COUNT(*) FROM emergency_kw_donors UNION ALL SELECT 'eligibility', COUNT(*) FROM emergency_kw_eligibility UNION ALL SELECT 'medical_terms', COUNT(*) FROM emergency_kw_medical_terms UNION ALL SELECT 'icu_beds', COUNT(*) FROM emergency_kw_icu_beds"
+          echo "=== verify: sample ==="
+          npx --yes wrangler d1 execute seo-keywords-db --remote --json --command "SELECT keyword, intent, status, added_on FROM emergency_kw_blood_stock"
+
+      - name: Q2 test (gsc_digipincode_blogger + 5 rows)
+        if: inputs.step == 'q2-test'
+        run: |
+          set -e
+          npx --yes wrangler d1 execute seo-keywords-db --remote --file=./seo/queue/q2-test.sql
+          echo "=== verify: test rows ==="
+          npx --yes wrangler d1 execute seo-keywords-db --remote --json --command "SELECT query, clicks, impressions, position FROM gsc_digipincode_blogger ORDER BY impressions DESC"
+
+      - name: Q2 full (all GSC blogger queries)
+        if: inputs.step == 'q2-full'
+        run: |
+          set -e
+          npx --yes wrangler d1 execute seo-keywords-db --remote --file=./seo/queue/q2-full.sql
+          echo "=== verify: count + totals ==="
+          npx --yes wrangler d1 execute seo-keywords-db --remote --json --command "SELECT COUNT(*) AS rows, SUM(clicks) AS clicks, SUM(impressions) AS impressions, MIN(window_start) AS ws, MAX(window_end) AS we FROM gsc_digipincode_blogger"
+          echo "=== verify: top 5 by impressions ==="
+          npx --yes wrangler d1 execute seo-keywords-db --remote --json --command "SELECT query, clicks, impressions, ROUND(position,1) AS pos FROM gsc_digipincode_blogger ORDER BY impressions DESC LIMIT 5"
+
+      - name: Q3 per-site keyword tables copy
+        if: inputs.step == 'q3-copy'
+        run: |
+          set -e
+          npx --yes wrangler d1 execute seo-keywords-db --remote --file=./seo/queue/q3-site-copy.sql
+          echo "=== verify: per-site table counts ==="
+          npx --yes wrangler d1 execute seo-keywords-db --remote --json --command "SELECT site, COUNT(*) AS n FROM keywords GROUP BY site ORDER BY n DESC"
+          npx --yes wrangler d1 execute seo-keywords-db --remote --json --command "SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 'kw_%' ORDER BY name"
+
+      - name: Q4 examstatus-db ENAM to APAC move (create, export, import, verify)
+        if: inputs.step == 'q4-examstatus-move'
+        run: |
+          set -e
+          echo "=== 1. Create new APAC database ==="
+          npx --yes wrangler d1 create examstatus-db-apac --location apac || echo "(may already exist — continuing)"
+          npx --yes wrangler d1 info examstatus-db-apac || true
+
+          echo "=== 2. Export old ENAM database ==="
+          npx --yes wrangler d1 export examstatus-db --remote --output=examstatus-enam-dump.sql
+          ROWS=$(grep -c '^INSERT INTO' examstatus-enam-dump.sql || true)
+          echo "Row-writes needed for import: $ROWS"
+          if [ "$ROWS" -gt 90000 ]; then
+            echo "ABORT: $ROWS row-writes would exceed the ~100k/day D1 write budget. Stopping before import."
+            exit 1
+          fi
+
+          echo "=== 3. Import dump into APAC database ==="
+          npx --yes wrangler d1 execute examstatus-db-apac --remote --file=examstatus-enam-dump.sql
+
+          echo "=== 4. Verify: per-table counts old vs new ==="
+          TABLES=$(npx --yes wrangler d1 execute examstatus-db --remote --json --command "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name" | jq -r '.[0].results[].name')
+          FAIL=0
+          for t in $TABLES; do
+            OLD=$(npx --yes wrangler d1 execute examstatus-db --remote --json --command "SELECT COUNT(*) AS n FROM \"$t\"" | jq -r '.[0].results[0].n')
+            NEW=$(npx --yes wrangler d1 execute examstatus-db-apac --remote --json --command "SELECT COUNT(*) AS n FROM \"$t\"" | jq -r '.[0].results[0].n')
+            echo "table $t: ENAM=$OLD APAC=$NEW"
+            if [ "$OLD" != "$NEW" ]; then echo "MISMATCH on $t"; FAIL=1; fi
+          done
+          if [ "$FAIL" != "0" ]; then echo "VERIFICATION FAILED"; exit 1; fi
+          echo "=== OK: all table counts match. Old ENAM db left in place (NOT deleted). ==="
