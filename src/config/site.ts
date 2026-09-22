@@ -13,6 +13,7 @@ export const NAV_LINKS = [
   { href: '/', label: 'Home' },
   { href: '/search', label: 'Search' },
   { href: '/states', label: 'States' },
+  { href: '/digipin/', label: 'DIGIPIN' },
   { href: '/chhath/', label: 'Chhath 2026' },
   { href: '/about', label: 'About' },
   { href: '/contact', label: 'Contact' },

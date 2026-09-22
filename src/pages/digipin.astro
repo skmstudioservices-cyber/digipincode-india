@@ -1,0 +1,204 @@
+---
+import Layout from '../layouts/Base.astro';
+// DIGIPIN hub — targets rising queries: "my digipin", "find my digipin",
+// "what is my digipin", "how to get digipin", "digipin vs pincode".
+// Encoder/decoder algorithm copied VERBATIM from the official Government of
+// India open-source repo: https://github.com/INDIAPOST-gov/digipin
+// (Department of Posts, developed with IIT Hyderabad and NRSC, ISRO).
+export const prerender = false;
+const BASE = 'https://digipincode.india-in.workers.dev';
+const url = `${BASE}/digipin/`;
+const title = 'DIGIPIN — What is My DIGIPIN? Find, Decode & Understand India\u2019s Digital Address Code | Digipincode';
+const desc = 'What is my DIGIPIN? Use our free DIGIPIN finder and decoder tools (official India Post algorithm). Learn what DIGIPIN is, how to get yours, and how it differs from a pincode — in simple English.';
+const faq = [
+  ['What is my DIGIPIN?', 'Your DIGIPIN is a 10-character alphanumeric code that represents the exact location of your home or address — an area of about 4 metres by 4 metres. It is built from the latitude and longitude of your address. Use the tool on this page to find yours, or use the official India Post DIGIPIN portal.'],
+  ['How do I find my DIGIPIN?', 'Open the India Post DIGIPIN portal (indiapost.gov.in) and allow location access, or type your address — the portal shows your 10-character DIGIPIN. You can also use the free tool on this page: tap “Use my location”, or enter latitude and longitude, and your DIGIPIN appears instantly.'],
+  ['Is DIGIPIN the same as pincode?', 'No. A pincode (PIN) identifies a postal delivery area — one pincode can cover many streets and villages. A DIGIPIN identifies one exact spot on the ground (about 4m x 4m). They work together: the pincode tells the post office which area you are in, the DIGIPIN tells the exact point.'],
+  ['How many characters are in a DIGIPIN?', 'Exactly 10, using 16 approved symbols: 2, 3, 4, 5, 6, 7, 8, 9, C, F, J, K, L, M, P, T. No spaces or hyphens are allowed. For easy reading it may be shown in a 3-4-3 pattern, like 39J 438T JC7.'],
+  ['Who created DIGIPIN?', 'The Department of Posts (India Post), Government of India, in collaboration with IIT Hyderabad and NRSC (ISRO). It was released in 2025 as an open-source national addressing grid.'],
+];
+const faqLd = { '@context': 'https://schema.org', '@type': 'FAQPage', mainEntity: faq.map(([q, a]) => ({ '@type': 'Question', name: q, acceptedAnswer: { '@type': 'Answer', text: a } })) };
+const crumbLd = { '@context': 'https://schema.org', '@type': 'BreadcrumbList', itemListElement: [
+  { '@type': 'ListItem', position: 1, name: 'Home', item: `${BASE}/` },
+  { '@type': 'ListItem', position: 2, name: 'DIGIPIN', item: url },
+] };
+---
+<Layout title={title} description={desc}>
+  <Fragment slot="head">
+    <script type="application/ld+json" set:html={JSON.stringify(crumbLd)} />
+    <script type="application/ld+json" set:html={JSON.stringify(faqLd)} />
+  </Fragment>
+  <nav class="breadcrumb" aria-label="Breadcrumb"><a href="/">Home</a> › DIGIPIN</nav>
+  <section class="hero">
+    <h1>🛰️ DIGIPIN — India’s Digital Address Code</h1>
+    <p class="sub">Find your DIGIPIN, decode any DIGIPIN, and understand how it works — free tools using the official India Post algorithm.</p>
+    <div class="chips">
+      <span class="chip">📍 10-character code</span>
+      <span class="chip">📐 ~4m × 4m precision</span>
+      <span class="chip">🏛️ By India Post · IIT Hyderabad · NRSC (ISRO)</span>
+    </div>
+  </section>
+
+  <p class="intro">
+    <strong>DIGIPIN</strong> (Digital PIN) is the Government of India’s new addressing system that gives every location in India a unique
+    10-character code. Unlike a pincode, which covers a whole area, a DIGIPIN points to an exact spot on the ground — about
+    4 metres by 4 metres. It was created by the <strong>Department of Posts</strong> with <strong>IIT Hyderabad</strong> and <strong>NRSC (ISRO)</strong>,
+    and works everywhere in India — cities, villages, fields, even places with no formal address at all.
+  </p>
+
+  <h2>Find your DIGIPIN</h2>
+  <p class="intro">Tap the button to use your current location, or type latitude and longitude. Your DIGIPIN is calculated in your browser using the official India Post algorithm — nothing is sent to any server.</p>
+  <div class="tool">
+    <button id="geo-btn" type="button" class="toolbtn">📍 Use my location</button>
+    <div class="toolrow">
+      <input id="in-lat" type="number" step="0.0000001" placeholder="Latitude (e.g. 28.6139)" />
+      <input id="in-lon" type="number" step="0.0000001" placeholder="Longitude (e.g. 77.209)" />
+      <button id="enc-btn" type="button" class="toolbtn2">Get DIGIPIN</button>
+    </div>
+    <div id="enc-out" class="toolout" aria-live="polite"></div>
+  </div>
+
+  <h2>Decode a DIGIPIN</h2>
+  <p class="intro">Have a 10-character DIGIPIN? Enter it to see the exact location it points to, with a map link.</p>
+  <div class="tool">
+    <div class="toolrow">
+      <input id="in-pin" type="text" maxlength="10" placeholder="e.g. 39J438TJC7" style="text-transform:uppercase" />
+      <button id="dec-btn" type="button" class="toolbtn2">Decode</button>
+    </div>
+    <div id="dec-out" class="toolout" aria-live="polite"></div>
+  </div>
+
+  <h2>DIGIPIN vs Pincode — what is the difference?</h2>
+  <div class="tablewrap">
+    <table class="details">
+      <tr><th></th><th>Pincode (PIN)</th><th>DIGIPIN</th></tr>
+      <tr><th>What it identifies</th><td>A postal delivery area</td><td>An exact spot on the ground (~4m × 4m)</td></tr>
+      <tr><th>Format</th><td>6 digits (e.g. 110001)</td><td>10 characters (e.g. 39J438TJC7)</td></tr>
+      <tr><th>Based on</th><td>Post office zones</td><td>Latitude & longitude grid</td></tr>
+      <tr><th>Best used for</th><td>Mail sorting and delivery</td><td>Exact navigation, deliveries, e-commerce</td></tr>
+      <tr><th>Issued by</th><td>India Post (since 1972)</td><td>India Post (2025)</td></tr>
+    </table>
+  </div>
+
+  <h2>How to get your DIGIPIN (official method)</h2>
+  <ol class="plain">
+    <li>Open the official India Post DIGIPIN portal at <a href="https://www.indiapost.gov.in/vas/Pages/digipin.aspx" rel="noopener">indiapost.gov.in</a>.</li>
+    <li>Allow location access in your browser, or search for your address on the map.</li>
+    <li>Your 10-character DIGIPIN appears on screen — write it down or share it.</li>
+  </ol>
+  <p class="note">Tip: the tool above gives the same result because it uses the same open-source algorithm that India Post published. You can also find the DIGIPIN on every <a href="/states">village page</a> of this website where the code is available in our records.</p>
+
+  <h2>How the DIGIPIN code works</h2>
+  <p class="intro">
+    India is divided into a grid of 4 × 4 boxes, each labelled with a symbol. Your first character tells which of the 16 big boxes you are in.
+    That box is divided into 16 smaller boxes, giving the second character — and so on for 10 levels. Each level makes the box 4 times
+    smaller in each direction, so after 10 levels the box is only about 4 metres wide. The 16 symbols used are:
+    <strong>2, 3, 4, 5, 6, 7, 8, 9, C, F, J, K, L, M, P, T</strong>.
+  </p>
+
+  <h2>Frequently asked questions</h2>
+  {faq.map(([q, a]) => (
+    <details class="faq"><summary>{q}</summary><p>{a}</p></details>
+  ))}
+
+  <p class="updated">Source: Department of Posts technical specification and the official open-source implementation (github.com/INDIAPOST-gov/digipin). ✅ This page runs the same algorithm in your browser. · <a href="/states">All India states</a></p>
+</Layout>
+
+<style>
+  .tool { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 1rem; margin: 1rem 0; }
+  .toolrow { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .6rem; }
+  .toolrow input { flex: 1; min-width: 160px; padding: .6rem .8rem; border: 1px solid var(--line); border-radius: 8px; font-size: 1rem; }
+  .toolbtn, .toolbtn2 { border: none; border-radius: 8px; padding: .65rem 1.1rem; font-size: .95rem; font-weight: 700; cursor: pointer; font-family: inherit; }
+  .toolbtn { background: var(--blue); color: #fff; width: 100%; margin-bottom: .4rem; }
+  .toolbtn2 { background: var(--navy); color: #fff; }
+  .toolbtn:hover, .toolbtn2:hover { opacity: .9; }
+  .toolout { margin-top: .8rem; font-size: 1.1rem; font-weight: 700; color: var(--navy); min-height: 1.4rem; word-break: break-all; }
+  .toolout a { font-weight: 600; }
+  .toolout small { display: block; font-weight: 400; color: var(--muted); font-size: .85rem; }
+</style>
+
+<script is:inline>
+  // DIGIPIN encoder/decoder — VERBATIM from the official Government of India
+  // open-source repo: https://github.com/INDIAPOST-gov/digipin (src/digipin.js)
+  // Developed by India Post / CEPT. Runs fully in the browser.
+  var DIGIPIN_GRID = [
+    ["F", "C", "9", "8"],
+    ["J", "3", "2", "7"],
+    ["K", "4", "5", "6"],
+    ["L", "M", "P", "T"],
+  ];
+  var BOUNDS = { minLat: 2.5, maxLat: 38.5, minLon: 63.5, maxLon: 99.5 };
+
+  function getDigiPin(lat, lon) {
+    if (lat < BOUNDS.minLat || lat > BOUNDS.maxLat) throw new Error("Latitude out of range (India: 2.5 to 38.5)");
+    if (lon < BOUNDS.minLon || lon > BOUNDS.maxLon) throw new Error("Longitude out of range (India: 63.5 to 99.5)");
+    var minLat = BOUNDS.minLat, maxLat = BOUNDS.maxLat, minLon = BOUNDS.minLon, maxLon = BOUNDS.maxLon;
+    var digiPin = "";
+    for (var level = 1; level <= 10; level++) {
+      var latDiv = (maxLat - minLat) / 4;
+      var lonDiv = (maxLon - minLon) / 4;
+      var row = 3 - Math.floor((lat - minLat) / latDiv);
+      var col = Math.floor((lon - minLon) / lonDiv);
+      row = Math.max(0, Math.min(row, 3));
+      col = Math.max(0, Math.min(col, 3));
+      digiPin += DIGIPIN_GRID[row][col];
+      maxLat = minLat + latDiv * (4 - row);
+      minLat = minLat + latDiv * (3 - row);
+      minLon = minLon + lonDiv * col;
+      maxLon = minLon + lonDiv;
+    }
+    return String(digiPin).toUpperCase();
+  }
+
+  function getLatLngFromDigiPin(digiPin) {
+    if (typeof digiPin !== "string") throw new Error("Invalid DIGIPIN. DIGIPIN must be provided as a string.");
+    var pin = digiPin.trim().toUpperCase();
+    if (pin.length !== 10) throw new Error("Invalid DIGIPIN. DIGIPIN must be a continuous 10-character string.");
+    if (!/^[23456789CJKLMPFT]{10}$/.test(pin)) throw new Error("Invalid DIGIPIN. Only approved characters (2,3,4,5,6,7,8,9,C,J,K,L,M,P,F,T) are allowed.");
+    var minLat = BOUNDS.minLat, maxLat = BOUNDS.maxLat, minLon = BOUNDS.minLon, maxLon = BOUNDS.maxLon;
+    for (var i = 0; i < 10; i++) {
+      var char = pin[i], ri = -1, ci = -1;
+      for (var r = 0; r < 4; r++) { for (var c = 0; c < 4; c++) { if (DIGIPIN_GRID[r][c] === char) { ri = r; ci = c; break; } } if (ri !== -1) break; }
+      if (ri === -1) throw new Error("Invalid character in DIGIPIN");
+      var latDiv = (maxLat - minLat) / 4;
+      var lonDiv = (maxLon - minLon) / 4;
+      var lat1 = maxLat - latDiv * (ri + 1);
+      var lat2 = maxLat - latDiv * ri;
+      var lon1 = minLon + lonDiv * ci;
+      var lon2 = minLon + lonDiv * (ci + 1);
+      minLat = lat1; maxLat = lat2; minLon = lon1; maxLon = lon2;
+    }
+    return { latitude: (minLat + maxLat) / 2, longitude: (minLon + maxLon) / 2 };
+  }
+
+  // ---- UI wiring ----
+  function esc(s) { var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+  function showEnc(lat, lon) {
+    try {
+      var pin = getDigiPin(lat, lon);
+      var pretty = pin.slice(0, 3) + ' ' + pin.slice(3, 7) + ' ' + pin.slice(7);
+      document.getElementById('enc-out').innerHTML = '🛰️ Your DIGIPIN: <span style="font-size:1.3rem">' + esc(pin) + '</span><small>Display format: ' + esc(pretty) + '</small>';
+    } catch (e) { document.getElementById('enc-out').innerHTML = '⚠️ ' + esc(e.message); }
+  }
+  document.getElementById('geo-btn').addEventListener('click', function () {
+    if (!navigator.geolocation) { document.getElementById('enc-out').textContent = 'Geolocation not supported on this device.'; return; }
+    document.getElementById('enc-out').textContent = 'Getting your location…';
+    navigator.geolocation.getCurrentPosition(function (pos) {
+      showEnc(pos.coords.latitude, pos.coords.longitude);
+    }, function () { document.getElementById('enc-out').textContent = 'Could not get location — please type latitude and longitude below.'; });
+  });
+  document.getElementById('enc-btn').addEventListener('click', function () {
+    var lat = parseFloat(document.getElementById('in-lat').value);
+    var lon = parseFloat(document.getElementById('in-lon').value);
+    if (isNaN(lat) || isNaN(lon)) { document.getElementById('enc-out').textContent = 'Please enter both latitude and longitude.'; return; }
+    showEnc(lat, lon);
+  });
+  document.getElementById('dec-btn').addEventListener('click', function () {
+    var val = document.getElementById('in-pin').value;
+    try {
+      var ll = getLatLngFromDigiPin(val);
+      document.getElementById('dec-out').innerHTML = '📍 Location: ' + ll.latitude.toFixed(6) + ', ' + ll.longitude.toFixed(6) +
+        ' <small><a target="_blank" rel="noopener" href="https://www.google.com/maps?q=' + ll.latitude + ',' + ll.longitude + '">Open in Google Maps →</a> · centre of the ~4m × 4m cell</small>';
+    } catch (e) { document.getElementById('dec-out').innerHTML = '⚠️ ' + esc(e.message); }
+  });
+</script>
