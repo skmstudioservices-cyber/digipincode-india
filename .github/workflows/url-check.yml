@@ -11,17 +11,12 @@ jobs:
       - name: curl checks
         run: |
           set +e
+          echo "=== _routes.json (from repo build earlier) ==="
+          curl -s "https://digipincode.pages.dev/_routes.json" | head -c 400; echo
           for url in \
             "https://digipincode.pages.dev/" \
-            "https://digipincode.pages.dev/robots.txt" \
-            "https://digipincode.pages.dev/sitemap.xml" \
-            "https://digipincode.pages.dev/digipin/" \
-            "https://1204f199.digipincode.pages.dev/" \
-            "https://digipincode.pages.dev/arunachal-pradesh/district-papum-pare/tehsil-banderdewa-circle/village-c-f-colony/pincode-791123" \
-            "https://digipincode.india-in.workers.dev/"; do
-            code=$(curl -s -o /tmp/body -w "%{http_code}" --max-time 30 -A "Mozilla/5.0 (Linux; Android 10)" "$url")
-            size=$(wc -c < /tmp/body)
-            echo "=== $url -> HTTP $code (${size} bytes)"
-            head -c 160 /tmp/body | tr -d '\n'
-            echo
+            "https://72b19271.digipincode.pages.dev/" \
+            "https://digipincode.pages.dev/robots.txt"; do
+            echo "=== $url"
+            curl -sD - -o /dev/null --max-time 30 -A "Mozilla/5.0 (Linux; Android 10)" "$url" | head -14
           done
