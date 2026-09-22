@@ -8,8 +8,9 @@ type DB = D1Database;
 // SSR pages since 21 Sep 2026) recover on a second attempt — re-fetches of
 // failing URLs succeed moments later. We retry twice with a short backoff,
 // then rethrow so real errors still surface.
+// Exported: sitemap.xml.ts and other endpoints wrap their queries in it too.
 // ---------------------------------------------------------------------------
-async function withRetry<T>(op: () => Promise<T>, tries = 3): Promise<T> {
+export async function withRetry<T>(op: () => Promise<T>, tries = 3): Promise<T> {
   let lastErr: unknown;
   for (let i = 0; i < tries; i++) {
     try {
