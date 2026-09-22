@@ -1,6 +1,7 @@
 // Feedback widget v2 — floating at bottom-right corner
 // Opens a small panel with "Report an Issue", "Feature Request" and "Data Update" tabs.
 // Submissions POST to /api/feedback (D1-backed).
+// Colors meet WCAG AA (4.5:1) with white text — Lighthouse a11y fix.
 
 const FEEDBACK_ENDPOINT = '/api/feedback';
 
@@ -11,16 +12,16 @@ export function initFeedbackButtons() {
   container.innerHTML = `
     <style>
       #feedback-widget { position: fixed; bottom: 16px; right: 16px; z-index: 9999; font-family: system-ui, sans-serif; }
-      #feedback-widget .fb-btn { display: block; width: 100%; padding: 10px 16px; margin: 4px 0; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; color: #fff; background: #e85d04; box-shadow: 0 2px 8px rgba(0,0,0,.25); }
-      #feedback-widget .fb-btn:hover { background: #c94f03; }
+      #feedback-widget .fb-btn { display: block; width: 100%; padding: 10px 16px; margin: 4px 0; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; color: #fff; background: #c2410c; box-shadow: 0 2px 8px rgba(0,0,0,.25); }
+      #feedback-widget .fb-btn:hover { background: #a33a06; }
       #feedback-widget .fb-panel { display: none; position: absolute; bottom: 60px; right: 0; width: 300px; max-width: calc(100vw - 32px); background: #fff; border: 1px solid #ddd; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,.15); padding: 16px; }
       #feedback-widget .fb-panel.open { display: block; }
       #feedback-widget .fb-tabs { display: flex; gap: 4px; margin-bottom: 12px; }
       #feedback-widget .fb-tab { flex: 1; padding: 6px 2px; border: 1px solid #ddd; border-radius: 6px; background: #f5f5f5; cursor: pointer; font-size: 11.5px; font-weight: 600; text-align: center; }
-      #feedback-widget .fb-tab.active { background: #e85d04; color: #fff; border-color: #e85d04; }
+      #feedback-widget .fb-tab.active { background: #c2410c; color: #fff; border-color: #c2410c; }
       #feedback-widget textarea { width: 100%; height: 80px; padding: 8px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; resize: vertical; box-sizing: border-box; }
       #feedback-widget input[type=email] { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; box-sizing: border-box; margin-bottom: 8px; }
-      #feedback-widget .fb-submit { width: 100%; padding: 8px; border: none; border-radius: 6px; background: #e85d04; color: #fff; font-weight: 600; cursor: pointer; }
+      #feedback-widget .fb-submit { width: 100%; padding: 8px; border: none; border-radius: 6px; background: #c2410c; color: #fff; font-weight: 600; cursor: pointer; }
       #feedback-widget .fb-close { position: absolute; top: 8px; right: 10px; border: none; background: none; font-size: 18px; cursor: pointer; color: #666; }
       #feedback-widget .fb-msg { font-size: 13px; margin-top: 8px; color: #006600; }
       @media (max-width: 480px) { #feedback-widget { bottom: 10px; right: 10px; } #feedback-widget .fb-btn { padding: 9px 12px; font-size: 13px; } }
