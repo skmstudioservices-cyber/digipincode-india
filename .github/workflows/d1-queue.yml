@@ -88,6 +88,9 @@ jobs:
           echo "=== verify: per-site table counts ==="
           npx --yes wrangler d1 execute seo-keywords-db --remote --json --command "SELECT site, COUNT(*) AS n FROM keywords GROUP BY site ORDER BY n DESC"
           npx --yes wrangler d1 execute seo-keywords-db --remote --json --command "SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 'kw_%' ORDER BY name"
+          echo "=== verify: kw_ table row counts ==="
+          npx --yes wrangler d1 execute seo-keywords-db --remote --json --command "SELECT 'kw_digipincode' AS tbl, COUNT(*) AS n FROM kw_digipincode"
+          npx --yes wrangler d1 execute seo-keywords-db --remote --json --command "SELECT 'kw_mapsnearme' AS tbl, COUNT(*) AS n FROM kw_mapsnearme"
 
       - name: Q4 examstatus-db ENAM to APAC move (create, export, import, verify)
         if: inputs.step == 'q4-examstatus-move'
