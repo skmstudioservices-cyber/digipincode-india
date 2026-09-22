@@ -27,20 +27,43 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Write JSON helper (robust wrangler output parsing)
+        run: |
+          cat > /tmp/d1json.py <<'PYEOF'
+          import sys, json
+          s = sys.stdin.read()
+          dec = json.JSONDecoder()
+          d = None
+          i = 0
+          while i < len(s):
+              if s[i] in '[{':
+                  try:
+                      d, _ = dec.raw_decode(s, i)
+                      break
+                  except Exception:
+                      pass
+              i += 1
+          if d is None:
+              sys.exit('no JSON found in wrangler output')
+          if isinstance(d, dict):
+              d = [d]
+          mode = sys.argv[1]
+          if mode == 'tables':
+              print(' '.join(r['name'] for r in d[0]['results']))
+          else:
+              print(d[0]['results'][0]['n'])
+          PYEOF
+
       - name: State (read-only checks)
         if: inputs.step == 'state'
         run: |
           set -e
           echo "=== seo-keywords-db: tables ==="
-          npx --yes wrangler d1 execute seo-keywords-db --remote --json --command "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name"
+          npx --yes wrangler d1 execute seo-keywords-db --remote --json --command "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name" 2>/dev/null | python3 /tmp/d1json.py tables
           echo "=== seo-keywords-db: keywords per site ==="
           npx --yes wrangler d1 execute seo-keywords-db --remote --json --command "SELECT site, COUNT(*) AS n FROM keywords GROUP BY site ORDER BY n DESC"
-          echo "=== seo-keywords-db: negative_keywords per site ==="
-          npx --yes wrangler d1 execute seo-keywords-db --remote --json --command "SELECT site, COUNT(*) AS n FROM negative_keywords GROUP BY site ORDER BY n DESC"
           echo "=== examstatus-db: info ==="
           npx --yes wrangler d1 info examstatus-db || true
-          echo "=== examstatus-db: tables ==="
-          npx --yes wrangler d1 execute examstatus-db --remote --json --command "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name"
 
       - name: Q1 test (emergency kw tables + 5 rows)
         if: inputs.step == 'q1-test'
@@ -88,7 +111,6 @@ jobs:
           npx --yes wrangler d1 execute seo-keywords-db --remote --file=./seo/queue/q3-site-copy.sql
           echo "=== verify: per-site table counts ==="
           npx --yes wrangler d1 execute seo-keywords-db --remote --json --command "SELECT site, COUNT(*) AS n FROM keywords GROUP BY site ORDER BY n DESC"
-          npx --yes wrangler d1 execute seo-keywords-db --remote --json --command "SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 'kw_%' ORDER BY name"
           echo "=== verify: kw_ table row counts ==="
           npx --yes wrangler d1 execute seo-keywords-db --remote --json --command "SELECT 'kw_digipincode' AS tbl, COUNT(*) AS n FROM kw_digipincode"
           npx --yes wrangler d1 execute seo-keywords-db --remote --json --command "SELECT 'kw_mapsnearme' AS tbl, COUNT(*) AS n FROM kw_mapsnearme"
@@ -98,23 +120,9 @@ jobs:
         run: |
           set -e
           count() {
-            npx --yes wrangler d1 execute "$1" --remote --json --command "$2" 2>/dev/null | python3 -c '
-          import sys, json
-          s = sys.stdin.read()
-          i = s.find("[")
-          d = json.loads(s[i:]) if i >= 0 else json.loads(s)
-          if isinstance(d, dict): d = [d]
-          print(d[0]["results"][0]["n"])
-          '
+            npx --yes wrangler d1 execute "$1" --remote --json --command "$2" 2>/dev/null | python3 /tmp/d1json.py n
           }
-          TABLES=$(npx --yes wrangler d1 execute examstatus-db --remote --json --command "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name" 2>/dev/null | python3 -c '
-          import sys, json
-          s = sys.stdin.read()
-          i = s.find("[")
-          d = json.loads(s[i:]) if i >= 0 else json.loads(s)
-          if isinstance(d, dict): d = [d]
-          print(" ".join(r["name"] for r in d[0]["results"]))
-          ')
+          TABLES=$(npx --yes wrangler d1 execute examstatus-db --remote --json --command "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name" 2>/dev/null | python3 /tmp/d1json.py tables)
           echo "tables: $TABLES"
           FAIL=0
           for t in $TABLES; do
@@ -146,14 +154,7 @@ jobs:
           fi
 
           echo "=== 3. Import dump into APAC database (skipped if already populated — re-run protection) ==="
-          EXISTING=$(npx --yes wrangler d1 execute examstatus-db-apac --remote --json --command "SELECT COUNT(*) AS n FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'" 2>/dev/null | python3 -c '
-          import sys, json
-          s = sys.stdin.read()
-          i = s.find("[")
-          d = json.loads(s[i:]) if i >= 0 else json.loads(s)
-          if isinstance(d, dict): d = [d]
-          print(d[0]["results"][0]["n"])
-          ')
+          EXISTING=$(npx --yes wrangler d1 execute examstatus-db-apac --remote --json --command "SELECT COUNT(*) AS n FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'" 2>/dev/null | python3 /tmp/d1json.py n)
           if [ "$EXISTING" != "0" ]; then
             echo "examstatus-db-apac already has $EXISTING tables — SKIP import (dump uses plain INSERTs, re-import would duplicate)"
           else
@@ -162,23 +163,9 @@ jobs:
 
           echo "=== 4. Verify: per-table counts old vs new ==="
           count() {
-            npx --yes wrangler d1 execute "$1" --remote --json --command "$2" 2>/dev/null | python3 -c '
-          import sys, json
-          s = sys.stdin.read()
-          i = s.find("[")
-          d = json.loads(s[i:]) if i >= 0 else json.loads(s)
-          if isinstance(d, dict): d = [d]
-          print(d[0]["results"][0]["n"])
-          '
+            npx --yes wrangler d1 execute "$1" --remote --json --command "$2" 2>/dev/null | python3 /tmp/d1json.py n
           }
-          TABLES=$(npx --yes wrangler d1 execute examstatus-db --remote --json --command "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name" 2>/dev/null | python3 -c '
-          import sys, json
-          s = sys.stdin.read()
-          i = s.find("[")
-          d = json.loads(s[i:]) if i >= 0 else json.loads(s)
-          if isinstance(d, dict): d = [d]
-          print(" ".join(r["name"] for r in d[0]["results"]))
-          ')
+          TABLES=$(npx --yes wrangler d1 execute examstatus-db --remote --json --command "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name" 2>/dev/null | python3 /tmp/d1json.py tables)
           echo "tables: $TABLES"
           FAIL=0
           for t in $TABLES; do
