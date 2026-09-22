@@ -29,11 +29,13 @@ export async function GET({ request, locals }) {
     `${base}/`,
     `${base}/search`,
     `${base}/states`,
+    `${base}/digipin/`,
     `${base}/about`,
     `${base}/contact`,
     `${base}/privacy-policy`,
     `${base}/terms`,
     `${base}/disclaimer`,
+    `${base}/sitemap-pages.xml`,
     ...states.results.map(s => `${base}/sitemap-${s.slug}.xml`),
     `${base}/sitemap-chhath.xml`,
   ];
