@@ -1,6 +1,7 @@
 // Per-state sitemap — SSR endpoint. Google allows 50K URLs per sitemap.
 // URL structure v2 — hierarchy paths for pincode, village, district and sub-district pages.
 // Village URLs end with their pincode: .../village-{v}/pincode-{p}
+// Edge-cached for 24h (Q42b): bots hitting sitemaps no longer re-read lakhs of D1 rows.
 export const prerender = false;
 
 // South & western states use "taluk", the rest use "tehsil".
@@ -10,7 +11,18 @@ const TALUK_STATES = [
   'dadra-and-nagar-haveli','dadra-and-nagar-haveli-and-daman-and-diu','daman-and-diu',
 ];
 
+const SITEMAP_TTL = 60 * 60 * 24; // 24 hours
+
 export async function GET({ params, request, locals }) {
+  const cache = (globalThis as any).caches?.default;
+  const key = new Request(request.url, { method: 'GET' });
+  if (cache) {
+    try {
+      const hit = await cache.match(key);
+      if (hit) return hit;
+    } catch {}
+  }
+
   const db = locals.runtime.env.DB;
   const { slug } = params;
 
@@ -67,7 +79,18 @@ export async function GET({ params, request, locals }) {
 ${urls.map(u => `  <url><loc>${base}${u}</loc><lastmod>${now}</lastmod></url>`).join('\n')}
 </urlset>`;
 
-  return new Response(body, {
-    headers: { 'Content-Type': 'application/xml' },
+  const res = new Response(body, {
+    headers: {
+      'Content-Type': 'application/xml; charset=utf-8',
+      'Cache-Control': `public, max-age=${SITEMAP_TTL}, s-maxage=${SITEMAP_TTL}`,
+    },
   });
+  if (cache) {
+    try {
+      const ctx = locals.runtime?.ctx;
+      const put = cache.put(key, res.clone());
+      if (ctx?.waitUntil) ctx.waitUntil(put); else await put;
+    } catch {}
+  }
+  return res;
 }

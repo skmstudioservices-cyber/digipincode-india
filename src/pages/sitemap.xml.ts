@@ -1,10 +1,22 @@
 // Root sitemap index — CONVENTION: every site's sitemap is /sitemap.xml
 // (this replaces the old /sitemap-index.xml entry point; old path still works)
+// Edge-cached for 24h (Q42b).
 export const prerender = false;
 
 import { withRetry } from '../lib/db';
 
+const SITEMAP_TTL = 60 * 60 * 24; // 24 hours
+
 export async function GET({ request, locals }) {
+  const cache = (globalThis as any).caches?.default;
+  const key = new Request(request.url, { method: 'GET' });
+  if (cache) {
+    try {
+      const hit = await cache.match(key);
+      if (hit) return hit;
+    } catch {}
+  }
+
   const db = locals.runtime.env.DB;
   // withRetry: transient D1 blips caused HTTP 500 on /sitemap.xml (22 Sep
   // site-monitor alert) — same protection as the lib/db.ts helpers.
@@ -31,7 +43,18 @@ export async function GET({ request, locals }) {
 ${urls.map(u => `  <sitemap><loc>${u}</loc></sitemap>`).join('\n')}
 </sitemapindex>`;
 
-  return new Response(body, {
-    headers: { 'Content-Type': 'application/xml' },
+  const res = new Response(body, {
+    headers: {
+      'Content-Type': 'application/xml; charset=utf-8',
+      'Cache-Control': `public, max-age=${SITEMAP_TTL}, s-maxage=${SITEMAP_TTL}`,
+    },
   });
+  if (cache) {
+    try {
+      const ctx = locals.runtime?.ctx;
+      const put = cache.put(key, res.clone());
+      if (ctx?.waitUntil) ctx.waitUntil(put); else await put;
+    } catch {}
+  }
+  return res;
 }
