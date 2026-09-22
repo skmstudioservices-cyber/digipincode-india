@@ -124,6 +124,9 @@ jobs:
           }
           TABLES=$(npx --yes wrangler d1 execute examstatus-db --remote --json --command "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name" 2>/dev/null | python3 /tmp/d1json.py tables)
           echo "tables: $TABLES"
+          echo "=== debug: raw count output sample ==="
+          npx --yes wrangler d1 execute examstatus-db --remote --json --command "SELECT COUNT(*) AS n FROM admin_sessions" 2>/dev/null | head -60 || true
+          echo "=== debug end ==="
           FAIL=0
           for t in $TABLES; do
             OLD=$(count examstatus-db "SELECT COUNT(*) AS n FROM \"$t\"")
