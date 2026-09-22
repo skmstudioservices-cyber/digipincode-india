@@ -56,7 +56,9 @@ jobs:
           set -e
           npx --yes wrangler d1 execute seo-keywords-db --remote --file=./seo/queue/q1-full.sql
           echo "=== verify: counts per category table ==="
-          npx --yes wrangler d1 execute seo-keywords-db --remote --json --command "SELECT 'location' AS tbl, COUNT(*) AS n FROM emergency_kw_location UNION ALL SELECT 'blood_stock', COUNT(*) FROM emergency_kw_blood_stock UNION ALL SELECT 'donors', COUNT(*) FROM emergency_kw_donors UNION ALL SELECT 'eligibility', COUNT(*) FROM emergency_kw_eligibility UNION ALL SELECT 'medical_terms', COUNT(*) FROM emergency_kw_medical_terms UNION ALL SELECT 'icu_beds', COUNT(*) FROM emergency_kw_icu_beds"
+          for t in location blood_stock donors eligibility medical_terms icu_beds; do
+            npx --yes wrangler d1 execute seo-keywords-db --remote --json --command "SELECT '$t' AS tbl, COUNT(*) AS n FROM emergency_kw_$t"
+          done
           echo "=== verify: sample ==="
           npx --yes wrangler d1 execute seo-keywords-db --remote --json --command "SELECT keyword, intent, status, added_on FROM emergency_kw_blood_stock"
 
