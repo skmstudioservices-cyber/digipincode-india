@@ -5,13 +5,11 @@ type DB = D1Database;
 
 // ---------------------------------------------------------------------------
 // withRetry: transient D1 read errors (intermittent HTTP 500s observed on
-// SSR pages since 21 Sep 2026) recover on a retry — re-fetches of failing
-// URLs succeed moments later (confirmed 22 Sep via wrangler tail: 398
-// invocations, 0 exceptions on re-crawl). Blips can outlast 3 fast tries,
-// so we now retry up to 4 times with a quadratic backoff (~2.1s span),
-// then rethrow so real errors still surface. Exported for sitemap endpoints.
+// SSR pages since 21 Sep 2026) recover on a second attempt — re-fetches of
+// failing URLs succeed moments later. We retry twice with a short backoff,
+// then rethrow so real errors still surface.
 // ---------------------------------------------------------------------------
-export async function withRetry<T>(op: () => Promise<T>, tries = 4): Promise<T> {
+async function withRetry<T>(op: () => Promise<T>, tries = 3): Promise<T> {
   let lastErr: unknown;
   for (let i = 0; i < tries; i++) {
     try {
@@ -203,8 +201,27 @@ export async function getTopVillagesByDistrict(db: DB, districtId: number, limit
 export async function searchAll(db: DB, q: string) {
   const like = `%${q}%`;
   // Hierarchy URLs (URL structure v2):
+  //   /{state}/district-{d}/{tehsil|taluk}-{t}/village-{v}/pincode-{p}
   //   /{state}/district-{d}/pincode-{p}
-  //   /{state}/district-{d}/{tehsil|taluk}-{t}/village-{v}
+  const villages = await withRetry(() =>
+    db.prepare(`
+    SELECT v.name AS title,
+           CASE WHEN sd.slug IS NULL OR d.slug IS NULL OR s.slug IS NULL
+                THEN '/village/' || v.slug
+                ELSE '/' || s.slug || '/district-' || d.slug || '/' ||
+                     (CASE WHEN s.slug IN ('andhra-pradesh','telangana','karnataka','kerala','tamil-nadu','puducherry','maharashtra','gujarat','goa','lakshadweep','andaman-and-nicobar-islands','dadra-and-nagar-haveli','dadra-and-nagar-haveli-and-daman-and-diu','daman-and-diu')
+                       THEN 'taluk' ELSE 'tehsil' END) || '-' || sd.slug ||
+                     '/village-' || v.slug ||
+                     (CASE WHEN v.pincode IS NULL THEN '' ELSE '/pincode-' || v.pincode END)
+           END AS url
+    FROM villages v
+    LEFT JOIN sub_districts sd ON sd.id = v.sub_district_id
+    LEFT JOIN districts d ON d.id = sd.district_id
+    LEFT JOIN states s ON s.id = d.state_id
+    WHERE v.name LIKE ? LIMIT 20
+  `).bind(like).all()
+  );
+
   const pincodes = await withRetry(() =>
     db.prepare(`
     SELECT p.pincode AS title,
@@ -214,24 +231,6 @@ export async function searchAll(db: DB, q: string) {
     JOIN districts d ON d.id = p.district_id
     WHERE p.pincode LIKE ? OR p.office_name LIKE ? LIMIT 20
   `).bind(like, like).all()
-  );
-
-  const villages = await withRetry(() =>
-    db.prepare(`
-    SELECT v.name AS title,
-           CASE WHEN sd.slug IS NULL OR d.slug IS NULL OR s.slug IS NULL
-                THEN '/village/' || v.slug
-                ELSE '/' || s.slug || '/district-' || d.slug || '/' ||
-                     (CASE WHEN s.slug IN ('andhra-pradesh','telangana','karnataka','kerala','tamil-nadu','puducherry','maharashtra','gujarat','goa','lakshadweep','andaman-and-nicobar-islands','dadra-and-nagar-haveli','dadra-and-nagar-haveli-and-daman-and-diu','daman-and-diu')
-                      THEN 'taluk' ELSE 'tehsil' END) || '-' || sd.slug ||
-                     '/village-' || v.slug
-           END AS url
-    FROM villages v
-    LEFT JOIN sub_districts sd ON sd.id = v.sub_district_id
-    LEFT JOIN districts d ON d.id = sd.district_id
-    LEFT JOIN states s ON s.id = d.state_id
-    WHERE v.name LIKE ? LIMIT 20
-  `).bind(like).all()
   );
 
   const panchayats = await withRetry(() =>
