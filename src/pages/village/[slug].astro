@@ -1,5 +1,5 @@
 ---
-// Legacy URL /village/{slug} → 301 → full hierarchy path
+// Legacy URL /village/{slug} → 301 → full hierarchy path ending in /pincode-{p}
 import { villageUrl, districtUrl } from '../../lib/urls';
 import { getVillageBySlug } from '../../lib/db';
 export const prerender = false;
@@ -8,5 +8,5 @@ const village = await getVillageBySlug(Astro.locals.runtime.env.DB, slug);
 if (!village) return Astro.redirect('/404');
 if (!village.state_slug || !village.district_slug) return Astro.redirect('/404');
 if (!village.sub_district_slug) return Astro.redirect(districtUrl(village.state_slug, village.district_slug), 301);
-return Astro.redirect(villageUrl(village.state_slug, village.district_slug, village.sub_district_slug, village.slug), 301);
+return Astro.redirect(villageUrl(village.state_slug, village.district_slug, village.sub_district_slug, village.slug, village.pincode), 301);
 ---

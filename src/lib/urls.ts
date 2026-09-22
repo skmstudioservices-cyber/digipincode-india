@@ -1,6 +1,6 @@
 // lib/urls.ts — central URL builders for the hierarchy URL structure v2
-// /{state}/district-{district}/{tehsil|taluk}-{subdistrict}/village-{village}
-// /{state}/district-{district}/pincode-{xxxxxx}   (canonical pincode = district level)
+// /{state}/district-{district}/{tehsil|taluk}-{subdistrict}/village-{village}/pincode-{p}
+// /{state}/district-{district}/pincode-{xxxxxx}   (pincode office pages)
 // Change BASE here for a 1-line domain switch.
 export const BASE = 'https://digipincode.india-in.workers.dev';
 
@@ -16,7 +16,9 @@ export function subWord(stateSlug: string): 'taluk' | 'tehsil' {
 export const stateUrl = (s: string) => `/${s}`;
 export const districtUrl = (s: string, d: string) => `/${s}/district-${d}`;
 export const subUrl = (s: string, d: string, t: string) => `/${s}/district-${d}/${subWord(s)}-${t}`;
-export const villageUrl = (s: string, d: string, t: string, v: string) => `/${s}/district-${d}/${subWord(s)}-${t}/village-${v}`;
+// Village canonical URL ends with its pincode: .../village-{v}/pincode-{p}
+export const villageUrl = (s: string, d: string, t: string, v: string, p?: string | number) =>
+  `/${s}/district-${d}/${subWord(s)}-${t}/village-${v}${p ? `/pincode-${p}` : ''}`;
 export const pincodeUrl = (s: string, d: string, p: string | number) => `/${s}/district-${d}/pincode-${p}`;
 // Accept either local word when parsing incoming paths
 export function parseSubSegment(seg: string): string | null {
