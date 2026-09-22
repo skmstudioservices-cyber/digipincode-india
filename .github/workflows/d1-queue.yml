@@ -14,6 +14,7 @@ on:
           - q2-test
           - q2-full
           - q3-copy
+          - q4-verify
           - q4-examstatus-move
 
 jobs:
@@ -92,6 +93,41 @@ jobs:
           npx --yes wrangler d1 execute seo-keywords-db --remote --json --command "SELECT 'kw_digipincode' AS tbl, COUNT(*) AS n FROM kw_digipincode"
           npx --yes wrangler d1 execute seo-keywords-db --remote --json --command "SELECT 'kw_mapsnearme' AS tbl, COUNT(*) AS n FROM kw_mapsnearme"
 
+      - name: Q4 verify only (no writes — compare ENAM vs APAC counts)
+        if: inputs.step == 'q4-verify'
+        run: |
+          set -e
+          count() {
+            npx --yes wrangler d1 execute "$1" --remote --json --command "$2" 2>/dev/null | python3 -c '
+          import sys, json
+          s = sys.stdin.read()
+          i = s.find("[")
+          d = json.loads(s[i:]) if i >= 0 else json.loads(s)
+          if isinstance(d, dict): d = [d]
+          print(d[0]["results"][0]["n"])
+          '
+          }
+          TABLES=$(npx --yes wrangler d1 execute examstatus-db --remote --json --command "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name" 2>/dev/null | python3 -c '
+          import sys, json
+          s = sys.stdin.read()
+          i = s.find("[")
+          d = json.loads(s[i:]) if i >= 0 else json.loads(s)
+          if isinstance(d, dict): d = [d]
+          print(" ".join(r["name"] for r in d[0]["results"]))
+          ')
+          echo "tables: $TABLES"
+          FAIL=0
+          for t in $TABLES; do
+            OLD=$(count examstatus-db "SELECT COUNT(*) AS n FROM \"$t\"")
+            NEW=$(count examstatus-db-apac "SELECT COUNT(*) AS n FROM \"$t\"")
+            echo "table $t: ENAM=$OLD APAC=$NEW"
+            if [ "$OLD" != "$NEW" ]; then echo "MISMATCH on $t"; FAIL=1; fi
+          done
+          echo "=== new db info ==="
+          npx --yes wrangler d1 info examstatus-db-apac || true
+          if [ "$FAIL" != "0" ]; then echo "VERIFICATION FAILED"; exit 1; fi
+          echo "=== OK: all table counts match. Old ENAM db left in place (NOT deleted). ==="
+
       - name: Q4 examstatus-db ENAM to APAC move (create, export, import, verify)
         if: inputs.step == 'q4-examstatus-move'
         run: |
@@ -109,15 +145,45 @@ jobs:
             exit 1
           fi
 
-          echo "=== 3. Import dump into APAC database ==="
-          npx --yes wrangler d1 execute examstatus-db-apac --remote --file=examstatus-enam-dump.sql
+          echo "=== 3. Import dump into APAC database (skipped if already populated — re-run protection) ==="
+          EXISTING=$(npx --yes wrangler d1 execute examstatus-db-apac --remote --json --command "SELECT COUNT(*) AS n FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'" 2>/dev/null | python3 -c '
+          import sys, json
+          s = sys.stdin.read()
+          i = s.find("[")
+          d = json.loads(s[i:]) if i >= 0 else json.loads(s)
+          if isinstance(d, dict): d = [d]
+          print(d[0]["results"][0]["n"])
+          ')
+          if [ "$EXISTING" != "0" ]; then
+            echo "examstatus-db-apac already has $EXISTING tables — SKIP import (dump uses plain INSERTs, re-import would duplicate)"
+          else
+            npx --yes wrangler d1 execute examstatus-db-apac --remote --file=examstatus-enam-dump.sql
+          fi
 
           echo "=== 4. Verify: per-table counts old vs new ==="
-          TABLES=$(npx --yes wrangler d1 execute examstatus-db --remote --json --command "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name" | jq -r '.[0].results[].name')
+          count() {
+            npx --yes wrangler d1 execute "$1" --remote --json --command "$2" 2>/dev/null | python3 -c '
+          import sys, json
+          s = sys.stdin.read()
+          i = s.find("[")
+          d = json.loads(s[i:]) if i >= 0 else json.loads(s)
+          if isinstance(d, dict): d = [d]
+          print(d[0]["results"][0]["n"])
+          '
+          }
+          TABLES=$(npx --yes wrangler d1 execute examstatus-db --remote --json --command "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name" 2>/dev/null | python3 -c '
+          import sys, json
+          s = sys.stdin.read()
+          i = s.find("[")
+          d = json.loads(s[i:]) if i >= 0 else json.loads(s)
+          if isinstance(d, dict): d = [d]
+          print(" ".join(r["name"] for r in d[0]["results"]))
+          ')
+          echo "tables: $TABLES"
           FAIL=0
           for t in $TABLES; do
-            OLD=$(npx --yes wrangler d1 execute examstatus-db --remote --json --command "SELECT COUNT(*) AS n FROM \"$t\"" | jq -r '.[0].results[0].n')
-            NEW=$(npx --yes wrangler d1 execute examstatus-db-apac --remote --json --command "SELECT COUNT(*) AS n FROM \"$t\"" | jq -r '.[0].results[0].n')
+            OLD=$(count examstatus-db "SELECT COUNT(*) AS n FROM \"$t\"")
+            NEW=$(count examstatus-db-apac "SELECT COUNT(*) AS n FROM \"$t\"")
             echo "table $t: ENAM=$OLD APAC=$NEW"
             if [ "$OLD" != "$NEW" ]; then echo "MISMATCH on $t"; FAIL=1; fi
           done
