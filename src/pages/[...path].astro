@@ -105,7 +105,7 @@ if (!dist) {
 }
 
 // ---------------- level render pieces ----------------
-let title = '', desc = '', url = '', crumbNav = '', heroH1 = '', heroSub = '', chips = [], intro = '', crumbItems = [], faq = [], extraSections = '';
+let title = '', desc = '', url = '', crumbNav = '', heroH1 = '', heroSub = '', chips = [], intro = '', crumbItems = [], faq = [], extraSections = '', placeLd = null;
 const share = (t, u) => `
   <div class="share"><span class="lbl">Share:</span>
     <a class="wa" href="https://wa.me/?text=${encodeURIComponent(t + ' ' + u)}" target="_blank" rel="noopener">WhatsApp</a>
@@ -193,6 +193,10 @@ if (!dist) {
   title = `${vil.name} Village, ${tehsilName ? `${tehsilName} ${wordLabel}, ` : ''}${where} — Pincode ${vil.pincode} | Population, Panchayat, Post Office & Village Details`;
   desc = `${vil.name} village pincode ${vil.pincode} in ${tehsilName ? `${tehsilName}, ` : ''}${where}: population, households, panchayat, post office, LGD/census codes, DIGIPIN and the complete administrative profile of ${vil.name}.`;
   crumbItems = [['Home', `${BASE}/`], [stateName, `${BASE}${stateUrl(state.slug)}`], [districtName, `${BASE}${districtUrl(state.slug, dist.slug)}`], ...(tehsilSlug ? [[tehsilName, `${BASE}${subUrl(state.slug, dist.slug, tehsilSlug)}`]] : []), [vil.name, url]];
+  placeLd = { '@context': 'https://schema.org', '@type': 'Place', '@id': url, name: `${vil.name} Village`, url,
+    address: { '@type': 'PostalAddress', addressLocality: vil.name, addressRegion: stateName, addressCountry: 'IN', ...(vil.pincode ? { postalCode: String(vil.pincode) } : {}) },
+    containedInPlace: { '@type': 'Place', name: tehsilName || districtName, ...(tehsilName ? { containedInPlace: { '@type': 'AdministrativeArea', name: `${districtName} district`, containedInPlace: { '@type': 'AdministrativeArea', name: `${stateName} state` } } } : {}) },
+    ...(vil.population ? { additionalProperty: { '@type': 'PropertyValue', name: 'Population', value: Number(vil.population) } } : {}) };
   crumbNav = `<a href="/">Home</a> › <a href="${stateUrl(state.slug)}">${stateName}</a> › <a href="${districtUrl(state.slug, dist.slug)}">${districtName}</a>${tehsilSlug ? ` › <a href="${subUrl(state.slug, dist.slug, tehsilSlug)}">${tehsilName}</a>` : ''} › ${vil.name}`;
   heroH1 = `🏘️ ${vil.name} Village — Pincode ${vil.pincode}`;
   heroSub = `Village in ${tehsilName ? `${tehsilName} ${wordLabel.toLowerCase()}, ` : ''}${where} · Post office ${office ? office.office_name : `PIN ${vil.pincode}`}`;
@@ -234,6 +238,9 @@ if (!dist) {
   title = `Pincode ${pin}, ${data_.office_name} Post Office — ${data_.district_name}, ${data_.state_name} | Villages List, Panchayats, Delivery Status & Full Details`;
   desc = `Pincode ${pin}: ${data_.office_name} (${data_.office_type}), ${data_.taluk}, ${data_.district_name} district, ${data_.state_name}. Complete list of villages, panchayats, delivery status and post office details for pincode ${pin}.`;
   crumbItems = [['Home', `${BASE}/`], [data_.state_name, `${BASE}${stateUrl(state.slug)}`], [data_.district_name, `${BASE}${districtUrl(state.slug, dist.slug)}`], [`Pincode ${pin}`, url]];
+  placeLd = { '@context': 'https://schema.org', '@type': 'Place', '@id': url, name: `${data_.office_name} Post Office — Pincode ${pin}`, url,
+    address: { '@type': 'PostalAddress', streetAddress: data_.office_name, addressLocality: data_.taluk, addressRegion: data_.state_name, addressCountry: 'IN', postalCode: String(pin) },
+    containedInPlace: { '@type': 'AdministrativeArea', name: `${data_.district_name} district`, containedInPlace: { '@type': 'AdministrativeArea', name: `${data_.state_name} state` } } };
   crumbNav = `<a href="/">Home</a> › <a href="${stateUrl(state.slug)}">${data_.state_name}</a> › <a href="${districtUrl(state.slug, dist.slug)}">${data_.district_name}</a> › Pincode ${pin}`;
   heroH1 = `📮 Pincode ${pin} — ${data_.office_name}`;
   heroSub = `${data_.office_type} post office in ${data_.taluk}, ${data_.district_name} district, ${data_.state_name}. Delivery status: ${data_.delivery}.`;
@@ -267,6 +274,7 @@ function subWordLocal(s) { return s && ['andhra-pradesh','telangana','karnataka'
   <Fragment slot="head">
     <script type="application/ld+json" set:html={JSON.stringify(crumbLd(crumbItems))} />
     <script type="application/ld+json" set:html={JSON.stringify(faqLd(faq))} />
+    {placeLd ? <script type="application/ld+json" set:html={JSON.stringify(placeLd)} /> : null}
   </Fragment>
   <nav class="breadcrumb" aria-label="Breadcrumb" set:html={crumbNav} />
   <section class="hero">
