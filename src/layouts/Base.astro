@@ -90,7 +90,7 @@ const COLLECTING = 'Coming soon — we are collecting this from government recor
   </main>
   <footer class="site-foot">
     <nav class="linkfarm" aria-label="Popular pages">
-      <h4>Popular right now</h4>
+      <h3>Popular right now</h3>
       <div class="lf-links">
         {POPULAR.map(([city, pin]) => <a href={`/pincode/${pin}`}>{city} {pin}</a>)}
         <a href="/states">All States</a>
@@ -219,7 +219,7 @@ const COLLECTING = 'Coming soon — we are collecting this from government recor
   .share { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; margin: 1.4rem 0; }
   .share span.lbl { font-size: .85rem; color: var(--muted); font-weight: 600; }
   .share a, .share button { border: none; border-radius: 8px; padding: .5rem .95rem; font-size: .85rem; font-weight: 600; text-decoration: none; cursor: pointer; color: #fff; font-family: inherit; }
-  .wa { background: #25d366; } .x { background: #111; } .fb { background: #1877f2; } .tg { background: #229ed9; } .cp { background: var(--muted); }
+  .wa { background: #177d43; } .x { background: #111; } .fb { background: #145ab8; } .tg { background: #176f9c; } .cp { background: var(--muted); }
 
   .note { background: #fff7e8; border-left: 4px solid var(--accent); padding: .7rem 1rem; font-size: .88rem; border-radius: 0 10px 10px 0; margin: 1rem 0; }
   .updated { font-size: .8rem; color: var(--muted); margin-top: 2rem; }
@@ -236,7 +236,7 @@ const COLLECTING = 'Coming soon — we are collecting this from government recor
   .lf-links a { text-decoration: none; font-size: .82rem; padding: .28rem .6rem; background: #eef3fa; border-radius: 999px; color: var(--navy); border: 1px solid var(--line); }
   .lf-links a:hover { background: #dde9f7; border-color: var(--blue); }
   .site-foot .linkfarm { background: rgba(255,255,255,.06); border-color: rgba(255,255,255,.15); }
-  .site-foot .linkfarm h4 { color: #cfe0f5; }
+  .site-foot .linkfarm h3 { color: #cfe0f5; }
   .site-foot .lf-links a { background: rgba(255,255,255,.08); color: #cfe0f5; border-color: rgba(255,255,255,.15); }
   .site-foot .lf-links a:hover { background: rgba(255,255,255,.16); color: #fff; }
 
