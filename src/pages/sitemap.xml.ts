@@ -2,9 +2,15 @@
 // (this replaces the old /sitemap-index.xml entry point; old path still works)
 export const prerender = false;
 
+import { withRetry } from '../lib/db';
+
 export async function GET({ request, locals }) {
   const db = locals.runtime.env.DB;
-  const states = await db.prepare('SELECT slug, name FROM states ORDER BY name').all();
+  // withRetry: transient D1 blips caused HTTP 500 on /sitemap.xml (22 Sep
+  // site-monitor alert) — same protection as the lib/db.ts helpers.
+  const states = await withRetry(() =>
+    db.prepare('SELECT slug, name FROM states ORDER BY name').all()
+  );
 
   const base = new URL(request.url).origin;
   const urls = [
