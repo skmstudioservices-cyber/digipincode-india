@@ -2,6 +2,7 @@
 import Layout from '../layouts/Base.astro';
 import { getStates } from '../lib/db';
 import { chhathCities, chhathDates2026 } from '../data/chhath';
+import { stateUrl } from '../lib/urls';
 
 export const prerender = false;
 const states = await getStates(Astro.locals.runtime.env.DB);
@@ -39,29 +40,11 @@ const states = await getStates(Astro.locals.runtime.env.DB);
   <div class="cards">
     {states.map(s => (
       <div class="card">
-        <a href={`/state/${s.slug}`}>{s.name}</a>
+        <a href={stateUrl(s.slug)}>{s.name}</a>
         <p class="d">Districts · tehsils · villages · pincodes</p>
       </div>
     ))}
   </div>
-
-  <section class="linkfarm" aria-label="Popular pages">
-    <h3>Popular right now</h3>
-    <div class="lf-links">
-      <a href="/pincode/110001">Delhi 110001</a>
-      <a href="/pincode/400001">Mumbai 400001</a>
-      <a href="/pincode/700001">Kolkata 700001</a>
-      <a href="/pincode/600001">Chennai 600001</a>
-      <a href="/pincode/560001">Bengaluru 560001</a>
-      <a href="/pincode/500001">Hyderabad 500001</a>
-      <a href="/pincode/411001">Pune 411001</a>
-      <a href="/pincode/302001">Jaipur 302001</a>
-      <a href="/pincode/226001">Lucknow 226001</a>
-      <a href="/pincode/800001">Patna 800001</a>
-      <a href="/states">All states</a>
-      <a href="/search">Search everything</a>
-    </div>
-  </section>
 </Layout>
 
 <style>

@@ -1,9 +1,9 @@
 ---
 import Layout from '../layouts/Base.astro';
-// SSR page — renders from D1 on demand
-export const prerender = false;
 import { getStates } from '../lib/db';
+import { stateUrl } from '../lib/urls';
 
+export const prerender = false;
 const states = await getStates(Astro.locals.runtime.env.DB);
 ---
 <Layout
@@ -32,18 +32,11 @@ const states = await getStates(Astro.locals.runtime.env.DB);
   <div class="cards">
     {states.map(s => (
       <div class="card">
-        <a href={`/state/${s.slug}`}>{s.name}</a>
+        <a href={stateUrl(s.slug)}>{s.name}</a>
         <p class="d">Districts · tehsils · villages · pincodes</p>
       </div>
     ))}
   </div>
-
-  <section class="linkfarm" aria-label="Popular pages">
-    <h3>Popular right now</h3>
-    <div class="lf-links">
-      {states.map(s => <a href={`/state/${s.slug}`}>{s.name}</a>)}
-    </div>
-  </section>
 
   <p class="updated">✅ Data verified September 2026 · <a href="/">Back to search</a></p>
 </Layout>
