@@ -9,47 +9,53 @@ const TALUK_STATES = [
   'dadra-and-nagar-haveli','dadra-and-nagar-haveli-and-daman-and-diu','daman-and-diu',
 ];
 
+import { withRetry } from '../lib/db';
+
 export async function GET({ params, request, locals }) {
   const db = locals.runtime.env.DB;
   const { slug } = params;
 
-  const state = await db.prepare('SELECT id, name FROM states WHERE slug = ?').bind(slug).first();
+  // withRetry on every D1 call: transient blips caused HTTP 500s on
+  // sitemap endpoints (22 Sep site-monitor alert) — same as lib/db.ts.
+  const state = await withRetry(() =>
+    db.prepare('SELECT id, name FROM states WHERE slug = ?').bind(slug).first()
+  );
   if (!state) return new Response('Not found', { status: 404 });
 
   const base = new URL(request.url).origin;
   const word = TALUK_STATES.includes(slug) ? 'taluk' : 'tehsil';
 
   // District pages: /{state}/district-{d}
-  const districts = await db.prepare(`
+  const districts = await withRetry(() => db.prepare(`
     SELECT slug FROM districts WHERE state_id = ? ORDER BY name
-  `).bind(state.id).all();
+  `).bind(state.id).all());
 
   // Sub-district pages: /{state}/district-{d}/{word}-{t}
-  const subDistricts = await db.prepare(`
+  const subDistricts = await withRetry(() => db.prepare(`
     SELECT d.slug AS district_slug, sd.slug AS sd_slug
     FROM sub_districts sd JOIN districts d ON d.id = sd.district_id
     WHERE d.state_id = ? ORDER BY d.name, sd.name
-  `).bind(state.id).all();
+  `).bind(state.id).all());
 
   // Village pages: /{state}/district-{d}/{word}-{t}/village-{v}
-  const villages = await db.prepare(`
+  const villages = await withRetry(() => db.prepare(`
     SELECT d.slug AS district_slug, sd.slug AS sd_slug, v.slug AS village_slug
     FROM villages v
     JOIN sub_districts sd ON sd.id = v.sub_district_id
     JOIN districts d ON d.id = sd.district_id
     WHERE d.state_id = ?
     ORDER BY v.slug
-  `).bind(state.id).all();
+  `).bind(state.id).all());
 
   // Pincode pages: /{state}/district-{d}/pincode-{p}
-  const pincodes = await db.prepare(`
+  const pincodes = await withRetry(() => db.prepare(`
     SELECT DISTINCT d.slug AS district_slug, v.pincode
     FROM villages v
     JOIN sub_districts sd ON sd.id = v.sub_district_id
     JOIN districts d ON d.id = sd.district_id
     WHERE d.state_id = ?
     ORDER BY v.pincode
-  `).bind(state.id).all();
+  `).bind(state.id).all());
 
   const urls = [
     `/${slug}`,
