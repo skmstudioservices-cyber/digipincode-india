@@ -2,7 +2,8 @@
 import Layout from '../layouts/Base.astro';
 // Hierarchy catch-all router — URL structure v2
 // /{state}/  ·  /{state}/district-{d}/  ·  /{state}/district-{d}/{tehsil|taluk}-{t}/
-// /{state}/district-{d}/{tehsil|taluk}-{t}/village-{v}/  ·  /{state}/district-{d}/pincode-{p}
+// /{state}/district-{d}/{tehsil|taluk}-{t}/village-{v}/pincode-{p}   ← village canonical
+// /{state}/district-{d}/pincode-{p}                                  ← pincode office page
 export const prerender = false;
 import {
   getStateBySlug, getDistrictsByState, getSubdistrictCountsByState,
@@ -39,25 +40,43 @@ if (segs.length === 3) {
     sd = await getSubDistrictBySlug(DB, dist.id, parseSubSegment(segs[2]));
     if (!sd) return Astro.redirect('/404');
   } else if (segs[2].startsWith('village-')) {
-    vil = await getVillageBySlug(DB, segs[2].slice('village-'.length));
-    if (!vil) return Astro.redirect('/404');
+    // village directly under district → 301 to full hierarchy path
+    const v = await getVillageBySlug(DB, segs[2].slice('village-'.length));
+    if (!v) return Astro.redirect('/404');
+    if (!v.state_slug || !v.district_slug || !v.sub_district_slug) return Astro.redirect(districtUrl(dist.slug ? state.slug : state.slug, v.district_slug || dist.slug), 301);
+    return Astro.redirect(villageUrl(v.state_slug, v.district_slug, v.sub_district_slug, v.slug, v.pincode), 301);
   } else return Astro.redirect(districtUrl(state.slug, dist.slug), 301);
 }
 if (segs.length === 4) {
+  if (segs[2].startsWith('pincode-')) return Astro.redirect(pincodeUrl(state.slug, dist.slug, segs[2].slice('pincode-'.length)), 301);
   if (!parseSubSegment(segs[2])) return Astro.redirect(districtUrl(state.slug, dist.slug), 301);
   sd = await getSubDistrictBySlug(DB, dist.id, parseSubSegment(segs[2]));
   if (!sd) return Astro.redirect('/404');
   if (segs[3].startsWith('village-')) {
-    vil = await getVillageBySlug(DB, segs[3].slice('village-'.length));
-    if (!vil) return Astro.redirect('/404');
+    // village without pincode suffix → 301 to canonical .../village-{v}/pincode-{p}
+    const v = await getVillageBySlug(DB, segs[3].slice('village-'.length));
+    if (!v) return Astro.redirect('/404');
+    if (v.pincode) return Astro.redirect(villageUrl(state.slug, dist.slug, sd.slug, v.slug, v.pincode), 301);
+    vil = v; // no pincode on record — render at tehsil level (rare)
   } else if (segs[3].startsWith('pincode-')) {
-    pin = segs[3].slice('pincode-'.length);
+    return Astro.redirect(pincodeUrl(state.slug, dist.slug, segs[3].slice('pincode-'.length)), 301);
   } else return Astro.redirect(subUrl(state.slug, dist.slug, sd.slug), 301);
 }
 if (segs.length === 5) {
-  // .../village-{v}/pincode-{p} — pincode is canonical at district level
-  if (segs[4].startsWith('pincode-')) return Astro.redirect(pincodeUrl(state.slug, dist.slug, segs[4].slice('pincode-'.length)), 301);
-  return Astro.redirect(villageUrl(state.slug, dist.slug, sd ? sd.slug : '', segs[3].replace('village-', '')), 301);
+  // canonical village URL: /{s}/district-{d}/{word}-{t}/village-{v}/pincode-{p}
+  if (!parseSubSegment(segs[2])) return Astro.redirect(districtUrl(state.slug, dist.slug), 301);
+  sd = await getSubDistrictBySlug(DB, dist.id, parseSubSegment(segs[2]));
+  if (!sd) return Astro.redirect('/404');
+  if (!segs[3].startsWith('village-') || !segs[4].startsWith('pincode-')) return Astro.redirect('/404');
+  vil = await getVillageBySlug(DB, segs[3].slice('village-'.length));
+  if (!vil) return Astro.redirect('/404');
+  const givenPin = segs[4].slice('pincode-'.length);
+  if (String(vil.pincode ?? '') !== givenPin || (vil.sub_district_slug && vil.sub_district_slug !== sd.slug)) {
+    // wrong pincode/tehsil in URL → 301 to the true canonical path
+    if (vil.state_slug && vil.district_slug && vil.sub_district_slug)
+      return Astro.redirect(villageUrl(vil.state_slug, vil.district_slug, vil.sub_district_slug, vil.slug, vil.pincode), 301);
+    return Astro.redirect('/404');
+  }
 }
 if (segs.length > 5) return Astro.redirect('/404');
 
@@ -100,40 +119,40 @@ if (!dist) {
   // ---------- STATE ----------
   const d = data.districts;
   url = `${BASE}${stateUrl(state.slug)}`;
-  title = `${state.name} Pincode Directory — All ${d.length} Districts, Pincodes & Villages`;
-  desc = `Complete ${state.name} pincode directory: all ${d.length} districts with sub-districts, villages, panchayats, LGD codes and post office details.`;
+  title = `${state.name} Pincode & Village Directory — All ${d.length} Districts, Tehsils, Villages, Panchayats & Pincodes List | Digipincode India`;
+  desc = `Complete ${state.name} pincode and village directory: all ${d.length} districts with tehsils, villages, panchayats, LGD codes, post offices and pincodes. Browse the full ${state.name} administrative hierarchy.`;
   crumbItems = [['Home', `${BASE}/`], [state.name, url]];
   crumbNav = `<a href="/">Home</a> › ${state.name}`;
   heroH1 = `${state.name} Pincode Directory`;
-  heroSub = `All ${d.length} districts · sub-districts · villages · panchayats · pincodes`;
-  chips = [`🗺️ ${d.length} districts`, '📮 Full pincode data', '🏘️ Village profiles'];
-  intro = `Browse every <strong>pincode, village and panchayat in ${state.name}</strong> district by district. Each district page lists its sub-districts with village counts, and each sub-district page lists every village with its pincode, population, LGD code and DIGIPIN where available.`;
+  heroSub = `All ${d.length} districts · tehsils · villages · panchayats · pincodes`;
+  chips = [`🗺️ ${d.length} districts`, '📮 Full pincode data', '🏘️ Village profiles', '🏛️ Panchayat & LGD data'];
+  intro = `Browse every <strong>pincode, village and panchayat in ${state.name}</strong> district by district. Each district page lists its tehsils with village counts, and each tehsil page lists every village with its pincode, population, LGD code and DIGIPIN where available.`;
   faq = [
-    [`How many districts are there in ${state.name}?`, `Our directory lists ${d.length} districts in ${state.name}. Select any district below to browse its sub-districts, villages and pincodes.`],
-    [`How do I find a pincode in ${state.name}?`, `Open the district you need from the list below, then drill down to the sub-district and village level. Each page shows the exact pincode, post office and LGD details.`],
+    [`How many districts are there in ${state.name}?`, `Our directory lists ${d.length} districts in ${state.name}. Select any district below to browse its tehsils, villages and pincodes.`],
+    [`How do I find a pincode in ${state.name}?`, `Open the district you need from the list below, then drill down to the tehsil and village level. Each page shows the exact pincode, post office and LGD details.`],
   ];
-  extraSections = `<h2>Districts of ${state.name}</h2><div class="cards">${d.map(x => `<div class="card"><a href="${districtUrl(state.slug, x.slug)}">${x.name}</a><p class="d">${data.sdCounts[x.id] ? `${data.sdCounts[x.id]} sub-districts · villages & pincodes` : 'Sub-districts, villages & pincodes'}</p></div>`).join('')}</div>`;
+  extraSections = `<h2>Districts of ${state.name}</h2><div class="cards">${d.map(x => `<div class="card"><a href="${districtUrl(state.slug, x.slug)}">${x.name}</a><p class="d">${data.sdCounts[x.id] ? `${data.sdCounts[x.id]} tehsils · villages & pincodes` : 'Tehsils, villages & pincodes'}</p></div>`).join('')}</div>`;
 } else if (!sd && !vil && !pin) {
   // ---------- DISTRICT ----------
   const st = data.stats, top = data.top || [], sds = data.subDistricts;
   url = `${BASE}${districtUrl(state.slug, dist.slug)}`;
-  title = `${dist.name} District, ${state.name} — All Pincodes, Sub-Districts & Villages`;
-  desc = `Complete ${dist.name} district pincode list: ${sds.length} sub-districts${st?.village_count ? `, ${L(st.village_count)} villages` : ''}, panchayats, post offices and LGD codes in ${state.name}.`;
+  title = `${dist.name} District, ${state.name} — All Tehsils, ${st?.village_count ? `${L(st.village_count)} Villages, ` : ''}Panchayats & Complete Pincode List | Digipincode India`;
+  desc = `Complete ${dist.name} district directory: ${sds.length} tehsils${st?.village_count ? `, ${L(st.village_count)} villages` : ''}, panchayats, post offices, pincodes and LGD codes in ${state.name}. Browse every village by tehsil.`;
   crumbItems = [['Home', `${BASE}/`], [state.name, `${BASE}${stateUrl(state.slug)}`], [dist.name, url]];
   crumbNav = `<a href="/">Home</a> › <a href="${stateUrl(state.slug)}">${state.name}</a> › ${dist.name}`;
-  heroH1 = `${dist.name} District`;
-  heroSub = `${state.name} · ${sds.length} sub-districts${st?.village_count ? ` · ${L(st.village_count)} villages` : ''}${st?.total_population ? ` · ${L(st.total_population)} people` : ''}`;
-  chips = [`🗺️ ${sds.length} sub-districts`];
+  heroH1 = `${dist.name} District, ${state.name}`;
+  heroSub = `${sds.length} tehsils${st?.village_count ? ` · ${L(st.village_count)} villages` : ''}${st?.total_population ? ` · ${L(st.total_population)} people` : ''} · pincodes & panchayats`;
+  chips = [`🗺️ ${sds.length} tehsils`];
   if (st?.village_count) chips.push(`🏘️ ${L(st.village_count)} villages`);
   if (st?.total_population) chips.push(`👥 ${L(st.total_population)} people`);
   chips.push('📮 Pincode lookup');
-  intro = `<strong>${dist.name}</strong> is a district of ${state.name}, organised into <strong>${sds.length} sub-districts</strong> (tehsils/taluks). ${st?.village_count ? `It covers ${L(st.village_count)} villages` : 'Browse sub-districts below to reach every village'} — each with its own page showing pincode, population, LGD code, DIGIPIN, panchayat and post office details.`;
+  intro = `<strong>${dist.name}</strong> is a district of ${state.name}, organised into <strong>${sds.length} tehsils</strong>. ${st?.village_count ? `It covers ${L(st.village_count)} villages` : 'Browse tehsils below to reach every village'} — each with its own page showing pincode, population, LGD code, DIGIPIN, panchayat and post office details.`;
   faq = [
-    [`How many sub-districts are in ${dist.name}?`, `${dist.name} district in ${state.name} has ${sds.length} sub-district${sds.length === 1 ? '' : 's'} (tehsils/taluks) listed in our directory.`],
-    [`How many villages are in ${dist.name} district?`, st?.village_count ? `${dist.name} district covers ${L(st.village_count)} villages${st.total_population ? ` with a combined population of about ${L(st.total_population)}` : ''}.` : `Pick a sub-district below to see every village with its pincode and population.`],
+    [`How many tehsils are in ${dist.name}?`, `${dist.name} district in ${state.name} has ${sds.length} tehsil${sds.length === 1 ? '' : 's'} listed in our directory.`],
+    [`How many villages are in ${dist.name} district?`, st?.village_count ? `${dist.name} district covers ${L(st.village_count)} villages${st.total_population ? ` with a combined population of about ${L(st.total_population)}` : ''}.` : `Pick a tehsil below to see every village with its pincode and population.`],
   ];
-  extraSections = `<h2>Sub-districts of ${dist.name}</h2><div class="cards">${sds.map(x => `<div class="card"><a href="${subUrl(state.slug, dist.slug, x.slug)}">${x.name}</a><p class="d">Tehsil / Taluk — villages & pincodes</p></div>`).join('')}</div>`
-    + (top.length ? `<h2>Largest villages in ${dist.name}</h2><div class="cards">${top.map(v => `<div class="card"><a href="${villageUrl(state.slug, dist.slug, sdSlugFor(v), v.slug)}">${v.name}</a><p class="d">📮 ${v.pincode}${v.population ? ` · 👥 ${L(v.population)}` : ''}</p></div>`).join('')}</div>` : '');
+  extraSections = `<h2>Tehsils of ${dist.name}</h2><div class="cards">${sds.map(x => `<div class="card"><a href="${subUrl(state.slug, dist.slug, x.slug)}">${x.name}</a><p class="d">Tehsil / Taluk — villages & pincodes</p></div>`).join('')}</div>`
+    + (top.length ? `<h2>Largest villages in ${dist.name}</h2><div class="cards">${top.map(v => `<div class="card"><a href="${villageUrl(state.slug, dist.slug, v.sub_district_slug || '', v.slug, v.pincode)}">${v.name}</a><p class="d">📮 ${v.pincode}${v.population ? ` · 👥 ${L(v.population)}` : ''}</p></div>`).join('')}</div>` : '');
 } else if (sd && !vil && !pin) {
   // ---------- TEHSIL / TALUK ----------
   const vs = data.villages, sibs = data.siblings || [];
@@ -142,61 +161,63 @@ if (!dist) {
   const totalPop = vs.reduce((s, v) => s + (v.population || 0), 0);
   const pincodes = [...new Set(vs.map(v => v.pincode).filter(Boolean))];
   const word = subWordLocal(state.slug);
+  const wordLabel = word === 'taluk' ? 'Taluk' : 'Tehsil';
   url = `${BASE}${subUrl(state.slug, dist.slug, sd.slug)}`;
-  title = `${sd.name}, ${dist.name} — All ${vs.length} Villages with Pincodes | ${state.name}`;
-  desc = `All ${vs.length} villages in ${sd.name} (${dist.name}, ${state.name}) with pincodes, population, LGD codes, DIGIPIN and panchayat details${totalPop ? `. Combined population: ${L(totalPop)}.` : '.'}`;
+  title = `${sd.name} ${wordLabel}, ${dist.name} District — ${vs.length} Villages List with Pincode, Population, Panchayat & LGD Codes | ${state.name}`;
+  desc = `All ${vs.length} villages in ${sd.name} ${word}, ${dist.name} district, ${state.name}, with pincodes, population, households, LGD codes, DIGIPIN and panchayat details${totalPop ? `. Combined population: ${L(totalPop)}.` : '.'}`;
   crumbItems = [['Home', `${BASE}/`], [state.name, `${BASE}${stateUrl(state.slug)}`], [dist.name, `${BASE}${districtUrl(state.slug, dist.slug)}`], [sd.name, url]];
   crumbNav = `<a href="/">Home</a> › <a href="${stateUrl(state.slug)}">${state.name}</a> › <a href="${districtUrl(state.slug, dist.slug)}">${dist.name}</a> › ${sd.name}`;
-  heroH1 = sd.name;
-  heroSub = `${dist.name}, ${state.name} · ${vs.length} villages${totalPop ? ` · ${L(totalPop)} people` : ''} · pincodes & panchayat data`;
+  heroH1 = `${sd.name} ${wordLabel}, ${dist.name}`;
+  heroSub = `${state.name} · ${vs.length} villages${totalPop ? ` · ${L(totalPop)} people` : ''} · pincodes & panchayat data`;
   chips = [`🏘️ ${vs.length} villages`, `🇮🇳 ${state.name}`];
   if (pincodes.length) chips.push(`📮 ${pincodes.length} pincodes`);
   if (totalPop) chips.push(`👥 ${L(totalPop)} people`);
-  intro = `<strong>${sd.name}</strong> is a sub-district (${word}) of ${dist.name} in ${state.name}, covering <strong>${vs.length} villages</strong>. Each village below has its own page with pincode, population, households, LGD and census codes, DIGIPIN and panchayat administration.`;
+  intro = `<strong>${sd.name}</strong> is a ${word} of ${dist.name} district in ${state.name}, covering <strong>${vs.length} villages</strong>. Each village below has its own page with pincode, population, households, LGD and census codes, DIGIPIN and panchayat administration.`;
   faq = [
     [`How many villages are in ${sd.name}?`, `${sd.name} in ${dist.name}, ${state.name} has ${vs.length} village${vs.length === 1 ? '' : 's'} listed in our directory${totalPop ? ` with a combined population of about ${L(totalPop)}` : ''}.`],
     [`Which pincodes cover ${sd.name}?`, pincodes.length ? `${sd.name} villages use ${pincodes.length} pincodes: ${pincodes.slice(0, 8).join(', ')}${pincodes.length > 8 ? ' and more' : ''}. Open any village page for its exact pincode.` : `Pincode details for ${sd.name} villages are listed on each village page.`],
   ];
   extraSections = (pincodes.length ? `<h2>Pincodes in ${sd.name}</h2><div class="cards">${pincodes.map(p => `<div class="card"><a href="${pincodeUrl(state.slug, dist.slug, p)}">📮 Pincode ${p}</a><p class="d">Post office & served villages</p></div>`).join('')}</div>` : '')
-    + (top.length ? `<h2>Largest villages in ${sd.name}</h2><div class="cards">${top.map(v => `<div class="card"><a href="${villageUrl(state.slug, dist.slug, sd.slug, v.slug)}">${v.name}</a><p class="d">📮 ${v.pincode}${v.population ? ` · 👥 ${L(v.population)}` : ''}</p></div>`).join('')}</div>` : '')
-    + `<h2>All villages in ${sd.name}</h2><div class="cards">${vs.map(v => `<div class="card"><a href="${villageUrl(state.slug, dist.slug, sd.slug, v.slug)}">${v.name}</a><p class="d">📮 ${v.pincode}${v.population ? ` · 👥 ${L(v.population)}` : ''}${v.lgd_code ? ` · LGD ${v.lgd_code}` : ''}</p></div>`).join('')}</div>`
+    + (top.length ? `<h2>Largest villages in ${sd.name}</h2><div class="cards">${top.map(v => `<div class="card"><a href="${villageUrl(state.slug, dist.slug, sd.slug, v.slug, v.pincode)}">${v.name}</a><p class="d">📮 ${v.pincode}${v.population ? ` · 👥 ${L(v.population)}` : ''}</p></div>`).join('')}</div>` : '')
+    + `<h2>All villages in ${sd.name}</h2><div class="cards">${vs.map(v => `<div class="card"><a href="${villageUrl(state.slug, dist.slug, sd.slug, v.slug, v.pincode)}">${v.name}</a><p class="d">📮 ${v.pincode}${v.population ? ` · 👥 ${L(v.population)}` : ''}${v.lgd_code ? ` · LGD ${v.lgd_code}` : ''}</p></div>`).join('')}</div>`
     + (sibs.length ? `<section class="linkfarm"><h3>Explore ${dist.name} district</h3><div class="lf-links">${sibs.map(x => `<a href="${subUrl(state.slug, dist.slug, x.slug)}">${x.name}</a>`).join('')}<a href="${districtUrl(state.slug, dist.slug)}">${dist.name} district ›</a></div></section>` : '');
 } else if (vil) {
-  // ---------- VILLAGE ----------
+  // ---------- VILLAGE (canonical URL ends with /pincode-{p}) ----------
   const p = data.panchayat, office = data.office, sibs = data.siblings || [], stt = data.stats;
   const stateName = vil.state_name || state.name, districtName = vil.district_name || dist.name, tehsilName = vil.sub_district_name || (sd ? sd.name : '');
   const tehsilSlug = vil.sub_district_slug || (sd ? sd.slug : '');
   const where = `${districtName}, ${stateName}`;
+  const wordLabel = subWordLocal(state.slug) === 'taluk' ? 'Taluk' : 'Tehsil';
   const tehsilVillages = stt?.village_count ?? 0;
-  url = `${BASE}${villageUrl(state.slug, dist.slug, tehsilSlug, vil.slug)}`;
-  title = `${vil.name} Village — Pincode ${vil.pincode}, ${tehsilName ? `${tehsilName} ${subWordLocal(state.slug) === 'taluk' ? 'Taluk' : 'Tehsil'}, ` : ''}${where} | Population & Panchayat`;
-  desc = `${vil.name} village (pincode ${vil.pincode}) in ${tehsilName ? `${tehsilName}, ` : ''}${where}: population, households, panchayat, post office, facilities, LGD/census codes, DIGIPIN and full administrative profile.`;
+  url = `${BASE}${villageUrl(state.slug, dist.slug, tehsilSlug, vil.slug, vil.pincode)}`;
+  title = `${vil.name} Village, ${tehsilName ? `${tehsilName} ${wordLabel}, ` : ''}${where} — Pincode ${vil.pincode} | Population, Panchayat, Post Office & Village Details`;
+  desc = `${vil.name} village pincode ${vil.pincode} in ${tehsilName ? `${tehsilName}, ` : ''}${where}: population, households, panchayat, post office, LGD/census codes, DIGIPIN and the complete administrative profile of ${vil.name}.`;
   crumbItems = [['Home', `${BASE}/`], [stateName, `${BASE}${stateUrl(state.slug)}`], [districtName, `${BASE}${districtUrl(state.slug, dist.slug)}`], ...(tehsilSlug ? [[tehsilName, `${BASE}${subUrl(state.slug, dist.slug, tehsilSlug)}`]] : []), [vil.name, url]];
   crumbNav = `<a href="/">Home</a> › <a href="${stateUrl(state.slug)}">${stateName}</a> › <a href="${districtUrl(state.slug, dist.slug)}">${districtName}</a>${tehsilSlug ? ` › <a href="${subUrl(state.slug, dist.slug, tehsilSlug)}">${tehsilName}</a>` : ''} › ${vil.name}`;
-  heroH1 = `🏘️ ${vil.name}`;
-  heroSub = `Village in ${tehsilName ? `${tehsilName} ${subWordLocal(state.slug) === 'taluk' ? 'taluk' : 'tehsil'}, ` : ''}${where} · Pincode ${vil.pincode}`;
-  chips = [`📍 ${where}`, `📮 ${vil.pincode}`];
-  if (vil.population) chips.push(`👥 ${L(vil.population)}`);
+  heroH1 = `🏘️ ${vil.name} Village — Pincode ${vil.pincode}`;
+  heroSub = `Village in ${tehsilName ? `${tehsilName} ${wordLabel.toLowerCase()}, ` : ''}${where} · Post office ${office ? office.office_name : `PIN ${vil.pincode}`}`;
+  chips = [`📍 ${where}`, `📮 Pincode ${vil.pincode}`];
+  if (vil.population) chips.push(`👥 ${L(vil.population)} people`);
   if (tehsilVillages > 0) chips.push(`🗺️ ${tehsilVillages} villages in ${tehsilName || 'area'}`);
   if (vil.digipin) chips.push('🛰️ DIGIPIN');
-  intro = `<strong>${vil.name}</strong> is a village in ${tehsilName ? `${tehsilName} tehsil of ` : ''}<strong>${districtName}</strong>. ${tehsilVillages > 1 ? `It is one of ${tehsilVillages} villages that make up ${tehsilName} tehsil.` : ''} ${vil.population ? `Around ${L(vil.population)} people live here in ${L(vil.households)} households.` : ''} Mail for the village is delivered under pincode <a href="${pincodeUrl(state.slug, dist.slug, vil.pincode)}">${vil.pincode}</a>.`;
+  intro = `<strong>${vil.name}</strong> is a village in ${tehsilName ? `${tehsilName} ${wordLabel.toLowerCase()} of ` : ''}<strong>${districtName} district</strong>${tehsilVillages > 1 ? `, one of ${tehsilVillages} villages that make up ${tehsilName} ${wordLabel.toLowerCase()}` : ''}. ${vil.population ? `Around ${L(vil.population)} people live here in ${L(vil.households)} households.` : ''} Mail for the village is delivered under pincode <a href="${pincodeUrl(state.slug, dist.slug, vil.pincode)}">${vil.pincode}</a>.`;
   faq = [
-    [`What is the pincode of ${vil.name}?`, `The pincode of ${vil.name} is ${vil.pincode}.${office ? ` It is served by the ${office.office_name} post office (${office.office_type}) in ${office.taluk}, ${districtName} district.` : ''}`],
-    [`Which district and state does ${vil.name} belong to?`, `${vil.name} is a village in ${tehsilName ? `${tehsilName} tehsil of ` : ''}${districtName} district, ${stateName}${tehsilVillages ? ` — one of ${tehsilVillages} villages in ${tehsilName} tehsil` : ''}.`],
+    [`What is the pincode of ${vil.name} village?`, `The pincode of ${vil.name} is ${vil.pincode}.${office ? ` It is served by the ${office.office_name} post office (${office.office_type}) in ${office.taluk}, ${districtName} district, ${stateName}.` : ''}`],
+    [`Which district and state does ${vil.name} belong to?`, `${vil.name} is a village in ${tehsilName ? `${tehsilName} ${wordLabel.toLowerCase()} of ` : ''}${districtName} district, ${stateName}${tehsilVillages ? ` — one of ${tehsilVillages} villages in ${tehsilName} ${wordLabel.toLowerCase()}` : ''}.`],
     [`Which panchayat does ${vil.name} belong to?`, p ? `${vil.name} is administered by ${p.local_body_name} (${p.local_body_type}, LGD code ${p.lgd_code}) in ${p.block_name} block.` : `Panchayat details for ${vil.name} are being verified.`],
     [`What is the population of ${vil.name}?`, vil.population ? `As per census data, ${vil.name} has a population of ${L(vil.population)} living in ${L(vil.households)} households.` : `Population data for ${vil.name} is not available in the current census extract.`],
   ];
   extraSections = `<h2>Administrative location of ${vil.name}</h2><div class="cards">
       <div class="card"><a href="${stateUrl(state.slug)}">${stateName}</a><p class="d">State — all districts, villages & pincodes</p></div>
-      <div class="card"><a href="${districtUrl(state.slug, dist.slug)}">${districtName} District</a><p class="d">District of ${stateName} — sub-districts & villages</p></div>
-      ${tehsilSlug ? `<div class="card"><a href="${subUrl(state.slug, dist.slug, tehsilSlug)}">${tehsilName} ${subWordLocal(state.slug) === 'taluk' ? 'Taluk' : 'Tehsil'}</a><p class="d">${tehsilVillages > 0 ? `${tehsilVillages} villages${stt?.total_population ? ` · ${L(stt.total_population)} people` : ''}` : 'Sub-district (tehsil/taluk)'}</p></div>` : ''}
+      <div class="card"><a href="${districtUrl(state.slug, dist.slug)}">${districtName} District</a><p class="d">District of ${stateName} — tehsils & villages</p></div>
+      ${tehsilSlug ? `<div class="card"><a href="${subUrl(state.slug, dist.slug, tehsilSlug)}">${tehsilName} ${wordLabel}</a><p class="d">${tehsilVillages > 0 ? `${tehsilVillages} villages${stt?.total_population ? ` · ${L(stt.total_population)} people` : ''}` : 'Tehsil / Taluk'}</p></div>` : ''}
       ${p ? `<div class="card"><a href="/panchayat/${p.lgd_code}">${p.local_body_name}</a><p class="d">${p.local_body_type} · ${p.block_name} block · LGD ${p.lgd_code}</p></div>` : ''}
       <div class="card"><a href="${pincodeUrl(state.slug, dist.slug, vil.pincode)}">Pincode ${vil.pincode}</a><p class="d">Postal zone${office ? ` · ${office.office_name}` : ''}</p></div>
     </div>
-    <h2>Village profile</h2><div class="factgrid">
+    <h2>${vil.name} village profile</h2><div class="factgrid">
       <div class="fact"><div class="k">Pincode</div><div class="v">${vil.pincode}</div></div>
       <div class="fact"><div class="k">District</div><div class="v">${districtName}</div></div>
-      <div class="fact"><div class="k">${subWordLocal(state.slug) === 'taluk' ? 'Taluk' : 'Tehsil'}</div><div class="v">${tehsilName || '—'}</div></div>
+      <div class="fact"><div class="k">${wordLabel}</div><div class="v">${tehsilName || '—'}</div></div>
       <div class="fact"><div class="k">LGD Code</div><div class="v">${vil.lgd_code ?? '—'}</div></div>
       <div class="fact"><div class="k">Census Code</div><div class="v">${vil.census_code ?? '—'}</div></div>
       <div class="fact"><div class="k">Population</div><div class="v">${vil.population ? L(vil.population) : '—'}</div></div>
@@ -204,20 +225,21 @@ if (!dist) {
       ${vil.digipin ? `<div class="fact"><div class="k">DIGIPIN</div><div class="v">${vil.digipin}</div></div>` : ''}
     </div>`
     + (office ? `<h2>Post office serving ${vil.name}</h2><div class="factgrid"><div class="fact"><div class="k">Office</div><div class="v">${office.office_name}</div></div><div class="fact"><div class="k">Type</div><div class="v">${office.office_type}</div></div><div class="fact"><div class="k">Delivery</div><div class="v">${office.delivery}</div></div><div class="fact"><div class="k">Division</div><div class="v">${office.division}</div></div><div class="fact"><div class="k">Region</div><div class="v">${office.region}</div></div><div class="fact"><div class="k">Circle</div><div class="v">${office.circle}</div></div></div>` : '')
-    + (sibs.length ? `<h2>Other villages in ${tehsilName || 'this tehsil'}</h2><div class="cards">${sibs.map(v => `<div class="card"><a href="${villageUrl(state.slug, dist.slug, tehsilSlug, v.slug)}">${v.name}</a><p class="d">📮 ${v.pincode}${v.population ? ` · 👥 ${L(v.population)}` : ''}</p></div>`).join('')}</div>` : '');
+    + (sibs.length ? `<h2>Other villages in ${tehsilName || 'this tehsil'}</h2><div class="cards">${sibs.map(v => `<div class="card"><a href="${villageUrl(state.slug, dist.slug, tehsilSlug, v.slug, v.pincode)}">${v.name}</a><p class="d">📮 ${v.pincode}${v.population ? ` · 👥 ${L(v.population)}` : ''}</p></div>`).join('')}</div>` : '');
 } else if (pin) {
-  // ---------- PINCODE ----------
+  // ---------- PINCODE (office page, district level) ----------
   const data_ = data.pin, vs = data.villages, ps = data.panchayats;
   const villageNames = vs.slice(0, 5).map(v => v.name).join(', ');
   url = `${BASE}${pincodeUrl(state.slug, dist.slug, pin)}`;
-  title = `Pincode ${pin} — ${data_.office_name}, ${data_.district_name}, ${data_.state_name} | Villages & Post Office`;
-  desc = `Pincode ${pin}: ${data_.office_name} (${data_.office_type}), ${data_.taluk}, ${data_.district_name}, ${data_.state_name}. Full list of villages, panchayats and post office details for pincode ${pin}.`;
+  title = `Pincode ${pin}, ${data_.office_name} Post Office — ${data_.district_name}, ${data_.state_name} | Villages List, Panchayats, Delivery Status & Full Details`;
+  desc = `Pincode ${pin}: ${data_.office_name} (${data_.office_type}), ${data_.taluk}, ${data_.district_name} district, ${data_.state_name}. Complete list of villages, panchayats, delivery status and post office details for pincode ${pin}.`;
   crumbItems = [['Home', `${BASE}/`], [data_.state_name, `${BASE}${stateUrl(state.slug)}`], [data_.district_name, `${BASE}${districtUrl(state.slug, dist.slug)}`], [`Pincode ${pin}`, url]];
   crumbNav = `<a href="/">Home</a> › <a href="${stateUrl(state.slug)}">${data_.state_name}</a> › <a href="${districtUrl(state.slug, dist.slug)}">${data_.district_name}</a> › Pincode ${pin}`;
-  heroH1 = `Pincode ${pin} — ${data_.office_name}`;
+  heroH1 = `📮 Pincode ${pin} — ${data_.office_name}`;
   heroSub = `${data_.office_type} post office in ${data_.taluk}, ${data_.district_name} district, ${data_.state_name}. Delivery status: ${data_.delivery}.`;
-  chips = [`📮 ${data_.office_type}`, `🗺️ ${data_.district_name}`, `🚚 ${data_.delivery}`, `${vs.length} villages`];
-  if (ps.length) chips.push(`${ps.length} panchayats`);
+  chips = [`📮 ${data_.office_type}`, `🗺️ ${data_.district_name}`, `🚚 ${data_.delivery}`];
+  if (vs.length) chips.push(`🏘️ ${vs.length} villages`);
+  if (ps.length) chips.push(`🏛️ ${ps.length} panchayats`);
   intro = `<strong>Pincode ${pin}</strong> is the postal index number for <strong>${data_.office_name}</strong> and the surrounding area in ${data_.taluk}, ${data_.district_name} district of ${data_.state_name}. It falls under the ${data_.division} division, ${data_.region} region and the ${data_.circle} postal circle.`;
   faq = [
     [`What is pincode ${pin}?`, `Pincode ${pin} is the postal code of the ${data_.office_name} post office (${data_.office_type}) in ${data_.district_name} district, ${data_.state_name}.`],
@@ -225,7 +247,7 @@ if (!dist) {
     [`Which villages come under pincode ${pin}?`, vs.length ? `Pincode ${pin} covers ${vs.length} village${vs.length > 1 ? 's' : ''}, including ${villageNames}${vs.length > 5 ? ` and ${vs.length - 5} more` : ''}.` : `No villages are mapped to pincode ${pin} in our directory yet.`],
     [`How do I write an address with pincode ${pin}?`, `Write it in the standard format: recipient name, ${data_.office_name}, ${data_.taluk}, ${data_.district_name}, ${data_.state_name} — PIN ${pin}.`],
   ];
-  extraSections = `<div class="factgrid">
+  extraSections = `<h2>Pincode ${pin} post office details</h2><div class="factgrid">
       <div class="fact"><div class="k">Post Office</div><div class="v">${data_.office_name}</div></div>
       <div class="fact"><div class="k">Office Type</div><div class="v">${data_.office_type}</div></div>
       <div class="fact"><div class="k">State</div><div class="v">${data_.state_name}</div></div>
@@ -235,12 +257,11 @@ if (!dist) {
       <div class="fact"><div class="k">Region</div><div class="v">${data_.region}</div></div>
       <div class="fact"><div class="k">Delivery</div><div class="v">${data_.delivery}</div></div>
     </div>`
-    + (vs.length ? `<h2>Villages under pincode ${pin}</h2><div class="cards">${vs.map(v => `<div class="card"><a href="${villageUrl(v.state_slug || state.slug, v.district_slug || dist.slug, v.sub_district_slug || '', v.slug)}">${v.name}</a>${v.ai_description ? `<p class="d">${v.ai_description}</p>` : ''}</div>`).join('')}</div>` : '')
+    + (vs.length ? `<h2>Villages under pincode ${pin}</h2><div class="cards">${vs.map(v => `<div class="card"><a href="${villageUrl(v.state_slug || state.slug, v.district_slug || dist.slug, v.sub_district_slug || '', v.slug, v.pincode)}">${v.name}</a>${v.ai_description ? `<p class="d">${v.ai_description}</p>` : ''}</div>`).join('')}</div>` : '')
     + (ps.length ? `<h2>Panchayats under pincode ${pin}</h2><div class="cards">${ps.map(p => `<div class="card"><a href="/panchayat/${p.lgd_code}">${p.local_body_name}</a></div>`).join('')}</div>` : '');
 }
 
 function subWordLocal(s) { return s && ['andhra-pradesh','telangana','karnataka','kerala','tamil-nadu','puducherry','maharashtra','gujarat','goa','lakshadweep','andaman-and-nicobar-islands','dadra-and-nagar-haveli','dadra-and-nagar-haveli-and-daman-and-diu','daman-and-diu'].includes(s) ? 'taluk' : 'tehsil'; }
-function sdSlugFor(v) { return v.sub_district_slug || ''; }
 ---
 <Layout title={title} description={desc}>
   <Fragment slot="head">
