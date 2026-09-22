@@ -1,0 +1,20 @@
+name: URL Check
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: curl checks
+        run: |
+          set +e
+          U="https://digipincode.pages.dev/arunachal-pradesh/district-papum-pare/tehsil-banderdewa-circle/village-c-f-colony/pincode-791123"
+          for url in "$U" "https://digipincode.pages.dev/" "https://digipincode.india-in.workers.dev/"; do
+            code=$(curl -s -o /tmp/body -w "%{http_code}" --max-time 30 -A "Mozilla/5.0 (Linux; Android 10)" "$url")
+            echo "=== $url -> HTTP $code"
+            head -c 300 /tmp/body | tr -d '\n' | cut -c1-300
+            echo
+          done
