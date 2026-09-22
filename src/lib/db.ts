@@ -200,17 +200,35 @@ export async function getTopVillagesByDistrict(db: DB, districtId: number, limit
 
 export async function searchAll(db: DB, q: string) {
   const like = `%${q}%`;
+  // Hierarchy URLs (URL structure v2):
+  //   /{state}/district-{d}/pincode-{p}
+  //   /{state}/district-{d}/{tehsil|taluk}-{t}/village-{v}
   const pincodes = await withRetry(() =>
     db.prepare(`
-    SELECT pincode AS title, '/pincode/' || pincode AS url FROM pincodes
-    WHERE pincode LIKE ? OR office_name LIKE ? LIMIT 20
+    SELECT p.pincode AS title,
+           '/' || s.slug || '/district-' || d.slug || '/pincode-' || p.pincode AS url
+    FROM pincodes p
+    JOIN states s ON s.id = p.state_id
+    JOIN districts d ON d.id = p.district_id
+    WHERE p.pincode LIKE ? OR p.office_name LIKE ? LIMIT 20
   `).bind(like, like).all()
   );
 
   const villages = await withRetry(() =>
     db.prepare(`
-    SELECT name AS title, '/village/' || slug AS url FROM villages
-    WHERE name LIKE ? LIMIT 20
+    SELECT v.name AS title,
+           CASE WHEN sd.slug IS NULL OR d.slug IS NULL OR s.slug IS NULL
+                THEN '/village/' || v.slug
+                ELSE '/' || s.slug || '/district-' || d.slug || '/' ||
+                     (CASE WHEN s.slug IN ('andhra-pradesh','telangana','karnataka','kerala','tamil-nadu','puducherry','maharashtra','gujarat','goa','lakshadweep','andaman-and-nicobar-islands','dadra-and-nagar-haveli','dadra-and-nagar-haveli-and-daman-and-diu','daman-and-diu')
+                      THEN 'taluk' ELSE 'tehsil' END) || '-' || sd.slug ||
+                     '/village-' || v.slug
+           END AS url
+    FROM villages v
+    LEFT JOIN sub_districts sd ON sd.id = v.sub_district_id
+    LEFT JOIN districts d ON d.id = sd.district_id
+    LEFT JOIN states s ON s.id = d.state_id
+    WHERE v.name LIKE ? LIMIT 20
   `).bind(like).all()
   );
 
