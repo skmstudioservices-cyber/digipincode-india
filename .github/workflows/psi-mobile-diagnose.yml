@@ -8,27 +8,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - name: Check HTML weight, status, DOM size
-        run: |
-          set -e
-          B=https://digipincode.india-in.workers.dev
-          VIL=$(curl -s "$B/sitemap-haryana.xml" | grep -o '<loc>[^<]*village-[^<]*</loc>' | head -1 | sed 's/<[^>]*>//g')
-          echo "VILLAGE=$VIL"
-          for u in "/" "/states" "/andhra-pradesh/" "/andhra-pradesh/district-krishna/" "/haryana/district-jhajjar/tehsil-bahadurgarh/" "$VIL"; do
-            out=$(curl -s -o /tmp/p.html -w "%{http_code} %{size_download} %{time_total}" "$B$u")
-            divs=$(grep -o '<div' /tmp/p.html | wc -l)
-            anchors=$(grep -o '<a ' /tmp/p.html | wc -l)
-            echo "$u -> code/size/time: $out | divs: $divs | anchors: $anchors"
-            grep -o 'name="viewport"[^>]*' /tmp/p.html | head -1 || echo "NO VIEWPORT META"
-          done
-          mout=$(curl -s -A "Mozilla/5.0 (Linux; Android 11; moto g power (2022)) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Mobile Safari/537.36" -o /tmp/m.html -w "%{http_code} %{size_download}" "$B/")
-          echo "homepage mobile-UA -> $mout"
-
       - name: Run Lighthouse MOBILE (PSI engine) on key pages
         run: |
           set +e
           B=https://digipincode.india-in.workers.dev
           VIL=$(curl -s "$B/sitemap-haryana.xml" | grep -o '<loc>[^<]*village-[^<]*</loc>' | head -1 | sed 's/<[^>]*>//g')
+          VIL=${VIL#"$B"}
+          echo "VILLAGE PATH=$VIL"
           mkdir -p /tmp/lh
           for u in "/" "/andhra-pradesh/" "/haryana/district-jhajjar/tehsil-bahadurgarh/" "$VIL"; do
             name=$(echo "$u" | tr '/' '_')
