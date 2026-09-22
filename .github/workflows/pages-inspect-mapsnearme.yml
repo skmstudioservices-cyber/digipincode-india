@@ -23,12 +23,8 @@ jobs:
             echo; echo
           }
           probe "prod-home" "https://mapsnearme.pages.dev/"
-          probe "prod-search" "https://mapsnearme.pages.dev/search?q=Dentist&loc=Delhi"
-          probe "prod-sitemap" "https://mapsnearme.pages.dev/sitemap.xml"
-          probe "alias-1144" "https://ae45b917.mapsnearme.pages.dev/"
-          probe "alias-1341" "https://6a93ec08.mapsnearme.pages.dev/"
+          probe "prod-favicon" "https://mapsnearme.pages.dev/favicon.ico"
+          probe "prod-astro-css" "https://mapsnearme.pages.dev/_astro/about.lMfcpRL2.css"
           probe "dashboard-prod" "https://dashboardmapsnearme.pages.dev/dashboard"
-          echo "=== deployment list (mapsnearme) ==="
-          npx --yes wrangler pages deployment list --project-name=mapsnearme
-          echo "=== project list ==="
-          npx --yes wrangler pages project list
+          probe "digipincode-pages" "https://digipincode.pages.dev/"
+          probe "static-control" "https://skm-voice-agent.pages.dev/"
