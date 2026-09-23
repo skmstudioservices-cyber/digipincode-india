@@ -109,7 +109,8 @@ fetch('data.json').then(r=>r.json()).then(d=>{
   let meta=pct+'% used';
   if(q.projected_exhaust_utc){meta+=' · <b class="warn">projected to exhaust ~'+q.projected_exhaust_utc+' UTC ('+q.projected_exhaust_ist+' IST)</b>';}
   else{meta+=' · pace OK for today at current rate';}
-  meta+='<br>Yesterday: '+fmt(q.yesterday_total)+' requests · Reset: 05:30 IST daily';
+  if(q.yesterday_total>0){meta+='<br>Yesterday: '+fmt(q.yesterday_total)+' requests';}
+  meta+='<br>Quota resets 05:30 IST daily';
   document.getElementById('qMeta').innerHTML=meta;
   const mx=Math.max(...q.hourly.map(h=>h.requests),1);
   document.getElementById('spark').innerHTML=q.hourly.map((h,i)=>`<div class="${i===q.hourly.length-1?'now':''}" style="height:${Math.round(h.requests/mx*100)}%" title="${h.hour}:00 — ${fmt(h.requests)}"></div>`).join('');
