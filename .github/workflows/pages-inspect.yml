@@ -3,38 +3,16 @@ name: Pages Inspect
 on:
   workflow_dispatch:
 
-permissions:
-  contents: write
-
 jobs:
   inspect:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-      - name: Insert GSC verification meta tag (digipincode.pages.dev)
+      - name: Verify GSC tags live on digipincode (mirror + workers)
         run: |
-          set -e
-          TAG='<meta name="google-site-verification" content="GlkDu5ZL-CyyKjwPSj9d9X3Y2qsHUj_qAwRwxiLr7nI" />'
-          if grep -rq "GlkDu5ZL" src/ 2>/dev/null; then
-            echo "TAG ALREADY PRESENT - nothing to do"; exit 0
-          fi
-          FILES=$(grep -rl '<head' src/ --include='*.astro' || true)
-          echo "layout files with <head>:"; echo "$FILES"
-          for f in $FILES; do
-            python3 - "$f" "$TAG" << 'EOF'
-          import sys, re
-          path, tag = sys.argv[1], sys.argv[2]
-          s = open(path).read()
-          s2 = re.sub(r'(<head[^>]*>)', r'\1\n  ' + tag, s, count=1)
-          if s2 != s:
-              open(path, 'w').write(s2)
-              print(f"INSERTED into {path}")
-          EOF
+          set +e
+          for u in "https://digipincode.pages.dev/" "https://digipincode.india-in.workers.dev/"; do
+            code=$(curl -s -o /tmp/f.html -w "%{http_code}" --max-time 25 -A "Mozilla/5.0 (Linux; Android 10)" "$u")
+            echo "$u -> HTTP $code"
+            echo "  GlkDu5ZL tag count: $(grep -c 'GlkDu5ZL' /tmp/f.html || true)"
           done
-          git config user.name "skm-bot"
-          git config user.email "skmstudio.services@gmail.com"
-          git add -A
-          git diff --cached | head -20
-          git commit -m "chore: add GSC verification meta tag (digipincode.pages.dev property)" || echo "nothing to commit"
-          git push
