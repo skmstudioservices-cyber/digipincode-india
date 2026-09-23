@@ -8,32 +8,27 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Live network status
+      - name: Per-worker quota breakdown
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           set +e
-          echo "=== LIVE CHECK ==="
-          for url in \
-            "https://digipincode.pages.dev/" \
-            "https://digipincode.india-in.workers.dev/" \
-            "https://mapsnearme.pages.dev/" \
-            "https://dashboardmapsnearme.pages.dev/" \
-            "https://karvachauth.pages.dev/" \
-            "https://karvachauth.india-in.workers.dev/" \
-            "https://skm-spoc.pages.dev/"; do
-            code=$(curl -s -o /tmp/f -w "%{http_code}" --max-time 25 -A "Mozilla/5.0 (Linux; Android 10)" "$url")
-            echo "$url -> HTTP $code ($(wc -c < /tmp/f)b)"
-          done
-          echo "=== QUOTA TODAY (hourly, all workers) ==="
+          echo "=== PER-WORKER REQUESTS: TODAY ==="
           TODAY=$(date -u +%F)
-          jq -n --arg q "query { viewer { accounts(filter: {accountTag: \"$CLOUDFLARE_ACCOUNT_ID\"}) { workersInvocationsAdaptive(limit: 100, filter: {datetime_geq: \"${TODAY}T00:00:00Z\"}, orderBy: [datetimeHour_ASC]) { sum { requests } dimensions { datetimeHour } } } } }" '{query: $q}' \
+          jq -n --arg q "query { viewer { accounts(filter: {accountTag: \"$CLOUDFLARE_ACCOUNT_ID\"}) { workersInvocationsAdaptive(limit: 100, filter: {datetime_geq: \"${TODAY}T00:00:00Z\"}) { sum { requests } dimensions { scriptName } } } } }" '{query: $q}' \
             | curl -s -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H "Content-Type: application/json" --data @- \
-            https://api.cloudflare.com/client/v4/graphql | jq -c '[.data.viewer.accounts[0].workersInvocationsAdaptive[] | {h: .dimensions.datetimeHour[11:13], r: .sum.requests}]'
-          echo "=== mapsnearme/dashboard latest deployments ==="
-          for proj in mapsnearme dashboardmapsnearme; do
-            curl -s -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
-              "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects/$proj/deployments?per_page=1" \
-              | jq -c --arg p "$proj" '{project: $p, id: .result[0].id[0:8], created: .result[0].created_on, stage: .result[0].latest_stage.name, status: .result[0].latest_stage.status}'
-          done
+            https://api.cloudflare.com/client/v4/graphql \
+            | jq -c '[.data.viewer.accounts[0].workersInvocationsAdaptive[] | {script: .dimensions.scriptName, req: .sum.requests}] | sort_by(-.req)'
+          echo "=== PER-WORKER REQUESTS: YESTERDAY (full day) ==="
+          YDAY=$(date -u -d yesterday +%F)
+          jq -n --arg q "query { viewer { accounts(filter: {accountTag: \"$CLOUDFLARE_ACCOUNT_ID\"}) { workersInvocationsAdaptive(limit: 100, filter: {datetimeHour_geq: \"${YDAY}T00:00:00Z\", datetimeHour_leq: \"${YDAY}T23:59:59Z\"}) { sum { requests } dimensions { scriptName } } } } }" '{query: $q}' \
+            | curl -s -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H "Content-Type: application/json" --data @- \
+            https://api.cloudflare.com/client/v4/graphql \
+            | jq -c '[.data.viewer.accounts[0].workersInvocationsAdaptive[] | {script: .dimensions.scriptName, req: .sum.requests}] | sort_by(-.req)'
+          echo "=== WORKERS WITH CRON TRIGGERS ==="
+          curl -s -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts" | jq -c '[.result[] | {id, modified_on: .modified_on[0:10]}]'
+          echo "=== TOP REQUESTED URLS (http_requests, today, by host) ==="
+          jq -n --arg q "query { viewer { zones(filter: {zoneTag: \"\"}) { httpRequestsAdaptive(limit: 10) { sum { requests } dimensions { clientCountryName } } } } }" '{query: $q}' > /dev/null 2>&1
+          echo "(no zones on this account — pages/workers only)"
