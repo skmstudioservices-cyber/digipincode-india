@@ -8,17 +8,21 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: curl checks
+      - name: robots + sitemap checks
         run: |
           set +e
-          for url in \
-            "https://digipincode.pages.dev/" \
-            "https://1ac538f3.digipincode.pages.dev/" \
-            "https://094bd5a8.digipincode.pages.dev/" \
-            "https://dda62097.digipincode.pages.dev/" \
-            "https://digipincode.pages.dev/robots.txt" \
-            "https://1ac538f3.digipincode.pages.dev/robots.txt"; do
-            code=$(curl -s -o /tmp/b -w "%{http_code}" --max-time 30 -A "Mozilla/5.0 (Linux; Android 10)" "$url")
-            size=$(wc -c < /tmp/b)
-            echo "=== $url -> HTTP $code (${size}b)"
-          done
+          check() {
+            host=$1
+            for path in robots.txt sitemap.xml; do
+              code=$(curl -s -o /tmp/f -w "%{http_code}" --max-time 40 -A "Mozilla/5.0 (compatible; AhrefsBot/7.0; +http://ahrefs.com/robot/)" "https://$host/$path")
+              size=$(wc -c < /tmp/f)
+              ctype=$(curl -s -o /dev/null -w "%{content_type}" --max-time 40 "https://$host/$path")
+              echo "=== https://$host/$path -> HTTP $code | ${size}b | $ctype"
+              head -c 220 /tmp/f | tr '\n' ' '; echo
+            done
+            code=$(curl -s -o /tmp/f -w "%{http_code}" --max-time 40 -A "Mozilla/5.0 (Linux; Android 10)" "https://$host/")
+            echo "=== https://$host/ -> HTTP $code ($(wc -c < /tmp/f)b)"
+          }
+          check digipincode.india-in.workers.dev
+          check digipincode.pages.dev
+          check digitalpincode.blogspot.com
