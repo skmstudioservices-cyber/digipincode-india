@@ -1,0 +1,92 @@
+name: SPOC Dashboard
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '25 */2 * * *'  # every 2 hours
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: spoc-dashboard
+  cancel-in-progress: true
+
+jobs:
+  collect-and-deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Collect Cloudflare quota analytics
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          TODAY=$(date -u +%F); YDAY=$(date -u -d yesterday +%F)
+          jq -n --arg q "query { viewer { accounts(filter: {accountTag: \"$CLOUDFLARE_ACCOUNT_ID\"}) { workersInvocationsAdaptive(limit: 500, filter: {datetime_geq: \"${TODAY}T00:00:00Z\"}, orderBy: [datetimeHour_ASC]) { sum { requests } dimensions { scriptName datetimeHour } } } } }" '{query: $q}' \
+            | curl -s -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H "Content-Type: application/json" --data @- \
+            https://api.cloudflare.com/client/v4/graphql \
+            | jq '[.data.viewer.accounts[0].workersInvocationsAdaptive[]?]' > /tmp/cf_today.json
+          jq -n --arg q "query { viewer { accounts(filter: {accountTag: \"$CLOUDFLARE_ACCOUNT_ID\"}) { workersInvocationsAdaptive(limit: 100, filter: {datetime_geq: \"${YDAY}T00:00:00Z\", datetime_lt: \"${TODAY}T00:00:00Z\"}) { sum { requests } dimensions { scriptName } } } }" '{query: $q}' \
+            | curl -s -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H "Content-Type: application/json" --data @- \
+            https://api.cloudflare.com/client/v4/graphql \
+            | jq '[.data.viewer.accounts[0].workersInvocationsAdaptive[]?]' > /tmp/cf_yesterday.json
+          echo "today rows: $(jq length /tmp/cf_today.json), yesterday rows: $(jq length /tmp/cf_yesterday.json)"
+
+      - name: Collect site statuses (cheap HEAD-ish GETs)
+        run: |
+          : > /tmp/sites.txt
+          check() { code=$(curl -s -o /dev/null -w "%{http_code} %{time_total}" --max-time 25 -A "Mozilla/5.0 (Linux; Android 10)" "$2" || echo "000 0"); echo "$1|$2|$code" >> /tmp/sites.txt; }
+          check "digipincode (workers)" "https://digipincode.india-in.workers.dev/"
+          check "digipincode (mirror)" "https://digipincode.pages.dev/"
+          check "karvachauth (pages)" "https://karvachauth.pages.dev/"
+          check "karvachauth (workers)" "https://karvachauth.india-in.workers.dev/"
+          check "mapsnearme" "https://mapsnearme.pages.dev/"
+          check "dashboard mapsnearme" "https://dashboardmapsnearme.pages.dev/"
+          check "examstatus" "https://examstatus.india-in.workers.dev/"
+          check "skmtools" "https://skmtools.pages.dev/"
+          check "digitalpincode (blog)" "https://digitalpincode.blogspot.com/"
+          check "skmstudio.com" "https://skmstudio.com/"
+          cat /tmp/sites.txt
+
+      - name: Collect D1 table names (catalog read only — no row scans)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          curl -s -X POST "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/d1/database/74274a3f-9fca-42ec-9fbf-c707ffbc56a4/query" \
+            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H "Content-Type: application/json" \
+            --data '{"sql": "SELECT name FROM sqlite_master WHERE type = '\''table'\'' AND name NOT LIKE '\''sqlite_%'\'' LIMIT 15"}' > /tmp/d1.json
+          jq '[.result[0].results[].name] // empty' /tmp/d1.json
+
+      - name: Collect workflow run statuses
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          curl -s -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/skmstudioservices-cyber/digipincode-india/actions/runs?per_page=40" \
+            | jq '[.workflow_runs[] | {name, status, conclusion, created_at, html_url}]' > /tmp/gh_runs.json
+          jq 'length' /tmp/gh_runs.json
+
+      - name: Assemble data.json
+        run: python3 dashboard/collect.py
+
+      - name: Deploy dashboard to Pages
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          npx --yes wrangler pages project create skm-spoc --production-branch=main || echo "project already exists"
+          npx --yes wrangler pages deploy dashboard --project-name=skm-spoc --branch=main --commit-dirty=true
+
+      - name: Verify live
+        run: |
+          sleep 20
+          code=$(curl -s -o /tmp/v.html -w "%{http_code}" --max-time 30 "https://skm-spoc.pages.dev/")
+          echo "skm-spoc.pages.dev -> HTTP $code ($(wc -c < /tmp/v.html) bytes)"
+          dcode=$(curl -s -o /tmp/d.json -w "%{http_code}" --max-time 30 "https://skm-spoc.pages.dev/data.json")
+          echo "data.json -> HTTP $dcode ($(wc -c < /tmp/d.json) bytes)"
+          [ "$code" = "200" ] && [ "$dcode" = "200" ] && echo "DASHBOARD LIVE" || echo "CHECK FAILED"

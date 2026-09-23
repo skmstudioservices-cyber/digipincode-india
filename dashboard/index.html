@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>SKM Network — SPOC Dashboard</title>
+<style>
+  :root{
+    --bg:#0e1420;--card:#161e2e;--card2:#1c2638;--line:#26324a;
+    --txt:#e8edf5;--dim:#8fa0b8;--ok:#2fd07a;--warn:#ffb547;--bad:#ff5c6c;
+    --accent:#4da3ff;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--txt);line-height:1.5;padding:1rem;font-size:15px}
+  .wrap{max-width:980px;margin:0 auto}
+  header{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:.5rem;margin-bottom:1rem}
+  h1{font-size:1.25rem;font-weight:700}
+  h1 small{color:var(--dim);font-weight:400;font-size:.75rem;display:block}
+  .updated{color:var(--dim);font-size:.78rem;text-align:right}
+  h2{font-size:.85rem;text-transform:uppercase;letter-spacing:.08em;color:var(--dim);margin:1.4rem 0 .6rem}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:1rem;margin-bottom:.75rem}
+  .grid{display:grid;grid-template-columns:1fr;gap:.75rem}
+  @media(min-width:640px){.grid{grid-template-columns:1fr 1fr}.grid.wide{grid-template-columns:2fr 1fr}}
+  .big{font-size:1.9rem;font-weight:700}
+  .sub{color:var(--dim);font-size:.8rem}
+  .bar{height:10px;background:var(--line);border-radius:6px;overflow:hidden;margin:.5rem 0 .25rem}
+  .bar>i{display:block;height:100%;border-radius:6px}
+  .spark{display:flex;align-items:flex-end;gap:2px;height:60px;margin-top:.6rem}
+  .spark>div{flex:1;background:var(--accent);border-radius:2px 2px 0 0;min-height:2px;opacity:.85}
+  .spark .now{background:var(--warn)}
+  table{width:100%;border-collapse:collapse;font-size:.85rem}
+  td,th{padding:.45rem .5rem;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+  th{color:var(--dim);font-weight:500;font-size:.75rem;text-transform:uppercase;letter-spacing:.05em}
+  td:last-child,th:last-child{text-align:right}
+  .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:7px;vertical-align:1px}
+  .ok{color:var(--ok)}.warn{color:var(--warn)}.bad{color:var(--bad)}
+  .pill{display:inline-block;padding:.1rem .55rem;border-radius:99px;font-size:.72rem;font-weight:600}
+  .pill.ok{background:rgba(47,208,122,.13)}.pill.warn{background:rgba(255,181,71,.13)}.pill.bad{background:rgba(255,92,108,.15)}
+  .insight{display:flex;gap:.6rem;align-items:flex-start;padding:.55rem 0;border-bottom:1px solid var(--line);font-size:.88rem}
+  .insight:last-child{border-bottom:none}
+  .insight .ic{font-size:1rem;flex-shrink:0}
+  footer{color:var(--dim);font-size:.75rem;text-align:center;margin:1.5rem 0 .5rem}
+  .note{color:var(--dim);font-size:.78rem;margin-top:.5rem}
+  a{color:var(--accent);text-decoration:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>SKM Network <small>Single Point of Control — all sites, data, quotas, automation</small></h1>
+    <div class="updated">Updated: <span id="when">…</span><br>Auto-refresh: every 2 hours</div>
+  </header>
+
+  <h2>Cloudflare Free-Plan Quota (100,000 requests/day, account-wide)</h2>
+  <div class="grid wide">
+    <div class="card" id="quotaCard">
+      <div class="sub">Used today — all Workers + Pages Functions combined</div>
+      <div class="big" id="qUsed">…</div>
+      <div class="bar"><i id="qBar"></i></div>
+      <div class="sub" id="qMeta"></div>
+      <div class="spark" id="spark"></div>
+      <div class="sub">Requests per hour (UTC) — today</div>
+    </div>
+    <div class="card">
+      <div class="sub">Per-worker usage today</div>
+      <div id="byScript" style="margin-top:.5rem"></div>
+    </div>
+  </div>
+
+  <h2>Sites</h2>
+  <div class="grid" id="sites"></div>
+
+  <h2>Data Stores (read-safe view — no live scans)</h2>
+  <div class="grid">
+    <div class="card">
+      <div class="sub">D1 — pincode-india-db (digipincode)</div>
+      <div style="margin-top:.5rem" id="d1"></div>
+    </div>
+    <div class="card">
+      <div class="sub">Supabase — mapsnearme (Mumbai)</div>
+      <div style="margin-top:.5rem" id="sb"></div>
+    </div>
+  </div>
+
+  <h2>Automation & Cron Results (GitHub Actions)</h2>
+  <div class="card" id="wf"></div>
+
+  <h2>Actionable Insights</h2>
+  <div class="card" id="insights"></div>
+
+  <footer>SKM SPOC — static Pages hosting (no request-quota cost) · data collected via free APIs only · D1/DB row scans disabled to protect crawl & indexing quota</footer>
+</div>
+
+<script>
+const fmt=n=>n.toLocaleString('en-IN');
+const IST=t=>new Date(t).toLocaleString('en-IN',{timeZone:'Asia/Kolkata',day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+const P=code=>code>=200&&code<300?'ok':(code===429?'bad':'warn');
+
+fetch('data.json').then(r=>r.json()).then(d=>{
+  document.getElementById('when').textContent=IST(d.generated_at)+' IST';
+
+  // QUOTA
+  const q=d.quota, used=q.today_total, limit=q.limit||100000;
+  document.getElementById('qUsed').textContent=fmt(used)+' / '+fmt(limit);
+  const pct=Math.min(100,Math.round(used/limit*100));
+  const col=pct>=90?'var(--bad)':pct>=70?'var(--warn)':'var(--ok)';
+  const bar=document.getElementById('qBar');bar.style.width=pct+'%';bar.style.background=col;
+  let meta=pct+'% used';
+  if(q.projected_exhaust_utc){meta+=' · <b class="warn">projected to exhaust ~'+q.projected_exhaust_utc+' UTC ('+q.projected_exhaust_ist+' IST)</b>';}
+  else{meta+=' · pace OK for today at current rate';}
+  meta+='<br>Yesterday: '+fmt(q.yesterday_total)+' requests · Reset: 05:30 IST daily';
+  document.getElementById('qMeta').innerHTML=meta;
+  const mx=Math.max(...q.hourly.map(h=>h.requests),1);
+  document.getElementById('spark').innerHTML=q.hourly.map((h,i)=>`<div class="${i===q.hourly.length-1?'now':''}" style="height:${Math.round(h.requests/mx*100)}%" title="${h.hour}:00 — ${fmt(h.requests)}"></div>`).join('');
+  document.getElementById('byScript').innerHTML=q.by_script.map(s=>{
+    const p=Math.round(s.requests/(s.max||limit)*100);
+    return `<div style="margin-bottom:.6rem"><div style="display:flex;justify-content:space-between;font-size:.82rem"><span>${s.script}</span><b>${fmt(s.requests)}</b></div><div class="bar" style="margin:.15rem 0 0"><i style="width:${Math.min(100,p)}%;background:var(--accent)"></i></div></div>`;
+  }).join('');
+
+  // SITES
+  document.getElementById('sites').innerHTML=d.sites.map(s=>{
+    const st=P(s.http);
+    const label=s.http===429?'429 quota-blocked':s.http===0?'unreachable/no DNS':s.http;
+    return `<div class="card"><div><span class="dot ${st}" style="background:var(--${st})"></span><b>${s.name}</b></div>
+    <div class="sub" style="margin-top:.3rem">${label} · ${s.ms>0?s.ms+' ms':''} · <a href="${s.url}" target="_blank" rel="noopener">${s.url.replace('https://','')}</a></div></div>`;
+  }).join('');
+
+  // DATA STORES
+  document.getElementById('d1').innerHTML=`<table><tr><th>table</th><th>status</th></tr>`+
+    (d.datastores.d1.tables||[]).map(t=>`<tr><td>${t}</td><td class="ok">live</td></tr>`).join('')+
+    `</table><div class="note">Row counts intentionally not scanned (protects D1 5M reads/day budget for crawlers). Verified via catalog read only.</div>`;
+  const sb=d.datastores.supabase_mapsnearme;
+  document.getElementById('sb').innerHTML=`<table><tr><th>table</th><th>rows</th></tr>
+    <tr><td>businesses</td><td>${fmt(sb.businesses)}</td></tr>
+    <tr><td>cities</td><td>${fmt(sb.cities)}</td></tr>
+    <tr><td>categories</td><td>${fmt(sb.categories)}</td></tr>
+    <tr><td>markets (b pages)</td><td>${fmt(sb.markets)}</td></tr></table>
+    <div class="note">As of ${sb.as_of} — counts refreshed only on request to save read quota.</div>`;
+
+  // WORKFLOWS
+  document.getElementById('wf').innerHTML=`<table><tr><th>workflow</th><th>last run</th><th>result</th></tr>`+
+    d.workflows.map(w=>{const c=w.conclusion==='success'?'ok':w.conclusion==='failure'?'bad':'warn';
+      return `<tr><td>${w.name}</td><td class="sub">${IST(w.at)}</td><td><span class="pill ${c}">${w.conclusion||w.status}</span></td></tr>`;}).join('')+`</table>`;
+
+  // INSIGHTS (computed here, fresh each refresh)
+  const ins=[];const now=new Date();
+  if(q.projected_exhaust_utc){ins.push(['🔴',`Quota on pace to exhaust around <b>${q.projected_exhaust_ist} IST</b> today — expect 429s after that until 05:30 IST tomorrow. Ahrefs audits will fail during that window.`]);}
+  else{ins.push(['🟢','Quota pace is fine for the rest of today at current request rate.']);}
+  const dead=(d.sites||[]).filter(s=>s.http===0||s.http===429);
+  if(dead.length){ins.push(['🔴',`Sites not serving: ${dead.map(s=>s.name).join(', ')} — ${dead.some(s=>s.http===429)?'quota-blocked, recovers 05:30 IST':'check deployment'}.`]);}
+  else{ins.push(['🟢','All '+d.sites.length+' sites responding.']);}
+  const failed=(d.workflows||[]).filter(w=>w.conclusion==='failure');
+  if(failed.length){ins.push(['🟠',`Failing automation: ${failed.map(w=>w.name).join(', ')} — check the Actions tab or ask me to fix.`]);}
+  else{ins.push(['🟢','All tracked automation (PSI, deploys, checks) green on last run.']);}
+  const y=q.yesterday_total;
+  if(y>limit){ins.push(['🟠',`Yesterday exceeded the free limit (${fmt(y)} vs ${fmt(limit)}) — consider spreading sitemap crawl or scheduling audits outside IST daytime.`]);}
+  document.getElementById('insights').innerHTML=ins.map(i=>`<div class="insight"><span class="ic">${i[0]}</span><span>${i[1]}</span></div>`).join('');
+}).catch(e=>{
+  document.getElementById('insights').innerHTML='<div class="insight">Failed to load data.json — re-run the collector workflow.</div>';
+});
+</script>
+</body>
+</html>
