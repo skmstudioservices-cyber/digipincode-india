@@ -70,14 +70,21 @@ export const onRequest = defineMiddleware(async (context, next) => {
   const res = await next();
 
   if (cacheable && cache && res.status === 200 && (res.headers.get('content-type') || '').includes('text/html')) {
-    let html: string;
+    // Read the body ONCE — a second res.text() would throw (body already used).
+    let raw: string;
     try {
-      html = withToc(await res.text());
+      raw = await res.text();
     } catch {
-      html = await res.text();
+      return res;
     }
-    const fresh = new Response(html, { status: res.status, headers: res.headers });
-    fresh.headers.set('Cache-Control', `public, max-age=3600, s-maxage=${PAGE_TTL}`);
+    const html = withToc(raw);
+    // FIX (23 Sep 2026): passing res.headers straight into new Response() makes
+    // the new response's headers IMMUTABLE (guard is inherited), so the
+    // headers.set() below threw "TypeError: Can't modify immutable headers" and
+    // every cache-MISS HTML page returned a 500. Copy into a fresh Headers.
+    const headers = new Headers(res.headers);
+    headers.set('Cache-Control', `public, max-age=3600, s-maxage=${PAGE_TTL}`);
+    const fresh = new Response(html, { status: res.status, headers });
     try {
       const ctx = (context.locals as any).runtime?.ctx;
       const put = cache.put(cacheKey(), fresh.clone());
