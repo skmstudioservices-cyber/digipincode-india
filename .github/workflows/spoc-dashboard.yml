@@ -30,7 +30,7 @@ jobs:
             | curl -s -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H "Content-Type: application/json" --data @- \
             https://api.cloudflare.com/client/v4/graphql \
             | jq '[.data.viewer.accounts[0].workersInvocationsAdaptive[]?]' > /tmp/cf_today.json
-          jq -n --arg q "query { viewer { accounts(filter: {accountTag: \"$CLOUDFLARE_ACCOUNT_ID\"}) { workersInvocationsAdaptive(limit: 100, filter: {datetime_geq: \"${YDAY}T00:00:00Z\", datetime_lt: \"${TODAY}T00:00:00Z\"}) { sum { requests } dimensions { scriptName } } } }" '{query: $q}' \
+          jq -n --arg q "query { viewer { accounts(filter: {accountTag: \"$CLOUDFLARE_ACCOUNT_ID\"}) { workersInvocationsAdaptive(limit: 100, filter: {datetime_geq: \"${YDAY}T00:00:00Z\", datetime_lt: \"${TODAY}T00:00:00Z\"}, orderBy: [scriptName_ASC]) { sum { requests } dimensions { scriptName } } } }" '{query: $q}' \
             | curl -s -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H "Content-Type: application/json" --data @- \
             https://api.cloudflare.com/client/v4/graphql \
             | jq '[.data.viewer.accounts[0].workersInvocationsAdaptive[]?]' > /tmp/cf_yesterday.json
