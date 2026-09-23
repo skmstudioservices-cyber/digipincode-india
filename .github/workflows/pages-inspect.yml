@@ -8,15 +8,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: mapsnearme sitemap diagnosis
+      - name: Domain availability check (RDAP)
         run: |
           set +e
-          echo "=== LIVE (quota-dead window - static assets should still serve) ==="
-          for p in "robots.txt" "sitemap.xml" "sitemap-index.xml" ""; do
-            code=$(curl -s -o /tmp/f -w "%{http_code}" --max-time 20 -A "Mozilla/5.0" "https://mapsnearme.pages.dev/$p")
-            echo "/$p -> HTTP $code ($(wc -c < /tmp/f)b)"
+          for d in raktsanchaar.com madadkendra.com madadnumber.com sosbharat.com bharathelpline.com helplinebharat.com jansanket.com surakshasanket.com rahatkendra.com suchnakendra.com sahayatakendra.com aapadaalerts.com emergencybharat.com madadsanket.com raktsanchaar.in; do
+            code=$(curl -sL -o /tmp/r.json -w "%{http_code}" --max-time 15 "https://rdap.org/domain/$d")
+            if [ "$code" = "404" ]; then st="AVAILABLE"
+            elif [ "$code" = "200" ]; then st="TAKEN ($(cat /tmp/r.json | jq -r '.events[]? | select(.eventAction=="registration") | .eventDate' 2>/dev/null | cut -c1-4))"
+            else st="unknown($code)"; fi
+            echo "$d -> $st"
           done
-          echo "=== robots.txt content ==="
-          curl -s --max-time 20 "https://mapsnearme.pages.dev/robots.txt" | head -15
-          echo "=== sitemap.xml first 400 chars ==="
-          curl -s --max-time 25 "https://mapsnearme.pages.dev/sitemap.xml" | head -c 400
