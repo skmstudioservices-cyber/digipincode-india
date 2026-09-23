@@ -8,14 +8,51 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Request analytics
+      - name: Diagnose
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           set +e
-          echo "=== Workers requests by hour, script=digipincode, today ==="
-          jq -n --arg q "query { viewer { accounts(filter: {accountTag: \"$CLOUDFLARE_ACCOUNT_ID\"}) { workersInvocationsAdaptive(limit: 100, filter: {scriptName: \"digipincode\", datetime_geq: \"2026-09-23T00:00:00Z\"}, orderBy: [datetimeHour_ASC]) { sum { requests } dimensions { datetimeHour } } } } }" '{query: $q}' \
+          echo "=== LIVE SITE CHECKS ==="
+          for url in \
+            "https://digipincode.pages.dev/" \
+            "https://digipincode.pages.dev/robots.txt" \
+            "https://digipincode.india-in.workers.dev/" \
+            "https://mapsnearme.pages.dev/" \
+            "https://dashboardmapsnearme.pages.dev/" \
+            "https://karvachauth.pages.dev/" \
+            "https://karvachauth.india-in.workers.dev/" \
+            "https://skm-spoc.pages.dev/"; do
+            code=$(curl -s -o /tmp/f -w "%{http_code}" --max-time 25 -A "Mozilla/5.0 (Linux; Android 10)" "$url")
+            echo "$url -> HTTP $code ($(wc -c < /tmp/f)b)"
+          done
+          echo "=== QUOTA TODAY (requests by hour, all workers) ==="
+          TODAY=$(date -u +%F)
+          jq -n --arg q "query { viewer { accounts(filter: {accountTag: \"$CLOUDFLARE_ACCOUNT_ID\"}) { workersInvocationsAdaptive(limit: 100, filter: {datetime_geq: \"${TODAY}T00:00:00Z\"}, orderBy: [datetimeHour_ASC]) { sum { requests } dimensions { datetimeHour } } } } }" '{query: $q}' \
             | curl -s -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H "Content-Type: application/json" --data @- \
-            https://api.cloudflare.com/client/v4/graphql \
-            | tee /tmp/gql.json | jq '.data.viewer.accounts[0].workersInvocationsAdaptive // .errors'
+            https://api.cloudflare.com/client/v4/graphql | jq -c '.data.viewer.accounts[0].workersInvocationsAdaptive'
+          echo "=== DIGIPINCODE PAGES: latest deployments + manifest ==="
+          curl -s -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects/digipincode/deployments?per_page=2" \
+            | jq '[.result[] | {id, environment, is_skew_protection: .is_skew_protection, created_on, source, latest_stage: .latest_stage} ]'
+          DEPID=$(curl -s -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects/digipincode/deployments?per_page=1" | jq -r '.result[0].id')
+          echo "latest deployment: $DEPID"
+          curl -s -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects/digipincode/deployments/$DEPID" \
+            | jq '{env: .environment, has_worker: (.deployment_trigger // null), build_config: .build_config, aliases: .aliases, env_vars: [.env_vars[]? | {name, type}]}'
+          echo "=== MAPSNEARME PAGES: build config + latest deployments ==="
+          curl -s -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects/mapsnearme" \
+            | jq '{build_config: .build_config, production_branch: .production_branch, canonical: .canonical_deployment.id, domains: .domains}'
+          curl -s -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects/mapsnearme/deployments?per_page=4" \
+            | jq '[.result[] | {id: .id[0:8], env: .environment, source: .deployment_trigger.metadata.commit_message, created: .created_on, status: .latest_stage.status, name: .latest_stage.name}]'
+          echo "=== DASHBOARDMAPSNEARME: build config + latest ==="
+          curl -s -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects/dashboardmapsnearme" \
+            | jq '{build_config: .build_config, canonical: .canonical_deployment.id}'
+          curl -s -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects/dashboardmapsnearme/deployments?per_page=3" \
+            | jq '[.result[] | {id: .id[0:8], source: .deployment_trigger.metadata.commit_message, created: .created_on, status: .latest_stage.status}]'
