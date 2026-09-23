@@ -1,0 +1,47 @@
+name: Diagnose Quota + Pages State
+
+on:
+  workflow_dispatch:
+
+jobs:
+  diag:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Probe headers + bodies
+        run: |
+          set +e
+          probe() {
+            label="$1"; url="$2"
+            echo "=== $label: $url"
+            curl -s -D /tmp/h -o /tmp/b --max-time 30 -A "Mozilla/5.0 (Linux; Android 10)" "$url"
+            grep -i "^HTTP\|^cf-\|^server:\|^content-type\|^location" /tmp/h
+            echo "--- body (first 400b):"
+            head -c 400 /tmp/b | tr '\n' ' '; echo; echo
+          }
+          probe "mapsnearme-worker" "https://mapsnearme.india-in.workers.dev/?cb=$(date +%s)"
+          probe "dashboard-pages" "https://dashboardmapsnearme.pages.dev/dashboard/?cb=$(date +%s)"
+          probe "mapsnearme-pages" "https://mapsnearme.pages.dev/?cb=$(date +%s)"
+          probe "digipincode-pages" "https://digipincode.pages.dev/?cb=$(date +%s)"
+      - name: CF API - Pages project configs + deployments
+        env:
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACC: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set +e
+          for proj in mapsnearme dashboardmapsnearme; do
+            echo "=== PROJECT $proj config:"
+            curl -s -H "Authorization: Bearer $CF_TOKEN" "https://api.cloudflare.com/client/v4/accounts/$CF_ACC/pages/projects/$proj" | jq -c '{name, production_branch, build_config, canonical: (.canonical_deployment.id // "none" | .[0:8]), domains}'
+            echo "=== DEPLOYMENTS $proj (last 6):"
+            curl -s -H "Authorization: Bearer $CF_TOKEN" "https://api.cloudflare.com/client/v4/accounts/$CF_ACC/pages/projects/$proj/deployments?per_page=6" | jq -c '.result[] | {id: .id[0:8], created: .created_on, repo: (.source.config.repo_name // "direct"), branch: (.deployment_trigger.metadata.branch // "?"), stage: .latest_stage.name, status: .latest_stage.status, aliases}'
+          done
+      - name: CF GraphQL - workers usage by script today
+        env:
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACC: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set +e
+          TODAY=$(date -u +%F)
+          jq -n --arg q "query { viewer { accounts(filter: {accountTag: \"$CF_ACC\"}) { workersInvocationsAdaptive(limit: 50, filter: {datetime_geq: \"${TODAY}T00:00:00Z\"}, orderBy: [scriptName_ASC]) { sum { requests } dimensions { scriptName } } } } }" '{query: $q}' \
+            | curl -s -H "Authorization: Bearer $CF_TOKEN" -H "Content-Type: application/json" --data @- \
+            https://api.cloudflare.com/client/v4/graphql | jq -c '.data.viewer.accounts[0].workersInvocationsAdaptive[]'
