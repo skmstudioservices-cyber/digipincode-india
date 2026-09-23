@@ -8,28 +8,32 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Fix dashboardmapsnearme build config
+      - name: Live network status
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           set +e
-          echo "=== PATCH dashboardmapsnearme build_config ==="
-          curl -s -X PATCH -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H "Content-Type: application/json" \
-            --data '{"build_config": {"build_command": "npm run build", "destination_dir": "dist"}}' \
-            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects/dashboardmapsnearme" \
-            | jq '{success, build_config: .result.build_config, errors}'
-          echo "=== TRIGGER new dashboardmapsnearme deployment ==="
-          curl -s -X POST -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H "Content-Type: application/json" --data '{}' \
-            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects/dashboardmapsnearme/deployments" \
-            | jq '{success, id: .result.id[0:8], errors}'
-          sleep 90
-          echo "=== NEWEST deployment status ==="
-          curl -s -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
-            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects/dashboardmapsnearme/deployments?per_page=1" \
-            | jq '[.result[] | {id: .id[0:8], created: .created_on, stage: .latest_stage.name, status: .latest_stage.status}]'
-          echo "=== live check ==="
-          for u in "https://dashboardmapsnearme.pages.dev/" "https://dashboardmapsnearme.pages.dev/login"; do
-            code=$(curl -s -o /tmp/f -w "%{http_code}" --max-time 25 -L -A "Mozilla/5.0 (Linux; Android 10)" "$u")
-            echo "$u -> HTTP $code ($(wc -c < /tmp/f)b)"
+          echo "=== LIVE CHECK ==="
+          for url in \
+            "https://digipincode.pages.dev/" \
+            "https://digipincode.india-in.workers.dev/" \
+            "https://mapsnearme.pages.dev/" \
+            "https://dashboardmapsnearme.pages.dev/" \
+            "https://karvachauth.pages.dev/" \
+            "https://karvachauth.india-in.workers.dev/" \
+            "https://skm-spoc.pages.dev/"; do
+            code=$(curl -s -o /tmp/f -w "%{http_code}" --max-time 25 -A "Mozilla/5.0 (Linux; Android 10)" "$url")
+            echo "$url -> HTTP $code ($(wc -c < /tmp/f)b)"
+          done
+          echo "=== QUOTA TODAY (hourly, all workers) ==="
+          TODAY=$(date -u +%F)
+          jq -n --arg q "query { viewer { accounts(filter: {accountTag: \"$CLOUDFLARE_ACCOUNT_ID\"}) { workersInvocationsAdaptive(limit: 100, filter: {datetime_geq: \"${TODAY}T00:00:00Z\"}, orderBy: [datetimeHour_ASC]) { sum { requests } dimensions { datetimeHour } } } } }" '{query: $q}' \
+            | curl -s -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H "Content-Type: application/json" --data @- \
+            https://api.cloudflare.com/client/v4/graphql | jq -c '[.data.viewer.accounts[0].workersInvocationsAdaptive[] | {h: .dimensions.datetimeHour[11:13], r: .sum.requests}]'
+          echo "=== mapsnearme/dashboard latest deployments ==="
+          for proj in mapsnearme dashboardmapsnearme; do
+            curl -s -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+              "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects/$proj/deployments?per_page=1" \
+              | jq -c --arg p "$proj" '{project: $p, id: .result[0].id[0:8], created: .result[0].created_on, stage: .result[0].latest_stage.name, status: .result[0].latest_stage.status}'
           done
