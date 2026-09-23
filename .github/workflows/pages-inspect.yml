@@ -6,13 +6,48 @@ on:
 jobs:
   inspect:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 12
     steps:
-      - name: Verify GSC tags live on digipincode (mirror + workers)
+      - uses: actions/checkout@v4
+      - name: Compliance audit - live checks
         run: |
           set +e
-          for u in "https://digipincode.pages.dev/" "https://digipincode.india-in.workers.dev/"; do
-            code=$(curl -s -o /tmp/f.html -w "%{http_code}" --max-time 25 -A "Mozilla/5.0 (Linux; Android 10)" "$u")
-            echo "$u -> HTTP $code"
-            echo "  GlkDu5ZL tag count: $(grep -c 'GlkDu5ZL' /tmp/f.html || true)"
+          check() {
+            U="$1"
+            code=$(curl -s -L -o /tmp/h.html -w "%{http_code}" --max-time 25 -A "Mozilla/5.0 (Linux; Android 10)" "$U")
+            echo "SITE|$U|$code|$(wc -c < /tmp/h.html)b"
+            if [ "$code" = "200" ]; then
+              echo "  ga4_gtag=$(grep -o -E 'googletagmanager|gtag\(' /tmp/h.html | wc -l) ahrefs=$(grep -o -i 'ahrefs' /tmp/h.html | wc -l) adsense=$(grep -o 'adsbygoogle' /tmp/h.html | wc -l)"
+              echo "  privacy_link=$(grep -o -i -E 'href="[^"]*privacy[^"]*"' /tmp/h.html | head -2 | tr '\n' ' ') privacy_word=$(grep -o -i 'privacy policy' /tmp/h.html | wc -l)"
+              echo "  forms=$(grep -o '<form' /tmp/h.html | wc -l) cookie_word=$(grep -o -i 'cookie' /tmp/h.html | wc -l) mailto=$(grep -o 'mailto:' /tmp/h.html | head -1)"
+              echo "  gtm_id=$(grep -o -E 'G-[A-Z0-9]{8,}' /tmp/h.html | head -1)"
+            fi
+          }
+          for u in \
+            "https://digipincode.india-in.workers.dev/" \
+            "https://digipincode.pages.dev/" \
+            "https://digitalpincode.blogspot.com/" \
+            "https://mapsnearme.pages.dev/" \
+            "https://karvachauth.pages.dev/" \
+            "https://karvachauth.india-in.workers.dev/" \
+            "https://examstatus.india-in.workers.dev/" \
+            "https://skmtools.pages.dev/" \
+            "https://skm-spoc.pages.dev/" \
+            "https://dashboardmapsnearme.pages.dev/"; do
+            check "$u"
           done
+          echo "=== PRIVACY PAGE PROBES ==="
+          for u in \
+            "https://karvachauth.pages.dev/privacy" \
+            "https://karvachauth.pages.dev/privacy-policy" \
+            "https://skmtools.pages.dev/privacy" \
+            "https://digipincode.india-in.workers.dev/privacy" \
+            "https://digitalpincode.blogspot.com/p/privacy-policy.html" \
+            "https://skm-spoc.pages.dev/privacy"; do
+            code=$(curl -s -o /tmp/p.html -w "%{http_code}" --max-time 20 -A "Mozilla/5.0" "$u")
+            echo "PROBE|$u|$code|$(wc -c < /tmp/p.html)b|$(grep -o -i 'personal data\|data protection' /tmp/p.html | wc -l) mentions"
+          done
+          echo "=== DIGIPINCODE SOURCE GREP (SSR sites may be in dead quota window) ==="
+          echo "src/ analytics/privacy/form counts:"
+          echo "  ahrefs=$(grep -r -o -i 'ahrefs' src/ public/ 2>/dev/null | wc -l) gtag=$(grep -r -o 'gtag(' src/ public/ 2>/dev/null | wc -l) forms=$(grep -r -o '<form' src/ 2>/dev/null | wc -l) privacy=$(grep -r -o -i -l 'privacy' src/ 2>/dev/null | wc -l) files"
+          grep -r -l -i "privacy" src/ 2>/dev/null | head -5
