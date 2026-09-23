@@ -63,7 +63,13 @@ export const onRequest = defineMiddleware(async (context, next) => {
   if (cacheable && cache) {
     try {
       const hit = await cache.match(cacheKey());
-      if (hit) return hit;
+      if (hit) {
+        // FIX (23 Sep 2026): the Workers Cache API returns a Response with
+        // IMMUTABLE headers. Returning it raw made Astro's RenderContext
+        // throw "TypeError: Can't modify immutable headers" -> 500 on every
+        // cache HIT. Re-wrap with a mutable Headers copy.
+        return new Response(hit.body, { status: hit.status, headers: new Headers(hit.headers) });
+      }
     } catch {}
   }
 
