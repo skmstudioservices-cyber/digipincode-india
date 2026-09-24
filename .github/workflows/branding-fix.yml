@@ -1,0 +1,104 @@
+name: Branding Fix
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Patch layouts
+        run: |
+          python3 << 'PY'
+import re
+t = open('src/layouts/Base.astro').read()
+assert 'og:site_name' in t, 'unexpected Base.astro'
+t, n = re.subn(r'<link rel="icon" href="data:image/svg+xml,.*?"\s*/>',
+  '<link rel="icon" href="/favicon.svg" type="image/svg+xml" />\n  <link rel="icon" href="/favicon.ico" sizes="48x48" />\n  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />\n  <meta name="theme-color" content="#1e40af" />', t, flags=re.S)
+assert n == 1, f'icon line matches: ' + str(n)
+a1 = '  <meta name="twitter:description" content={description} />'
+assert t.count(a1) == 1
+t = t.replace(a1, a1 + '\n  <meta property="og:image" content="https://digipincode.india-in.workers.dev/og-image.png" />')
+a2 = '  <script type="application/ld+json" set:html={JSON.stringify(orgLd)} />'
+assert t.count(a2) == 1
+t = t.replace(a2, a2 + '\n  <script type="application/ld+json" set:html={JSON.stringify({ "@context": "https://schema.org", "@type": "WebSite", "name": "Digipincode", "url": "https://digipincode.india-in.workers.dev/" })} />')
+t = t.replace('<meta property="og:url" content={Astro.url.href} />',
+  '<meta property="og:url" content={Astro.url.href.replace(\'://digipincode.pages.dev\', \'://digipincode.india-in.workers.dev\')} />')
+t = t.replace('<link rel="canonical" href={Astro.url.href} />',
+  '<link rel="canonical" href={Astro.url.href.replace(\':://digipincode.pages.dev\', \'://digipincode.india-in.workers.dev\')} />')
+open('src/layouts/Base.astro','w').write(t)
+print('Base.astro patched')
+
+k = open('karvachauth/generate.js').read()
+if 'og:site_name' not in k:
+    ka = '<link rel="canonical" href="${canon || SITE + \'/\'}">'
+    assert k.count(ka) == 1, 'karvachauth anchor missing'
+    k = k.replace(ka, ka + '\n<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="theme-color" content="#7a1f2b">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Karva Chauth 2026">
+<meta property="og:title" content="${esc(title)}">
+<meta property="og:description" content="${esc(desc)}">
+<meta property="og:image" content="https://karvachauth.pages.dev/og-image.png">
+<meta name="twitter:card" content="summary_large_image">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"WebSite","name":"Karva Chauth 2026","url":"https://karvachauth.pages.dev/"}</script>')
+    open('karvachauth/generate.js','w').write(k)
+    print('karvachauth/generate.js patched')
+
+          PY
+      - name: Generate icons
+        run: |
+          python3 -m pip install --quiet pillow
+          python3 << 'PY'
+from PIL import Image, ImageDraw, ImageFont
+import os
+BG = "#1e40af"; FG = "#ffffff"; LETTER = "D"; NAME = "Digipincode"; TAG = "India Pincode Directory - 6 Lakh Villages"; URL = "digipincode.india-in.workers.dev"
+OUT = "public"
+FONT = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+f = lambda s: ImageFont.truetype(FONT, s)
+S = 256; r = 52
+img = Image.new("RGBA", (S, S), (0,0,0,0))
+d = ImageDraw.Draw(img)
+d.rounded_rectangle([0,0,S,S], radius=r, fill=BG)
+ff = f(150)
+bb = d.textbbox((0,0), LETTER, font=ff)
+d.text(((S-(bb[2]-bb[0]))/2 - bb[0], (S-(bb[3]-bb[1]))/2 - bb[1]), LETTER, font=ff, fill=FG)
+os.makedirs(OUT, exist_ok=True)
+img.resize((96,96), Image.LANCZOS).save(OUT + "/favicon-96.png")
+img.resize((180,180), Image.LANCZOS).save(OUT + "/apple-touch-icon.png")
+img.resize((48,48), Image.LANCZOS).save(OUT + "/favicon.ico", format="ICO", sizes=[(16,16),(32,32),(48,48)])
+svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" rx="20" fill="' + BG + '"/><text x="50" y="72" font-family="Arial,Helvetica,sans-serif" font-size="58" font-weight="bold" text-anchor="middle" fill="' + FG + '">' + LETTER + '</text></svg>'
+open(OUT + "/favicon.svg","w").write(svg)
+if NAME:
+    og = Image.new("RGB", (1200, 630), BG)
+    dog = ImageDraw.Draw(og)
+    fn = f(120 if len(NAME)<16 else 96)
+    bb = dog.textbbox((0,0), NAME, font=fn)
+    dog.text(((1200-(bb[2]-bb[0]))/2, 200-(bb[3]-bb[1])/2), NAME, font=fn, fill="#ffffff")
+    ft = f(46)
+    bb = dog.textbbox((0,0), TAG, font=ft)
+    dog.text(((1200-(bb[2]-bb[0]))/2, 390), TAG, font=ft, fill="#e5e7eb")
+    fu = f(34)
+    bb = dog.textbbox((0,0), URL, font=fu)
+    dog.text(((1200-(bb[2]-bb[0]))/2, 520), URL, font=fu, fill=FG)
+    og.save(OUT + "/og-image.png")
+print("icons written to", OUT, os.listdir(OUT))
+
+          PY
+      - name: Commit and push
+        run: |
+          git config user.name "skm-ops-bot"
+          git config user.email "skmstudio.services@gmail.com"
+          git add -A
+          git commit -m "branding: favicon links + og:image + WebSite JSON-LD + canonical host normalization + icon assets" || echo "nothing to commit"
+          git push
