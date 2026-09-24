@@ -8,14 +8,27 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Dump heads
+      - name: Diagnose
+        env:
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACC: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
-          for u in https://digipincode.india-in.workers.dev https://mapsnearme.pages.dev https://examstatus.india-in.workers.dev https://dashboardmapsnearme.pages.dev; do
-            echo "===== $u"
-            curl -sL --max-time 25 -A "Mozilla/5.0" "$u/" -o /tmp/h.html || true
-            echo "bytes: $(wc -c < /tmp/h.html)"
-            grep -oiP '<title>[^<]*</title>' /tmp/h.html | head -1
-            grep -oiP '<meta[^>]*(og:site_name|theme-color)[^>]*>' /tmp/h.html | head -3
-            grep -oiP '<link[^>]*icon[^>]*>' /tmp/h.html | head -4
-            grep -c 'WebSite' /tmp/h.html || true
+          echo "=== digipincode homepage first 250 chars ==="
+          curl -sL --max-time 25 -A "Mozilla/5.0" "https://digipincode.india-in.workers.dev/" | head -c 250
+          echo ""
+          echo "=== mapsnearme homepage first 250 chars ==="
+          curl -sL --max-time 25 -A "Mozilla/5.0" "https://mapsnearme.pages.dev/" | head -c 250
+          echo ""
+          echo "=== CF Pages deployments (latest per project) ==="
+          for p in mapsnearme dashboardmapsnearme; do
+            curl -s -H "Authorization: Bearer $CF_TOKEN" "https://api.cloudflare.com/client/v4/accounts/$CF_ACC/pages/projects/$p/deployments?per_page=2" > /tmp/d.json
+            python3 - "$p" << 'PY'
+            import json, sys
+            d = json.load(open('/tmp/d.json'))
+            for dep in (d.get('result') or {}).get('deployments', []):
+                src = dep.get('deployment_trigger') or {}
+                meta = dep.get('meta') or {}
+                print(sys.argv[1], '|', dep.get('id','')[:8], '|', dep.get('latest_stage',{}).get('name'), dep.get('latest_stage',{}).get('status'), '|', dep.get('env'), '|', (meta.get('commit_message') or '')[:60])
+            print('success:', d.get('success'), '| errors:', str(d.get('errors'))[:120])
+            PY
           done
