@@ -21,7 +21,7 @@ jobs:
           import re
           t = open('src/layouts/Base.astro').read()
           assert 'og:site_name' in t, 'unexpected Base.astro'
-          t, n = re.subn(r'<link rel="icon" href="data:image/svg+xml,.*?"\s*/>',
+          t, n = re.subn(r'<link rel="icon" href="data:image/svg\+xml,.*?"\s*/>',
             '<link rel="icon" href="/favicon.svg" type="image/svg+xml" />\n  <link rel="icon" href="/favicon.ico" sizes="48x48" />\n  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />\n  <meta name="theme-color" content="#1e40af" />', t, flags=re.S)
           assert n == 1, 'icon line matches: ' + str(n)
           a1 = '  <meta name="twitter:description" content={description} />'
