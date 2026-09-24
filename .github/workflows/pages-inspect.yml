@@ -6,25 +6,19 @@ on:
 jobs:
   inspect:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-        with: { path: dpc, fetch-depth: 0 }
-      - name: Deploy topology deep dive
+      - name: Branding verify all sites
         run: |
-          cd dpc
-          echo "=== deploy.yml (triggers + jobs) ==="
-          head -25 .github/workflows/deploy.yml
-          echo "=== karvachauth-bootstrap.yml ==="
-          cat .github/workflows/karvachauth-bootstrap.yml | head -50
-          echo "=== mapsnearme-deploy.yml triggers ==="
-          head -15 .github/workflows/mapsnearme-deploy.yml
-          echo "=== BOOTSTRAP BRANCH ==="
-          git fetch origin karvachauth-bootstrap --quiet && echo fetched
-          git ls-tree --name-only origin/karvachauth-bootstrap | head -15
-          echo "=== BOOTSTRAP deploy.yml ==="
-          git show origin/karvachauth-bootstrap:.github/workflows/deploy.yml 2>/dev/null | head -35
-          echo "=== Base.astro frontmatter (1-55) ==="
-          head -55 src/layouts/Base.astro
-          echo "=== orgLd definition ==="
-          grep -n -A8 "orgLd" src/layouts/Base.astro | head -25
+          for u in https://digipincode.india-in.workers.dev https://digipincode.pages.dev https://mapsnearme.pages.dev https://examstatus.india-in.workers.dev https://karvachauth.pages.dev https://karvachauth.india-in.workers.dev https://skmtools.pages.dev https://dashboardmapsnearme.pages.dev; do
+            echo "===== $u"
+            html=$(curl -sL --max-time 25 -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" "$u/" || true)
+            echo "site_name: $(echo "$html" | tr '\n' ' ' | grep -oiP 'og:site_name"[^>]*content="\K[^"]*' | head -1)"
+            echo "favicon-svg: $(curl -sL -o /dev/null -w '%{http_code}' --max-time 15 "$u/favicon.svg")"
+            echo "favicon-ico: $(curl -sL -o /dev/null -w '%{http_code}' --max-time 15 "$u/favicon.ico")"
+            echo "apple-touch: $(curl -sL -o /dev/null -w '%{http_code}' --max-time 15 "$u/apple-touch-icon.png")"
+            echo "og-image: $(curl -sL -o /dev/null -w '%{http_code}' --max-time 15 "$u/og-image.png")"
+            echo "canonical: $(echo "$html" | tr '\n' ' ' | grep -oiP 'rel="canonical" href="\K[^"]*' | head -1)"
+            echo "website-jsonld: $(echo "$html" | grep -c 'WebSite' || true)"
+            echo "theme-color: $(echo "$html" | tr '\n' ' ' | grep -oiP 'name="theme-color" content="\K[^"]*' | head -1)"
+          done
