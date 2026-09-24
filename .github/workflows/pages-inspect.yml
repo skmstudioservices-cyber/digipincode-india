@@ -6,17 +6,18 @@ on:
 jobs:
   inspect:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
     steps:
-      - name: Branding audit all sites
+      - uses: actions/checkout@v4
+        with: { path: dpc }
+      - name: Print head sections
         run: |
-          for u in https://digipincode.india-in.workers.dev https://digipincode.pages.dev https://mapsnearme.pages.dev https://examstatus.india-in.workers.dev https://karvachauth.india-in.workers.dev https://skmtools.pages.dev https://dashboardmapsnearme.pages.dev https://skm-spoc.pages.dev https://digitalpincode.blogspot.com; do
-            echo "===== $u"
-            html=$(curl -sL --max-time 25 -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" "$u/" || true)
-            echo "home-code: $(curl -sL -o /dev/null -w '%{http_code}' --max-time 15 -A "Mozilla/5.0" "$u/")"
-            echo "title: $(echo "$html" | tr '\n' ' ' | grep -oiP '<title[^>]*>\K[^<]*' | head -1)"
-            echo "meta-tags: $(echo "$html" | tr '\n' ' ' | grep -oiP '<meta[^>]*(description|og:|twitter:|theme-color)[^>]*>' | head -c 700)"
-            echo "link-tags: $(echo "$html" | tr '\n' ' ' | grep -oiP '<link[^>]*(canonical|icon|apple)[^>]*>' | head -c 500)"
-            echo "favicon-ico-code: $(curl -sL -o /dev/null -w '%{http_code}' --max-time 15 "$u/favicon.ico")"
-            echo "website-jsonld-count: $(echo "$html" | grep -c 'WebSite' || true)"
-          done
+          echo "########## digipincode Base.astro"
+          python3 - <<'PY'
+          import re
+          t = open('dpc/src/layouts/Base.astro').read()
+          m = re.search(r'<head[ >]', t)
+          print(t[m.start():m.start()+2600] if m else t[:2000])
+          PY
+          echo "########## canonical logic"
+          grep -n "canonical" dpc/src/layouts/Base.astro | head -10
