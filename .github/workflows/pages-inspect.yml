@@ -9,15 +9,26 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-        with: { path: dpc }
-      - name: Print head sections
+        with: { path: dpc, fetch-depth: 0 }
+      - name: CF Pages projects deploy topology
+        env:
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACC: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
-          echo "########## digipincode Base.astro"
+          curl -s -H "Authorization: Bearer $CF_TOKEN" "https://api.cloudflare.com/client/v4/accounts/$CF_ACC/pages/projects?per_page=50" > /tmp/pp.json
           python3 - <<'PY'
-          import re
-          t = open('dpc/src/layouts/Base.astro').read()
-          m = re.search(r'<head[ >]', t)
-          print(t[m.start():m.start()+2600] if m else t[:2000])
+          import json
+          d = json.load(open('/tmp/pp.json'))
+          for p in d.get('result', []):
+              src = p.get('source') or {}
+              bc = p.get('build_config') or {}
+              print(p['name'], '| repo:', (src.get('repository') or {}).get('name'), '| branch:', src.get('production_branch'), '| cmd:', bc.get('build_command'), '->', bc.get('destination_dir'))
           PY
-          echo "########## canonical logic"
-          grep -n "canonical" dpc/src/layouts/Base.astro | head -10
+      - name: digipincode workflows + karvachauth-bootstrap
+        run: |
+          echo "=== digipincode-india .github/workflows ==="
+          ls dpc/.github/workflows/
+          echo "=== bootstrap branch workflows ==="
+          git fetch origin karvachauth-bootstrap --quiet || echo "no bootstrap branch"
+          git ls-tree --name-only origin/karvachauth-bootstrap 2>/dev/null | head -20
+          git show origin/karvachauth-bootstrap:.github/workflows/deploy.yml 2>/dev/null | head -30
