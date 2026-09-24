@@ -6,19 +6,16 @@ on:
 jobs:
   inspect:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
     steps:
-      - name: Branding verify all sites
+      - name: Dump heads
         run: |
-          for u in https://digipincode.india-in.workers.dev https://digipincode.pages.dev https://mapsnearme.pages.dev https://examstatus.india-in.workers.dev https://karvachauth.pages.dev https://karvachauth.india-in.workers.dev https://skmtools.pages.dev https://dashboardmapsnearme.pages.dev; do
+          for u in https://digipincode.india-in.workers.dev https://mapsnearme.pages.dev https://examstatus.india-in.workers.dev https://dashboardmapsnearme.pages.dev; do
             echo "===== $u"
-            html=$(curl -sL --max-time 25 -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" "$u/" || true)
-            echo "site_name: $(echo "$html" | tr '\n' ' ' | grep -oiP 'og:site_name"[^>]*content="\K[^"]*' | head -1)"
-            echo "favicon-svg: $(curl -sL -o /dev/null -w '%{http_code}' --max-time 15 "$u/favicon.svg")"
-            echo "favicon-ico: $(curl -sL -o /dev/null -w '%{http_code}' --max-time 15 "$u/favicon.ico")"
-            echo "apple-touch: $(curl -sL -o /dev/null -w '%{http_code}' --max-time 15 "$u/apple-touch-icon.png")"
-            echo "og-image: $(curl -sL -o /dev/null -w '%{http_code}' --max-time 15 "$u/og-image.png")"
-            echo "canonical: $(echo "$html" | tr '\n' ' ' | grep -oiP 'rel="canonical" href="\K[^"]*' | head -1)"
-            echo "website-jsonld: $(echo "$html" | grep -c 'WebSite' || true)"
-            echo "theme-color: $(echo "$html" | tr '\n' ' ' | grep -oiP 'name="theme-color" content="\K[^"]*' | head -1)"
+            curl -sL --max-time 25 -A "Mozilla/5.0" "$u/" -o /tmp/h.html || true
+            echo "bytes: $(wc -c < /tmp/h.html)"
+            grep -oiP '<title>[^<]*</title>' /tmp/h.html | head -1
+            grep -oiP '<meta[^>]*(og:site_name|theme-color)[^>]*>' /tmp/h.html | head -3
+            grep -oiP '<link[^>]*icon[^>]*>' /tmp/h.html | head -4
+            grep -c 'WebSite' /tmp/h.html || true
           done
