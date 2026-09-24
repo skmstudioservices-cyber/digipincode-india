@@ -6,15 +6,17 @@ on:
 jobs:
   inspect:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
-      - name: Domain availability check (RDAP)
+      - name: Branding audit all sites
         run: |
-          set +e
-          for d in raktsanchaar.com madadkendra.com madadnumber.com sosbharat.com bharathelpline.com helplinebharat.com jansanket.com surakshasanket.com rahatkendra.com suchnakendra.com sahayatakendra.com aapadaalerts.com emergencybharat.com madadsanket.com raktsanchaar.in; do
-            code=$(curl -sL -o /tmp/r.json -w "%{http_code}" --max-time 15 "https://rdap.org/domain/$d")
-            if [ "$code" = "404" ]; then st="AVAILABLE"
-            elif [ "$code" = "200" ]; then st="TAKEN ($(cat /tmp/r.json | jq -r '.events[]? | select(.eventAction=="registration") | .eventDate' 2>/dev/null | cut -c1-4))"
-            else st="unknown($code)"; fi
-            echo "$d -> $st"
+          for u in https://digipincode.india-in.workers.dev https://digipincode.pages.dev https://mapsnearme.pages.dev https://examstatus.india-in.workers.dev https://karvachauth.india-in.workers.dev https://skmtools.pages.dev https://dashboardmapsnearme.pages.dev https://skm-spoc.pages.dev https://digitalpincode.blogspot.com; do
+            echo "===== $u"
+            html=$(curl -sL --max-time 25 -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" "$u/" || true)
+            echo "home-code: $(curl -sL -o /dev/null -w '%{http_code}' --max-time 15 -A "Mozilla/5.0" "$u/")"
+            echo "title: $(echo "$html" | tr '\n' ' ' | grep -oiP '<title[^>]*>\K[^<]*' | head -1)"
+            echo "meta-tags: $(echo "$html" | tr '\n' ' ' | grep -oiP '<meta[^>]*(description|og:|twitter:|theme-color)[^>]*>' | head -c 700)"
+            echo "link-tags: $(echo "$html" | tr '\n' ' ' | grep -oiP '<link[^>]*(canonical|icon|apple)[^>]*>' | head -c 500)"
+            echo "favicon-ico-code: $(curl -sL -o /dev/null -w '%{http_code}' --max-time 15 "$u/favicon.ico")"
+            echo "website-jsonld-count: $(echo "$html" | grep -c 'WebSite' || true)"
           done
