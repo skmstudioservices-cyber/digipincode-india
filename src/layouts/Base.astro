@@ -45,7 +45,10 @@ const COLLECTING = 'Coming soon — we are collecting this from government recor
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>{title}</title>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📮</text></svg>" />
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="icon" href="/favicon.ico" sizes="48x48" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+  <meta name="theme-color" content="#1e40af" />
   <meta name="description" content={description} />
   <meta name="robots" content="index, follow" />
   <meta property="og:type" content="website" />
@@ -53,13 +56,15 @@ const COLLECTING = 'Coming soon — we are collecting this from government recor
   <meta property="og:locale" content="en_IN" />
   <meta property="og:title" content={title} />
   <meta property="og:description" content={description} />
-  <meta property="og:url" content={Astro.url.href} />
+  <meta property="og:url" content={Astro.url.href.replace('://digipincode.pages.dev', '://digipincode.india-in.workers.dev')} />
   <meta name="twitter:card" content="summary" />
   <meta name="twitter:title" content={title} />
   <meta name="twitter:description" content={description} />
-  <link rel="canonical" href={Astro.url.href} />
+  <meta property="og:image" content="https://digipincode.india-in.workers.dev/og-image.png" />
+  <link rel="canonical" href={Astro.url.href.replace('://digipincode.pages.dev', '://digipincode.india-in.workers.dev')} />
   <link rel="sitemap" href="/sitemap.xml" />
   <script type="application/ld+json" set:html={JSON.stringify(orgLd)} />
+  <script type="application/ld+json" set:html={JSON.stringify({ "@context": "https://schema.org", "@type": "WebSite", "name": "Digipincode", "url": "https://digipincode.india-in.workers.dev/" })} />
   <script is:inline src="https://analytics.ahrefs.com/analytics.js" data-key="gOliiXpzU4P4bK1z+5QfgA" async></script>
   <script>
     import { initFeedbackButtons } from '../components/FeedbackWidget';
