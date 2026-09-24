@@ -10,30 +10,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with: { path: dpc, fetch-depth: 0 }
-      - name: Gather deploy topology
-        env:
-          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CF_ACC: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      - name: Deploy topology deep dive
         run: |
-          echo "=== CF PAGES PROJECTS ==="
-          curl -s -H "Authorization: Bearer $CF_TOKEN" "https://api.cloudflare.com/client/v4/accounts/$CF_ACC/pages/projects?per_page=25" > /tmp/pp.json
-          python3 - <<'PY' || true
-          import json
-          d = json.load(open('/tmp/pp.json'))
-          print('success:', d.get('success'))
-          for p in (d.get('result') or []):
-              src = p.get('source') or {}
-              bc = p.get('build_config') or {}
-              print(p['name'], '| repo:', (src.get('repository') or {}).get('name'), '| branch:', src.get('production_branch'), '| cmd:', bc.get('build_command'), '->', bc.get('destination_dir'))
-          PY
-          echo "=== ALL digipincode-india WORKFLOWS ==="
-          ls dpc/.github/workflows/
-          echo "=== workflows mentioning examstatus ==="
-          grep -l "examstatus" dpc/.github/workflows/* 2>/dev/null || echo none
-          echo "=== examstatus deploy trigger (if any) ==="
-          for f in $(grep -l "examstatus" dpc/.github/workflows/* 2>/dev/null); do echo "--- $f"; grep -A4 "^on:" "$f" | head -12; done
-          echo "=== BOOTSTRAP BRANCH TREE ==="
-          git fetch origin karvachauth-bootstrap --quiet || echo "no bootstrap branch"
-          git ls-tree --name-only origin/karvachauth-bootstrap 2>/dev/null | head -15
+          cd dpc
+          echo "=== deploy.yml (triggers + jobs) ==="
+          head -25 .github/workflows/deploy.yml
+          echo "=== karvachauth-bootstrap.yml ==="
+          cat .github/workflows/karvachauth-bootstrap.yml | head -50
+          echo "=== mapsnearme-deploy.yml triggers ==="
+          head -15 .github/workflows/mapsnearme-deploy.yml
+          echo "=== BOOTSTRAP BRANCH ==="
+          git fetch origin karvachauth-bootstrap --quiet && echo fetched
+          git ls-tree --name-only origin/karvachauth-bootstrap | head -15
           echo "=== BOOTSTRAP deploy.yml ==="
-          git show origin/karvachauth-bootstrap:.github/workflows/deploy.yml 2>/dev/null | head -45 || echo "no deploy.yml in bootstrap"
+          git show origin/karvachauth-bootstrap:.github/workflows/deploy.yml 2>/dev/null | head -35
+          echo "=== Base.astro frontmatter (1-55) ==="
+          head -55 src/layouts/Base.astro
+          echo "=== orgLd definition ==="
+          grep -n -A8 "orgLd" src/layouts/Base.astro | head -25
