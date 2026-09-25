@@ -6,20 +6,16 @@ on:
 jobs:
   inspect:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
     steps:
-      - name: Verify map sites + data
+      - name: Final map data verify
         run: |
           set -e
-          echo "waiting 240s for data pipelines + CF deploys..."
-          sleep 240
+          sleep 90
           for s in toiletsnearme cngpumpsnearme evchargersnearme; do
             code=$(curl -sL -o /tmp/i.html -w "%{http_code}" --max-time 20 https://$s.pages.dev/)
-            hasmap=$(grep -c "leaflet" /tmp/i.html || true)
             mcode=$(curl -sL -o /tmp/m.json -w "%{http_code}" --max-time 20 https://$s.pages.dev/data/manifest.json)
-            if [ "$mcode" = "200" ]; then
-              total=$(python3 -c "import json;d=json.load(open('/tmp/m.json'));print(sum(c['n'] for c in d['cities'].values()), 'POIs in', len(d['cities']), 'cities, generated', d.get('generated'))")
-            else total="manifest HTTP $mcode (pipeline may still be running)"; fi
-            echo "$s | site HTTP $code | leaflet refs: $hasmap | data: $total"
+            info=$(python3 -c "import json;d=json.load(open('/tmp/m.json'));cs=d['cities'];print(sum(c['n'] for c in cs.values()),'POIs /',len(cs),'cities /',d.get('generated'))" 2>/dev/null || echo "manifest $mcode")
+            echo "$s | HTTP $code | $info"
           done
 
