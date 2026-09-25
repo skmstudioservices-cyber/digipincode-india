@@ -8,35 +8,44 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Check pages.dev names
+      - name: CF pages check/create
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
-          set +e
-          echo "===== AVAILABILITY CHECK (DNS + HTTP) ====="
+          set -e
           python3 << 'EOF'
-          import socket, urllib.request, ssl
-          names = ["dashboard", "skm-hq", "skmhq", "skm-spoc", "spoc", "skm-dashboard",
-                   "mydashboard", "skmcontrol", "skm-control", "goskm", "skmstudio-hq",
-                   "skmops", "skmstudio", "control-zzqq-random-9x8y7z"]
-          for n in names:
-              host = n + ".pages.dev"
+          import os, json, time, urllib.request
+          TOKEN = os.environ["CLOUDFLARE_API_TOKEN"]
+          ACC = os.environ["CLOUDFLARE_ACCOUNT_ID"]
+
+          def api(path, method="GET", body=None):
+              req = urllib.request.Request("https://api.cloudflare.com/client/v4" + path,
+                  data=json.dumps(body).encode() if body else None, method=method,
+                  headers={"Authorization": "Bearer " + TOKEN, "Content-Type": "application/json"})
               try:
-                  socket.getaddrinfo(host, 443, proto=socket.IPPROTO_TCP)
-                  dns = "RESOLVES (taken)"
-              except Exception:
-                  dns = "NXDOMAIN (likely available)"
-              http = ""
-              try:
-                  req = urllib.request.Request("https://" + host + "/", method="HEAD",
-                        headers={"User-Agent": "Mozilla/5.0 (compatible; SKMCheck/1.0)"})
-                  r = urllib.request.urlopen(req, timeout=8)
-                  http = "HTTP " + str(r.status)
+                  r = urllib.request.urlopen(req, timeout=30)
+                  return r.status, json.loads(r.read().decode())
               except urllib.error.HTTPError as e:
-                  http = "HTTP " + str(e.code)
-              except Exception as e:
-                  http = "no HTTP (" + type(e).__name__ + ")"
-              print(f"{n:22} | {dns:24} | {http}")
+                  return e.code, json.loads(e.read().decode() or "{}")
+
+          # 1) what already exists in the account?
+          for name in ["dashboard", "skm-spoc", "mydashboard", "dashboardmapsnearme"]:
+              code, d = api(f"/accounts/{ACC}/pages/projects/{name}")
+              print(f"GET {name}: {code}", "| name:", d.get("result", {}).get("name"), "| created:", str(d.get("result", {}).get("created_on", ""))[:10], "|", (d.get("errors") or [""])[0].get("code", "") if code != 200 else "OURS")
+
+          # 2) create dashboard project connected to my-dashboard repo
+          code, d = api(f"/accounts/{ACC}/pages/projects", "POST", {
+              "name": "dashboard",
+              "production_branch": "main",
+              "source": {
+                  "type": "github",
+                  "owner": "skmstudioservices-cyber",
+                  "repo_name": "my-dashboard",
+                  "production_branch": "main",
+                  "deployments_enabled": True,
+              },
+          })
+          print("CREATE dashboard:", code, json.dumps(d)[:400])
           EOF
-          echo "===== dashboard.pages.dev content sample (if resolves) ====="
-          curl -s --max-time 8 https://dashboard.pages.dev/ | head -c 300
-          echo
 
