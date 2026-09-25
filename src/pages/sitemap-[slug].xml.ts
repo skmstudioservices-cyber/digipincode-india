@@ -1,21 +1,25 @@
-// Per-state sitemap — SSR endpoint. Google allows 50K URLs per sitemap.
-// URL structure v2 — hierarchy paths for pincode, village, district and sub-district pages.
-// Village URLs end with their pincode: .../village-{v}/pincode-{p}
-// Edge-cached for 24h (Q42b): bots hitting sitemaps no longer re-read lakhs of D1 rows.
+// Per-state sitemap - SSR endpoint. Google allows 50K URLs per sitemap.
+// LEAN SITEMAP (25 Sep 2026): only URLs that serve HTTP 200 directly.
+//  - sub-districts/villages with EMPTY slugs excluded (they emitted
+//    .../tehsil-/... URLs that 301'd - 44% of all requests were these).
+//  - villages: must have pincode, top 1000 per state by population.
+//  - no <lastmod>: it was "today" for every URL on every build.
+// Edge-cached 24h. SV_VERSION busts the edge cache after deploy.
 export const prerender = false;
 
-// South & western states use "taluk", the rest use "tehsil".
 const TALUK_STATES = [
   'andhra-pradesh','telangana','karnataka','kerala','tamil-nadu','puducherry',
   'maharashtra','gujarat','goa','lakshadweep','andaman-and-nicobar-islands',
   'dadra-and-nagar-haveli','dadra-and-nagar-haveli-and-daman-and-diu','daman-and-diu',
 ];
 
-const SITEMAP_TTL = 60 * 60 * 24; // 24 hours
+const SITEMAP_TTL = 60 * 60 * 24;
+const SV_VERSION = 'lean1';
+const VILLAGES_PER_STATE = 1000;
 
 export async function GET({ params, request, locals }) {
   const cache = (globalThis as any).caches?.default;
-  const key = new Request(request.url, { method: 'GET' });
+  const key = new Request(request.url + '?sv=' + SV_VERSION, { method: 'GET' });
   if (cache) {
     try {
       const hit = await cache.match(key);
@@ -32,57 +36,36 @@ export async function GET({ params, request, locals }) {
   const base = new URL(request.url).origin;
   const word = TALUK_STATES.includes(slug) ? 'taluk' : 'tehsil';
 
-  // District pages: /{state}/district-{d}
-  const districts = await db.prepare(`
-    SELECT slug FROM districts WHERE state_id = ? ORDER BY name
-  `).bind(state.id).all();
+  const districts = await db.prepare(
+    `SELECT slug FROM districts WHERE state_id = ? AND slug IS NOT NULL AND slug != '' ORDER BY name`
+  ).bind(state.id).all();
 
-  // Sub-district pages: /{state}/district-{d}/{word}-{t}
-  const subDistricts = await db.prepare(`
-    SELECT d.slug AS district_slug, sd.slug AS sd_slug
-    FROM sub_districts sd JOIN districts d ON d.id = sd.district_id
-    WHERE d.state_id = ? ORDER BY d.name, sd.name
-  `).bind(state.id).all();
+  const subDistricts = await db.prepare(
+    `SELECT d.slug AS district_slug, sd.slug AS sd_slug FROM sub_districts sd JOIN districts d ON d.id = sd.district_id WHERE d.state_id = ? AND sd.slug IS NOT NULL AND sd.slug != '' ORDER BY d.name, sd.name`
+  ).bind(state.id).all();
 
-  // Village pages: /{state}/district-{d}/{word}-{t}/village-{v}/pincode-{p}
-  const villages = await db.prepare(`
-    SELECT d.slug AS district_slug, sd.slug AS sd_slug, v.slug AS village_slug,
-           CASE WHEN v.pincode IS NULL THEN '' ELSE '/pincode-' || v.pincode END AS pin_suffix
-    FROM villages v
-    JOIN sub_districts sd ON sd.id = v.sub_district_id
-    JOIN districts d ON d.id = sd.district_id
-    WHERE d.state_id = ?
-    ORDER BY v.slug
-  `).bind(state.id).all();
+  const villages = await db.prepare(
+    `SELECT d.slug AS district_slug, sd.slug AS sd_slug, v.slug AS village_slug, v.pincode FROM villages v JOIN sub_districts sd ON sd.id = v.sub_district_id JOIN districts d ON d.id = sd.district_id WHERE d.state_id = ? AND sd.slug IS NOT NULL AND sd.slug != '' AND v.slug IS NOT NULL AND v.slug != '' AND v.pincode IS NOT NULL ORDER BY v.population DESC, v.name LIMIT ?`
+  ).bind(state.id, VILLAGES_PER_STATE).all();
 
-  // Pincode pages: /{state}/district-{d}/pincode-{p}
-  const pincodes = await db.prepare(`
-    SELECT DISTINCT d.slug AS district_slug, v.pincode
-    FROM villages v
-    JOIN sub_districts sd ON sd.id = v.sub_district_id
-    JOIN districts d ON d.id = sd.district_id
-    WHERE d.state_id = ?
-    ORDER BY v.pincode
-  `).bind(state.id).all();
+  const pincodes = await db.prepare(
+    `SELECT DISTINCT d.slug AS district_slug, v.pincode FROM villages v JOIN sub_districts sd ON sd.id = v.sub_district_id JOIN districts d ON d.id = sd.district_id WHERE d.state_id = ? AND v.pincode IS NOT NULL ORDER BY v.pincode`
+  ).bind(state.id).all();
 
   const urls = [
-    `/${slug}`,
-    ...districts.results.map(d => `/${slug}/district-${d.slug}`),
-    ...subDistricts.results.map(x => `/${slug}/district-${x.district_slug}/${word}-${x.sd_slug}`),
-    ...villages.results.map(x => `/${slug}/district-${x.district_slug}/${word}-${x.sd_slug}/village-${x.village_slug}${x.pin_suffix}`),
-    ...pincodes.results.map(x => `/${slug}/district-${x.district_slug}/pincode-${x.pincode}`),
+    '/' + slug,
+    ...districts.results.map(d => '/' + slug + '/district-' + d.slug),
+    ...subDistricts.results.map(x => '/' + slug + '/district-' + x.district_slug + '/' + word + '-' + x.sd_slug),
+    ...villages.results.map(x => '/' + slug + '/district-' + x.district_slug + '/' + word + '-' + x.sd_slug + '/village-' + x.village_slug + '/pincode-' + x.pincode),
+    ...pincodes.results.map(x => '/' + slug + '/district-' + x.district_slug + '/pincode-' + x.pincode),
   ];
 
-  const now = new Date().toISOString().slice(0, 10);
-  const body = `<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-${urls.map(u => `  <url><loc>${base}${u}</loc><lastmod>${now}</lastmod></url>`).join('\n')}
-</urlset>`;
+  const body = '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' + urls.map(u => '  <url><loc>' + base + u + '</loc></url>').join('\n') + '\n</urlset>';
 
   const res = new Response(body, {
     headers: {
       'Content-Type': 'application/xml; charset=utf-8',
-      'Cache-Control': `public, max-age=${SITEMAP_TTL}, s-maxage=${SITEMAP_TTL}`,
+      'Cache-Control': 'public, max-age=' + SITEMAP_TTL + ', s-maxage=' + SITEMAP_TTL,
     },
   });
   if (cache) {

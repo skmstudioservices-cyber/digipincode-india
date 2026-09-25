@@ -191,7 +191,7 @@ export async function getDistrictVillageStats(db: DB, districtId: number) {
 export async function getTopVillagesByDistrict(db: DB, districtId: number, limit = 12) {
   const { results } = await withRetry(() =>
     db.prepare(`
-    SELECT v.name, v.slug, v.pincode, v.population, v.lgd_code, v.sub_district_id
+    SELECT v.name, v.slug, v.pincode, v.population, v.lgd_code, v.sub_district_id, sd.slug AS sub_district_slug
     FROM villages v JOIN sub_districts sd ON sd.id = v.sub_district_id
     WHERE sd.district_id = ? ORDER BY v.population DESC, v.name LIMIT ?
   `).bind(districtId, limit).all()

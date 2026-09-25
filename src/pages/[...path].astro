@@ -64,20 +64,30 @@ if (segs.length === 4) {
 }
 if (segs.length === 5) {
   // canonical village URL: /{s}/district-{d}/{word}-{t}/village-{v}/pincode-{p}
-  if (!parseSubSegment(segs[2])) return Astro.redirect(districtUrl(state.slug, dist.slug), 301);
-  sd = await getSubDistrictBySlug(DB, dist.id, parseSubSegment(segs[2]));
-  if (!sd) return Astro.redirect('/404');
+  // Empty tehsil segment (/tehsil-/village-.../pincode-...): serve HTTP 200
+  // directly instead of a 301 (25 Sep 2026). These are the canonical URLs of
+  // villages whose sub-district slug is missing in D1. The page renders with
+  // a "Collecting from public sources" note where tehsil data is absent.
+  // One invocation instead of two, and Googlebot gets real content.
   if (!segs[3].startsWith('village-') || !segs[4].startsWith('pincode-')) return Astro.redirect('/404');
+  const subSlug = parseSubSegment(segs[2]);
+  if (subSlug === null) return Astro.redirect(districtUrl(state.slug, dist.slug), 301);
+  if (subSlug !== '') {
+    sd = await getSubDistrictBySlug(DB, dist.id, subSlug);
+    if (!sd) return Astro.redirect('/404');
+  }
   vil = await getVillageBySlug(DB, segs[3].slice('village-'.length));
   if (!vil) return Astro.redirect('/404');
+  if (vil.district_slug && vil.district_slug !== dist.slug) return Astro.redirect('/404');
   const givenPin = segs[4].slice('pincode-'.length);
-  if (String(vil.pincode ?? '') !== givenPin || (vil.sub_district_slug && vil.sub_district_slug !== sd.slug)) {
-    // wrong pincode/tehsil in URL → 301 to the true canonical path
+  if (String(vil.pincode ?? '') !== givenPin || (sd && vil.sub_district_slug && vil.sub_district_slug !== sd.slug)) {
+    // wrong pincode/tehsil in URL -> 301 to the true canonical path
     if (vil.state_slug && vil.district_slug && vil.sub_district_slug)
       return Astro.redirect(villageUrl(vil.state_slug, vil.district_slug, vil.sub_district_slug, vil.slug, vil.pincode), 301);
     return Astro.redirect('/404');
   }
 }
+
 if (segs.length > 5) return Astro.redirect('/404');
 
 // ---------------- level data ----------------
@@ -204,7 +214,7 @@ if (!dist) {
   if (vil.population) chips.push(`👥 ${L(vil.population)} people`);
   if (tehsilVillages > 0) chips.push(`🗺️ ${tehsilVillages} villages in ${tehsilName || 'area'}`);
   if (vil.digipin) chips.push('🛰️ DIGIPIN');
-  intro = `<strong>${vil.name}</strong> is a village in ${tehsilName ? `${tehsilName} ${wordLabel.toLowerCase()} of ` : ''}<strong>${districtName} district</strong>${tehsilVillages > 1 ? `, one of ${tehsilVillages} villages that make up ${tehsilName} ${wordLabel.toLowerCase()}` : ''}. ${vil.population ? `Around ${L(vil.population)} people live here in ${L(vil.households)} households.` : ''} Mail for the village is delivered under pincode <a href="${pincodeUrl(state.slug, dist.slug, vil.pincode)}">${vil.pincode}</a>.`;
+  intro = `<strong>${vil.name}</strong> is a village in ${tehsilName ? `${tehsilName} ${wordLabel.toLowerCase()} of ` : ''}<strong>${districtName} district</strong>${tehsilVillages > 1 ? `, one of ${tehsilVillages} villages that make up ${tehsilName} ${wordLabel.toLowerCase()}` : ''}. ${vil.population ? `Around ${L(vil.population)} people live here in ${L(vil.households)} households.` : ''} Mail for the village is delivered under pincode <a href="${pincodeUrl(state.slug, dist.slug, vil.pincode)}">${vil.pincode}</a>.${tehsilName ? '' : ' Tehsil details for this village are being collected from public sources and will be updated soon.'}`;
   faq = [
     [`What is the pincode of ${vil.name} village?`, `The pincode of ${vil.name} is ${vil.pincode}.${office ? ` It is served by the ${office.office_name} post office (${office.office_type}) in ${office.taluk}, ${districtName} district, ${stateName}.` : ''}`],
     [`Which district and state does ${vil.name} belong to?`, `${vil.name} is a village in ${tehsilName ? `${tehsilName} ${wordLabel.toLowerCase()} of ` : ''}${districtName} district, ${stateName}${tehsilVillages ? ` — one of ${tehsilVillages} villages in ${tehsilName} ${wordLabel.toLowerCase()}` : ''}.`],
@@ -221,7 +231,7 @@ if (!dist) {
     <h2>${vil.name} village profile</h2><div class="factgrid">
       <div class="fact"><div class="k">Pincode</div><div class="v">${vil.pincode}</div></div>
       <div class="fact"><div class="k">District</div><div class="v">${districtName}</div></div>
-      <div class="fact"><div class="k">${wordLabel}</div><div class="v">${tehsilName || '—'}</div></div>
+      <div class="fact"><div class="k">${wordLabel}</div><div class="v">${tehsilName || 'Collecting from public sources'}</div></div>
       <div class="fact"><div class="k">LGD Code</div><div class="v">${vil.lgd_code ?? '—'}</div></div>
       <div class="fact"><div class="k">Census Code</div><div class="v">${vil.census_code ?? '—'}</div></div>
       <div class="fact"><div class="k">Population</div><div class="v">${vil.population ? L(vil.population) : '—'}</div></div>

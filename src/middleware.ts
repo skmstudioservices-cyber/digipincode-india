@@ -10,7 +10,7 @@
 //    appears in the HTML that AI crawlers fetch (no JS needed to see it).
 import { defineMiddleware } from 'astro:middleware';
 
-const CACHE_VERSION = 'v1';
+const CACHE_VERSION = 'v2' // bumped 25 Sep 2026: routing/sitemap changes, refresh cached HTML;
 const PAGE_TTL = 60 * 60 * 24 * 7; // 7 days
 const SKIP = ['/api/', '/search', '/saved', '/sitemap', '/404'];
 
