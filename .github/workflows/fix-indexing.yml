@@ -1,0 +1,67 @@
+name: Fix Indexing
+
+on:
+  workflow_dispatch:
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply edits
+        run: |
+          python3 << 'PY'
+          import re, pathlib, sys
+
+          ROBOTS = 'User-agent: *\nAllow: /\n\nUser-agent: Googlebot\nAllow: /\n\nUser-agent: Bingbot\nAllow: /\n\n# AI/scraper bots blocked to protect the daily request quota for Googlebot\n# and real visitors (25 Sep 2026: Claude-SearchBot alone burned ~21k requests/day).\n# Revisit when AI visibility starts mattering for revenue.\nUser-agent: GPTBot\nDisallow: /\n\nUser-agent: OAI-SearchBot\nDisallow: /\n\nUser-agent: ChatGPT-User\nDisallow: /\n\nUser-agent: ClaudeBot\nDisallow: /\n\nUser-agent: Claude-SearchBot\nDisallow: /\n\nUser-agent: Claude-User\nDisallow: /\n\nUser-agent: CCBot\nDisallow: /\n\nUser-agent: PerplexityBot\nDisallow: /\n\nUser-agent: Perplexity-User\nDisallow: /\n\nUser-agent: DuckAssistBot\nDisallow: /\n\nUser-agent: Amazonbot\nDisallow: /\n\nUser-agent: Bytespider\nDisallow: /\n\nUser-agent: Applebot-Extended\nDisallow: /\n\nUser-agent: meta-externalagent\nDisallow: /\n\nUser-agent: FacebookBot\nDisallow: /\n\nUser-agent: cohere-ai\nDisallow: /\n\nUser-agent: Diffbot\nDisallow: /\n\nUser-agent: YouBot\nDisallow: /\n\nUser-agent: aiHitBot\nDisallow: /\n\nUser-agent: omgili\nDisallow: /\n\nUser-agent: PetalBot\nDisallow: /\n\nUser-agent: Scrapy\nDisallow: /\n\nUser-agent: SemrushBot\nDisallow: /\n\nUser-agent: YandexBot\nDisallow: /\n\nUser-agent: Google-Extended\nDisallow: /\n\n# Sitemap convention: always /sitemap.xml\nSitemap: https://digipincode.india-in.workers.dev/sitemap.xml\n'
+          SITEMAP = '// Per-state sitemap - SSR endpoint. Google allows 50K URLs per sitemap.\n// LEAN SITEMAP (25 Sep 2026): only URLs that serve HTTP 200 directly.\n//  - sub-districts/villages with EMPTY slugs excluded (they emitted\n//    .../tehsil-/... URLs that 301\'d - 44% of all requests were these).\n//  - villages: must have pincode, top 1000 per state by population\n//    (quality-first for a new domain; rest reachable via internal links).\n//  - no <lastmod>: it was "today" for every URL on every build, which\n//    signalled constant change and wasted recrawls.\n// Edge-cached 24h. SV_VERSION bumps the cache key so old fat sitemaps\n// are not served from the edge cache after a deploy.\nexport const prerender = false;\n\n// South & western states use "taluk", the rest use "tehsil".\nconst TALUK_STATES = [\n  \'andhra-pradesh\',\'telangana\',\'karnataka\',\'kerala\',\'tamil-nadu\',\'puducherry\',\n  \'maharashtra\',\'gujarat\',\'goa\',\'lakshadweep\',\'andaman-and-nicobar-islands\',\n  \'dadra-and-nagar-haveli\',\'dadra-and-nagar-haveli-and-daman-and-diu\',\'daman-and-diu\',\n];\n\nconst SITEMAP_TTL = 60 * 60 * 24; // 24 hours\nconst SV_VERSION = \'lean1\';       // bump to invalidate edge cache\nconst VILLAGES_PER_STATE = 1000;  // lean quality cap\n\nexport async function GET({ params, request, locals }) {\n  const cache = (globalThis as any).caches?.default;\n  const key = new Request(request.url + \'?sv=\' + SV_VERSION, { method: \'GET\' });\n  if (cache) {\n    try {\n      const hit = await cache.match(key);\n      if (hit) return hit;\n    } catch {}\n  }\n\n  const db = locals.runtime.env.DB;\n  const { slug } = params;\n\n  const state = await db.prepare(\'SELECT id, name FROM states WHERE slug = ?\').bind(slug).first();\n  if (!state) return new Response(\'Not found\', { status: 404 });\n\n  const base = new URL(request.url).origin;\n  const word = TALUK_STATES.includes(slug) ? \'taluk\' : \'tehsil\';\n\n  // District pages: /{state}/district-{d}\n  const districts = await db.prepare(\n    \'SELECT slug FROM districts WHERE state_id = ? AND slug IS NOT NULL AND slug != \'\' ORDER BY name\'\n  ).bind(state.id).all();\n\n  // Sub-district pages: /{state}/district-{d}/{word}-{t} - skip empty slugs\n  const subDistricts = await db.prepare(\n    \'SELECT d.slug AS district_slug, sd.slug AS sd_slug FROM sub_districts sd JOIN districts d ON d.id = sd.district_id WHERE d.state_id = ? AND sd.slug IS NOT NULL AND sd.slug != \'\' ORDER BY d.name, sd.name\'\n  ).bind(state.id).all();\n\n  // Village pages (lean): valid hierarchy slugs + pincode, top N by population\n  const villages = await db.prepare(\n    \'SELECT d.slug AS district_slug, sd.slug AS sd_slug, v.slug AS village_slug, v.pincode FROM villages v JOIN sub_districts sd ON sd.id = v.sub_district_id JOIN districts d ON d.id = sd.district_id WHERE d.state_id = ? AND sd.slug IS NOT NULL AND sd.slug != \'\' AND v.slug IS NOT NULL AND v.slug != \'\' AND v.pincode IS NOT NULL ORDER BY v.population DESC, v.name LIMIT ?\'\n  ).bind(state.id, VILLAGES_PER_STATE).all();\n\n  // Pincode pages: /{state}/district-{d}/pincode-{p}\n  const pincodes = await db.prepare(\n    \'SELECT DISTINCT d.slug AS district_slug, v.pincode FROM villages v JOIN sub_districts sd ON sd.id = v.sub_district_id JOIN districts d ON d.id = sd.district_id WHERE d.state_id = ? AND v.pincode IS NOT NULL ORDER BY v.pincode\'\n  ).bind(state.id).all();\n\n  const urls = [\n    \'/\' + slug,\n    ...districts.results.map(d => \'/\' + slug + \'/district-\' + d.slug),\n    ...subDistricts.results.map(x => \'/\' + slug + \'/district-\' + x.district_slug + \'/\' + word + \'-\' + x.sd_slug),\n    ...villages.results.map(x => \'/\' + slug + \'/district-\' + x.district_slug + \'/\' + word + \'-\' + x.sd_slug + \'/village-\' + x.village_slug + \'/pincode-\' + x.pincode),\n    ...pincodes.results.map(x => \'/\' + slug + \'/district-\' + x.district_slug + \'/pincode-\' + x.pincode),\n  ];\n\n  const body = \'<?xml version="1.0" encoding="UTF-8"?>\\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\\n\' + urls.map(u => \'  <url><loc>\' + base + u + \'</loc></url>\').join(\'\\n\') + \'\\n</urlset>\';\n\n  const res = new Response(body, {\n    headers: {\n      \'Content-Type\': \'application/xml; charset=utf-8\',\n      \'Cache-Control\': \'public, max-age=\' + SITEMAP_TTL + \', s-maxage=\' + SITEMAP_TTL,\n    },\n  });\n  if (cache) {\n    try {\n      const ctx = locals.runtime?.ctx;\n      const put = cache.put(key, res.clone());\n      if (ctx?.waitUntil) ctx.waitUntil(put); else await put;\n    } catch {}\n  }\n  return res;\n}\n'
+
+          def edit(path, pairs):
+              p = pathlib.Path(path); s = p.read_text(encoding='utf-8')
+              for old, new in pairs:
+                  n = s.count(old)
+                  if n != 1:
+                      print('FAIL %s: %d occurrences of %r' % (path, n, old[:70])); sys.exit(1)
+                  s = s.replace(old, new)
+              p.write_text(s, encoding='utf-8'); print('OK', path)
+
+          pathlib.Path('public/robots.txt').write_text(ROBOTS, encoding='utf-8'); print('OK public/robots.txt')
+
+          edit('src/lib/db.ts', [(
+              "    SELECT v.name, v.slug, v.pincode, v.population, v.lgd_code, v.sub_district_id\n    FROM villages v JOIN sub_districts sd ON sd.id = v.sub_district_id",
+              "    SELECT v.name, v.slug, v.pincode, v.population, v.lgd_code, v.sub_district_id, sd.slug AS sub_district_slug\n    FROM villages v JOIN sub_districts sd ON sd.id = v.sub_district_id"
+          )])
+
+          PP = 'src/pages/[...path].astro'
+          OLD5 = "  if (!parseSubSegment(segs[2])) return Astro.redirect(districtUrl(state.slug, dist.slug), 301);\n  sd = await getSubDistrictBySlug(DB, dist.id, parseSubSegment(segs[2]));\n  if (!sd) return Astro.redirect('/404');\n  if (!segs[3].startsWith('village-') || !segs[4].startsWith('pincode-')) return Astro.redirect('/404');\n  vil = await getVillageBySlug(DB, segs[3].slice('village-'.length));\n  if (!vil) return Astro.redirect('/404');\n  const givenPin = segs[4].slice('pincode-'.length);\n  if (String(vil.pincode ?? '') !== givenPin || (vil.sub_district_slug && vil.sub_district_slug !== sd.slug)) {"
+          NEW5 = "  if (!segs[3].startsWith('village-') || !segs[4].startsWith('pincode-')) return Astro.redirect('/404');\n  const subSlug = parseSubSegment(segs[2]);\n  if (subSlug === null) return Astro.redirect(districtUrl(state.slug, dist.slug), 301);\n  // Empty tehsil segment (/tehsil-/village-.../pincode-...): serve HTTP 200\n  // directly instead of a 301 (25 Sep 2026). These are the canonical URLs of\n  // villages whose sub-district slug is missing in D1. The page renders with\n  // a \"Collecting from public sources\" note where tehsil data is absent.\n  // One invocation instead of two, and Googlebot gets real content.\n  if (subSlug !== '') {\n    sd = await getSubDistrictBySlug(DB, dist.id, subSlug);\n    if (!sd) return Astro.redirect('/404');\n  }\n  vil = await getVillageBySlug(DB, segs[3].slice('village-'.length));\n  if (!vil) return Astro.redirect('/404');\n  if (vil.district_slug && vil.district_slug !== dist.slug) return Astro.redirect('/404');\n  const givenPin = segs[4].slice('pincode-'.length);\n  if (String(vil.pincode ?? '') !== givenPin || (sd && vil.sub_district_slug && vil.sub_district_slug !== sd.slug)) {"
+          edit(PP, [(OLD5, NEW5)])
+
+          p = pathlib.Path(PP); s = p.read_text(encoding='utf-8')
+          s2, n1 = re.subn(r"(<div class=\"k\">\$\{wordLabel\}</div><div class=\"v\">\$\{tehsilName \|\| ')[^']+'\}", r"\1Collecting from public sources'", s)
+          if n1 != 1: print('FAIL factgrid regex', n1); sys.exit(1)
+          s3, n2 = re.subn(r"(under pincode <a href=\"\$\{pincodeUrl\(state\.slug, dist\.slug, vil\.pincode\)\}\">\$\{vil\.pincode\}</a>\.)`;",
+            r"\1${tehsilName ? '' : ' Tehsil details for this village are being collected from public sources and will be updated soon.'}`;", s2)
+          if n2 != 1: print('FAIL intro regex', n2); sys.exit(1)
+          p.write_text(s3, encoding='utf-8'); print('OK', PP)
+
+          pathlib.Path('src/pages/sitemap-[slug].xml.ts').write_text(SITEMAP, encoding='utf-8'); print('OK sitemap-[slug].xml.ts')
+
+          edit('src/middleware.ts', [("const CACHE_VERSION = 'v1';", "const CACHE_VERSION = 'v2'; // bumped 25 Sep 2026: routing/sitemap changes, refresh cached HTML")])
+          print('ALL EDITS APPLIED')
+
+          PY
+      - name: Diff
+        run: git diff --stat
+      - name: Build verify
+        run: npm install --no-audit --no-fund && npm run build
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/robots.txt src/lib/db.ts "src/pages/[...path].astro" "src/pages/sitemap-[slug].xml.ts" src/middleware.ts
+          git commit -m "fix: Google-first indexing pack (AI bot block, lean sitemap, tehsil- 200 pages)" || echo NOTHING_TO_COMMIT
+          git push
