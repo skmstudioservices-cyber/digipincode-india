@@ -15,7 +15,7 @@ jobs:
         run: |
           set -e
           python3 << 'EOF'
-          import os, json, time, urllib.request
+          import os, json, urllib.request
           TOKEN = os.environ["CLOUDFLARE_API_TOKEN"]
           ACC = os.environ["CLOUDFLARE_ACCOUNT_ID"]
 
@@ -29,12 +29,15 @@ jobs:
               except urllib.error.HTTPError as e:
                   return e.code, json.loads(e.read().decode() or "{}")
 
-          # 1) what already exists in the account?
           for name in ["dashboard", "skm-spoc", "mydashboard", "dashboardmapsnearme"]:
               code, d = api(f"/accounts/{ACC}/pages/projects/{name}")
-              print(f"GET {name}: {code}", "| name:", d.get("result", {}).get("name"), "| created:", str(d.get("result", {}).get("created_on", ""))[:10], "|", (d.get("errors") or [""])[0].get("code", "") if code != 200 else "OURS")
+              res = d.get("result") or {}
+              err = ""
+              if code != 200:
+                  errs = d.get("errors") or []
+                  err = (str(errs[0].get("code", "")) if errs else "") + " " + (str(errs[0].get("message", ""))[:80] if errs else "")
+              print(f"GET {name}: {code} | created: {str(res.get('created_on', ''))[:10]} | {err.strip() if err else 'OURS'}")
 
-          # 2) create dashboard project connected to my-dashboard repo
           code, d = api(f"/accounts/{ACC}/pages/projects", "POST", {
               "name": "dashboard",
               "production_branch": "main",
@@ -46,6 +49,6 @@ jobs:
                   "deployments_enabled": True,
               },
           })
-          print("CREATE dashboard:", code, json.dumps(d)[:400])
+          print("CREATE dashboard:", code, json.dumps(d)[:500])
           EOF
 
