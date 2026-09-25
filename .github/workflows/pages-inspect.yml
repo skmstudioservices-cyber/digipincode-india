@@ -8,19 +8,35 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Verify robots live
+      - name: Check pages.dev names
         run: |
           set +e
-          echo "===== digipincode robots: new bots ====="
-          curl -s https://digipincode.india-in.workers.dev/robots.txt | grep -cE "^User-agent:" 
-          curl -s https://digipincode.india-in.workers.dev/robots.txt | grep -E "Claude-Web|AhrefsBot|Baiduspider|GoogleOther|Gemini-Deep"
-          echo "===== mapsnearme robots ====="
-          curl -s https://mapsnearme.pages.dev/robots.txt | grep -cE "^User-agent:"
-          curl -s https://mapsnearme.pages.dev/robots.txt | grep -E "Claude-SearchBot|Sitemap"
-          echo "===== examstatus robots ====="
-          curl -s https://examstatus.india-in.workers.dev/robots.txt | grep -cE "^User-agent:"
-          curl -s https://examstatus.india-in.workers.dev/robots.txt | grep -E "Claude-SearchBot|Sitemap"
-          echo "===== starter site check: toiletsnearme.github.io style (repo only, not hosted) ====="
-          echo "===== dashboard robots ====="
-          curl -s https://dashboardmapsnearme.pages.dev/robots.txt | grep -cE "^User-agent:" || echo "not deployed yet / private"
+          echo "===== AVAILABILITY CHECK (DNS + HTTP) ====="
+          python3 << 'EOF'
+          import socket, urllib.request, ssl
+          names = ["dashboard", "skm-hq", "skmhq", "skm-spoc", "spoc", "skm-dashboard",
+                   "mydashboard", "skmcontrol", "skm-control", "goskm", "skmstudio-hq",
+                   "skmops", "skmstudio", "control-zzqq-random-9x8y7z"]
+          for n in names:
+              host = n + ".pages.dev"
+              try:
+                  socket.getaddrinfo(host, 443, proto=socket.IPPROTO_TCP)
+                  dns = "RESOLVES (taken)"
+              except Exception:
+                  dns = "NXDOMAIN (likely available)"
+              http = ""
+              try:
+                  req = urllib.request.Request("https://" + host + "/", method="HEAD",
+                        headers={"User-Agent": "Mozilla/5.0 (compatible; SKMCheck/1.0)"})
+                  r = urllib.request.urlopen(req, timeout=8)
+                  http = "HTTP " + str(r.status)
+              except urllib.error.HTTPError as e:
+                  http = "HTTP " + str(e.code)
+              except Exception as e:
+                  http = "no HTTP (" + type(e).__name__ + ")"
+              print(f"{n:22} | {dns:24} | {http}")
+          EOF
+          echo "===== dashboard.pages.dev content sample (if resolves) ====="
+          curl -s --max-time 8 https://dashboard.pages.dev/ | head -c 300
+          echo
 
