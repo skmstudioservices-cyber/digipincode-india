@@ -6,24 +6,27 @@ on:
 jobs:
   inspect:
     runs-on: ubuntu-latest
-    timeout-minutes: 6
+    timeout-minutes: 9
     steps:
-      - name: cng failure logs
+      - name: Retry cng + poll all
         run: |
           set -e
-          echo "--- cng failure logs ---"
-          curl -s --max-time 20 "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects/cngpumpsnearme/deployments/e6c773b7-0000-0000-0000-000000000000/logs" -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" | head -c 800
-          echo ""
-          echo "--- cng deployment detail ---"
-          DEP=$(curl -s --max-time 20 "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects/cngpumpsnearme/deployments?per_page=1" -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN")
-          echo "$DEP" | jq -r '.result[0] | {id, is_skipped, build_config, env_vars, stages: [.stages[]? | {name, status}]}' | head -c 1500
-          echo ""
-          echo "--- live tag check all 6 ---"
+          echo "--- retry cng deployment ---"
+          curl -s --max-time 20 -X POST "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects/cngpumpsnearme/deployments" -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H "Content-Type: application/json" -d '{}' | jq -c '{success, id: .result.id[0:8]}'
           T="GlkDu5ZL-CyyKjwPSj9d9X3Y2qsHUj_qAwRwxiLr7nl"
-          for s in toiletsnearme cngpumpsnearme evchargersnearme restareanearme aadhaar-seva-kendra-near-me bloodbanksnearme; do
-            curl -sL --max-time 15 "https://$s.pages.dev/?cb=$RANDOM" -o /tmp/i.html
-            echo "$s live $(grep -c "$T" /tmp/i.html || true)"
+          for i in $(seq 1 12); do
+            out=""; allok=1
+            for s in toiletsnearme cngpumpsnearme evchargersnearme restareanearme aadhaar-seva-kendra-near-me bloodbanksnearme; do
+              curl -sL --max-time 15 "https://$s.pages.dev/?cb=$RANDOM$i" -o /tmp/i.html
+              tag=$(grep -c "$T" /tmp/i.html || true)
+              out="$out $s=$tag"
+              if [ "$tag" -lt 1 ]; then allok=0; fi
+            done
+            echo "check $i:$out"
+            if [ "$allok" = "1" ]; then echo "ALL 6 GSC TAGS LIVE"; exit 0; fi
+            sleep 30
           done
+          echo "STILL NOT ALL LIVE"
 
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
