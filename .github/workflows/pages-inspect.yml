@@ -6,19 +6,18 @@ on:
 jobs:
   inspect:
     runs-on: ubuntu-latest
-    timeout-minutes: 18
+    timeout-minutes: 12
     steps:
-      - name: Diagnose + trigger pages builds
+      - name: Deep diagnose 403
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           set -e
           python3 << 'EOF'
-          import os, json, time, urllib.request
+          import os, json, urllib.request
           TOKEN = os.environ["CLOUDFLARE_API_TOKEN"]
           ACC = os.environ["CLOUDFLARE_ACCOUNT_ID"]
-
           def api(path, method="GET", body=None):
               req = urllib.request.Request("https://api.cloudflare.com/client/v4" + path,
                   data=json.dumps(body).encode() if body else None, method=method,
@@ -29,47 +28,30 @@ jobs:
               except urllib.error.HTTPError as e:
                   return e.code, json.loads(e.read().decode() or "{}")
 
-          SITES = ["bloodbanksnearme", "toiletsnearme", "cngpumpsnearme", "evchargersnearme", "restareanearme", "aadhaar-seva-kendra-near-me"]
-
-          print("--- diagnose: existing deployments ---")
-          for s in SITES:
+          for s in ["bloodbanksnearme", "mapsnearme"]:
+              print("=====", s, "(mapsnearme = known-good git-connected reference) =====")
+              code, d = api(f"/accounts/{ACC}/pages/projects/{s}")
+              res = d.get("result") or {}
+              print("canonical_deployment:", (res.get("canonical_deployment") or {}).get("id"))
+              src = (res.get("source") or {}).get("config") or {}
+              print("source:", json.dumps(src)[:220])
               code, d = api(f"/accounts/{ACC}/pages/projects/{s}/deployments")
-              deps = d.get("result") or []
-              if not deps:
-                  print(f"{s}: NO deployments at all")
-              else:
-                  dep = deps[0]
-                  print(f"{s}: {len(deps)} dep | env={dep.get('environment')} | stage={dep.get('latest_stage',{}).get('name')}:{dep.get('latest_stage',{}).get('status')} | build_config={json.dumps((dep.get('build_config') or {}))[:120]}")
-
-          print("--- trigger rebuild via API ---")
-          for s in SITES:
-              code, d = api(f"/accounts/{ACC}/pages/projects/{s}/deployments", "POST", {})
-              ok = d.get("success")
-              err = json.dumps(d.get("errors"))[:150]
-              print(f"{s}: {code} success={ok} {err if not ok else ''}")
-              time.sleep(2)
-
-          print("--- wait up to 4 min for builds ---")
-          deadline = time.time() + 240
-          done = set()
-          while time.time() < deadline and len(done) < len(SITES):
-              for s in SITES:
-                  if s in done: continue
-                  code, d = api(f"/accounts/{ACC}/pages/projects/{s}/deployments")
-                  deps = d.get("result") or []
-                  if deps:
-                      st = deps[0].get("latest_stage", {}).get("status")
-                      if st in ("success", "failure"):
-                          print(f"{s}: {st} (stage: {deps[0].get('latest_stage',{}).get('name')})")
-                          done.add(s)
-              if len(done) < len(SITES): time.sleep(20)
-
-          print("--- live check ---")
-          for s in SITES:
-              try:
-                  r = urllib.request.urlopen("https://" + s + ".pages.dev/", timeout=15)
-                  print(f"{s}: HTTP {r.status} LIVE")
-              except Exception as e:
-                  print(f"{s}: {type(e).__name__} {str(e)[:60]}")
+              for dep in (d.get("result") or [])[:2]:
+                  print("  dep:", dep.get("id", "")[:8],
+                        "| env:", dep.get("environment"),
+                        "| branches:", dep.get("branches"),
+                        "| alias:", dep.get("alias"),
+                        "| urls:", dep.get("urls"),
+                        "| trigger:", json.dumps(dep.get("deployment_trigger"))[:140])
           EOF
+          echo "---- raw 403 headers for bloodbanksnearme ----"
+          curl -sS -D - -o /tmp/body.html https://bloodbanksnearme.pages.dev/ | head -20
+          echo "---- body ----"
+          head -c 400 /tmp/body.html
+          echo
+          echo "---- retry after warmup ----"
+          sleep 45
+          for s in bloodbanksnearme toiletsnearme cngpumpsnearme evchargersnearme restareanearme aadhaar-seva-kendra-near-me; do
+            curl -s -o /dev/null -w "$s -> %{http_code}\n" https://$s.pages.dev/
+          done
 
