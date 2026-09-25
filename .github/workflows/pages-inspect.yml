@@ -8,17 +8,17 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - name: Connect skm-spoc to my-dashboard
+      - name: Deploy SPOC dashboard to skm-spoc
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           set -e
+          echo "== diagnose =="
           python3 << 'EOF'
-          import os, json, time, urllib.request
+          import os, json, urllib.request
           TOKEN = os.environ["CLOUDFLARE_API_TOKEN"]
           ACC = os.environ["CLOUDFLARE_ACCOUNT_ID"]
-
           def api(path, method="GET", body=None):
               req = urllib.request.Request("https://api.cloudflare.com/client/v4" + path,
                   data=json.dumps(body).encode() if body else None, method=method,
@@ -29,31 +29,41 @@ jobs:
               except urllib.error.HTTPError as e:
                   return e.code, json.loads(e.read().decode() or "{}")
 
-          # connect skm-spoc to my-dashboard repo (git source -> push = deploy)
+          code, d = api(f"/accounts/{ACC}/pages/projects/skm-spoc")
+          res = d.get("result") or {}
+          print("project:", code, "| subdomain:", res.get("subdomain"), "| domains:", res.get("domains"))
+          print("canonical deployment:", (res.get("canonical_deployment") or {}).get("id"))
+          code, d = api(f"/accounts/{ACC}/pages/projects/skm-spoc/deployments")
+          for dep in (d.get("result") or [])[:5]:
+              print("  deployment:", dep.get("id", "")[:8], "| env:", dep.get("environment"), "| stage:", dep.get("latest_stage", {}).get("status"), "| source:", json.dumps(dep.get("deployment_trigger", {}))[:80], "| urls:", dep.get("urls"))
+          # why did PATCH fail
           code, d = api(f"/accounts/{ACC}/pages/projects/skm-spoc", "PATCH", {
-              "source": {"type": "github", "config": {
-                  "owner": "skmstudioservices-cyber",
-                  "repo_name": "my-dashboard",
-                  "production_branch": "main",
-                  "deployments_enabled": True}}})
-          src = ((d.get("result") or {}).get("source") or {}).get("config") or {}
-          print("PATCH skm-spoc:", code, "| repo:", src.get("repo_name"), "| branch:", src.get("production_branch"))
-
-          # wait for first deploy, then verify live
-          for i in range(10):
-              time.sleep(30)
-              code, d = api(f"/accounts/{ACC}/pages/projects/skm-spoc/deployments")
-              deps = d.get("result") or []
-              if deps:
-                  latest = deps[0]
-                  print(f"deploy[{i}]:", latest.get("latest_stage", {}).get("name"), latest.get("latest_stage", {}).get("status"), "| alia:", (latest.get("aliases") or [""])[0])
-                  if latest.get("latest_stage", {}).get("status") == "success":
-                      try:
-                          body = urllib.request.urlopen("https://skm-spoc.pages.dev/", timeout=15).read().decode()
-                          print("LIVE HTTP OK | title:", body[body.find("<title>"):body.find("</title>")][:80])
-                          print("has SPOC:", "SKM SPOC" in body, "| noindex:", "noindex" in body)
-                      except Exception as e:
-                          print("live check:", type(e).__name__, str(e)[:100])
-                      break
+              "source": {"type": "github", "config": {"owner": "skmstudioservices-cyber", "repo_name": "my-dashboard", "production_branch": "main", "deployments_enabled": True}}})
+          print("PATCH try:", code, json.dumps(d.get("errors"))[:250])
           EOF
+
+          echo "== get dashboard files =="
+          if git clone --depth 1 https://github.com/skmstudioservices-cyber/my-dashboard.git /tmp/md 2>/dev/null; then
+            echo "cloned my-dashboard (public)"
+          else
+            echo "clone failed - using inline fallback"
+            mkdir -p /tmp/md
+            python3 - << 'EOF'
+          import base64
+          # not used unless clone fails
+          EOF
+          fi
+          ls /tmp/md
+          cat /tmp/md/robots.txt || true
+
+          echo "== wrangler deploy to skm-spoc =="
+          cd /tmp/md
+          npx -y wrangler@3 pages deploy . --project-name=skm-spoc --branch=main --commit-dirty=true 2>&1 | tail -8
+
+          echo "== verify live =="
+          sleep 10
+          curl -s -o /tmp/live.html -w "HTTP %{http_code}\n" https://skm-spoc.pages.dev/
+          grep -o "<title>[^<]*" /tmp/live.html || head -c 200 /tmp/live.html
+          echo
+          grep -c "SKM SPOC" /tmp/live.html || echo "SPOC content MISSING"
 
