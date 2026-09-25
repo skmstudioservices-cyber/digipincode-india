@@ -6,16 +6,20 @@ on:
 jobs:
   inspect:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 12
     steps:
-      - name: Final map data verify
+      - name: Verify v3 map sites
         run: |
           set -e
-          sleep 90
+          sleep 150
           for s in toiletsnearme cngpumpsnearme evchargersnearme; do
             code=$(curl -sL -o /tmp/i.html -w "%{http_code}" --max-time 20 https://$s.pages.dev/)
+            ccode=$(curl -sL -o /tmp/c.html -w "%{http_code}" --max-time 20 https://$s.pages.dev/delhi/)
+            xcode=$(curl -sL -o /tmp/x.html -w "%{http_code}" --max-time 20 https://$s.pages.dev/chandigarh/)
             mcode=$(curl -sL -o /tmp/m.json -w "%{http_code}" --max-time 20 https://$s.pages.dev/data/manifest.json)
-            info=$(python3 -c "import json;d=json.load(open('/tmp/m.json'));cs=d['cities'];print(sum(c['n'] for c in cs.values()),'POIs /',len(cs),'cities /',d.get('generated'))" 2>/dev/null || echo "manifest $mcode")
-            echo "$s | HTTP $code | $info"
+            info=$(python3 -c "import json;d=json.load(open('/tmp/m.json'));print(sum(c['n'] for c in d['cities'].values()),'POIs in',len(d['cities']),'cities')" 2>/dev/null || echo "manifest $mcode")
+            ext=$(grep -c "card official" /tmp/i.html /tmp/c.html || true)
+            dp=$(grep -c "DIGIPIN" /tmp/i.html)
+            echo "$s | home $code | /delhi/ $ccode | /chandigarh/ $xcode | $info | external-cards:$ext | digipin-refs:$dp"
           done
 
