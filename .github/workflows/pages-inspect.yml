@@ -8,16 +8,20 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:
-      - name: Verify external-links removal
+      - name: Build + sitemap verify all 6
         run: |
           set -e
-          sleep 90
-          for s in restareanearme aadhaar-seva-kendra-near-me bloodbanksnearme; do
-            code=$(curl -sL -o /tmp/i.html -w "%{http_code}" --max-time 20 https://$s.pages.dev/)
-            ext=$(grep -c 'card official' /tmp/i.html || true)
-            gsc=$(grep -c 'GSC-VERIFY' /tmp/i.html)
-            monetag=$(grep -c 'MONETAG' /tmp/i.html)
-            title=$(grep -o "<title>[^<]*" /tmp/i.html | head -1 | cut -c8-70)
-            echo "$s | HTTP $code | external-cards: $ext | gsc-marker: $gsc | monetag-marker: $monetag | $title"
+          for s in toiletsnearme cngpumpsnearme evchargersnearme restareanearme aadhaar-seva-kendra-near-me bloodbanksnearme; do
+            home=$(curl -sL -o /tmp/i.html -w "%{http_code}" --max-time 20 https://$s.pages.dev/)
+            sm=$(curl -sL -o /tmp/s.xml -w "%{http_code}" --max-time 20 https://$s.pages.dev/sitemap.xml)
+            urls=$(grep -c "<loc>" /tmp/s.xml || echo 0)
+            ext=$(grep -c "card official" /tmp/i.html || true)
+            gscm=$(grep -c "GSC-VERIFY" /tmp/i.html)
+            extra=""
+            if [ "$s" = "toiletsnearme" ] || [ "$s" = "cngpumpsnearme" ] || [ "$s" = "evchargersnearme" ]; then
+              c=$(curl -sL -o /tmp/c.html -w "%{http_code}" --max-time 20 https://$s.pages.dev/delhi/)
+              extra="| /delhi/ $c"
+            fi
+            echo "$s | home $home | sitemap $sm ($urls URLs) | ext-cards $ext | gsc-marker $gscm $extra"
           done
 
