@@ -6,22 +6,13 @@ on:
 jobs:
   inspect:
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 5
     steps:
-      - name: Build + sitemap verify all 6
+      - name: Worker diagnostic
         run: |
           set -e
-          for s in toiletsnearme cngpumpsnearme evchargersnearme restareanearme aadhaar-seva-kendra-near-me bloodbanksnearme; do
-            home=$(curl -sL -o /tmp/i.html -w "%{http_code}" --max-time 20 https://$s.pages.dev/)
-            sm=$(curl -sL -o /tmp/s.xml -w "%{http_code}" --max-time 20 https://$s.pages.dev/sitemap.xml)
-            urls=$(grep -c "<loc>" /tmp/s.xml || echo 0)
-            ext=$(grep -c "card official" /tmp/i.html || true)
-            gscm=$(grep -c "GSC-VERIFY" /tmp/i.html)
-            extra=""
-            if [ "$s" = "toiletsnearme" ] || [ "$s" = "cngpumpsnearme" ] || [ "$s" = "evchargersnearme" ]; then
-              c=$(curl -sL -o /tmp/c.html -w "%{http_code}" --max-time 20 https://$s.pages.dev/delhi/)
-              extra="| /delhi/ $c"
-            fi
-            echo "$s | home $home | sitemap $sm ($urls URLs) | ext-cards $ext | gsc-marker $gscm $extra"
-          done
+          code=$(curl -s -o /tmp/w.txt -w "%{http_code}" --max-time 25 -X POST https://spoc-writer.india-in.workers.dev/ -H "Content-Type: application/json" -d '{"passcode":"test-diagnostic","op":"gsc","repo":"toiletsnearme","code":"test"}')
+          echo "HTTP $code"
+          head -c 300 /tmp/w.txt
+          echo ""
 
