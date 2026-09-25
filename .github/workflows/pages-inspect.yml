@@ -8,12 +8,16 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:
-      - name: Final data check
+      - name: Verify external-links removal
         run: |
           set -e
-          sleep 75
-          for s in toiletsnearme cngpumpsnearme evchargersnearme; do
-            curl -sL --max-time 20 https://$s.pages.dev/data/manifest.json -o /tmp/m.json
-            python3 -c "import json;d=json.load(open('/tmp/m.json'));cs=d['cities'];print('$s:',sum(c['n'] for c in cs.values()),'POIs in',len(cs),'cities (new:',','.join(sorted(set(cs)-{'delhi','mumbai','bengaluru','hyderabad','chennai','kolkata','pune','ahmedabad','jaipur','lucknow','surat','indore'})),')')" 2>/dev/null || echo "$s: manifest not updated yet"
+          sleep 90
+          for s in restareanearme aadhaar-seva-kendra-near-me bloodbanksnearme; do
+            code=$(curl -sL -o /tmp/i.html -w "%{http_code}" --max-time 20 https://$s.pages.dev/)
+            ext=$(grep -c 'card official' /tmp/i.html || true)
+            gsc=$(grep -c 'GSC-VERIFY' /tmp/i.html)
+            monetag=$(grep -c 'MONETAG' /tmp/i.html)
+            title=$(grep -o "<title>[^<]*" /tmp/i.html | head -1 | cut -c8-70)
+            echo "$s | HTTP $code | external-cards: $ext | gsc-marker: $gsc | monetag-marker: $monetag | $title"
           done
 
