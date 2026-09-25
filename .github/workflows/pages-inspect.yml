@@ -6,19 +6,19 @@ on:
 jobs:
   inspect:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 18
     steps:
-      - name: Deploy SPOC dashboard to skm-spoc
+      - name: Create 6 pages projects + connect repos
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           set -e
-          echo "== diagnose =="
           python3 << 'EOF'
-          import os, json, urllib.request
+          import os, json, time, urllib.request
           TOKEN = os.environ["CLOUDFLARE_API_TOKEN"]
           ACC = os.environ["CLOUDFLARE_ACCOUNT_ID"]
+
           def api(path, method="GET", body=None):
               req = urllib.request.Request("https://api.cloudflare.com/client/v4" + path,
                   data=json.dumps(body).encode() if body else None, method=method,
@@ -29,41 +29,54 @@ jobs:
               except urllib.error.HTTPError as e:
                   return e.code, json.loads(e.read().decode() or "{}")
 
-          code, d = api(f"/accounts/{ACC}/pages/projects/skm-spoc")
-          res = d.get("result") or {}
-          print("project:", code, "| subdomain:", res.get("subdomain"), "| domains:", res.get("domains"))
-          print("canonical deployment:", (res.get("canonical_deployment") or {}).get("id"))
-          code, d = api(f"/accounts/{ACC}/pages/projects/skm-spoc/deployments")
-          for dep in (d.get("result") or [])[:5]:
-              print("  deployment:", dep.get("id", "")[:8], "| env:", dep.get("environment"), "| stage:", dep.get("latest_stage", {}).get("status"), "| source:", json.dumps(dep.get("deployment_trigger", {}))[:80], "| urls:", dep.get("urls"))
-          # why did PATCH fail
-          code, d = api(f"/accounts/{ACC}/pages/projects/skm-spoc", "PATCH", {
-              "source": {"type": "github", "config": {"owner": "skmstudioservices-cyber", "repo_name": "my-dashboard", "production_branch": "main", "deployments_enabled": True}}})
-          print("PATCH try:", code, json.dumps(d.get("errors"))[:250])
+          SITES = [
+              ("bloodbanksnearme", "bloodbanksnearme"),
+              ("toiletsnearme", "toiletsnearme"),
+              ("cngpumpsnearme", "cngpumpsnearme"),
+              ("evchargersnearme", "EVchargersnearme"),
+              ("restareanearme", "restareanearme"),
+              ("aadhaar-seva-kendra-near-me", "Aadhaar-Seva-Kendra-near-me"),
+          ]
+          created, failed = [], []
+          for proj, repo in SITES:
+              code, d = api(f"/accounts/{ACC}/pages/projects", "POST", {
+                  "name": proj, "production_branch": "main",
+                  "source": {"type": "github", "config": {
+                      "owner": "skmstudioservices-cyber", "repo_name": repo,
+                      "production_branch": "main", "deployments_enabled": True}}})
+              sub = ((d.get("result") or {}).get("subdomain")) or ""
+              if code in (200, 201) and sub == proj + ".pages.dev":
+                  print(f"CREATED  {proj} -> {sub}")
+                  created.append(proj)
+              elif code in (200, 201):
+                  api(f"/accounts/{ACC}/pages/projects/{proj}", "DELETE")
+                  print(f"TAKEN    {proj} (got suffixed '{sub}' - deleted per policy)")
+                  failed.append(proj)
+              else:
+                  print(f"FAIL     {proj}: {code} {json.dumps(d.get('errors'))[:180]}")
+                  failed.append(proj)
+
+          print("--- waiting for first builds ---")
+          deadline = time.time() + 300
+          done = set()
+          while time.time() < deadline and len(done) < len(created):
+              for proj in created:
+                  if proj in done: continue
+                  code, d = api(f"/accounts/{ACC}/pages/projects/{proj}/deployments")
+                  deps = d.get("result") or []
+                  if deps and deps[0].get("latest_stage", {}).get("status") == "success":
+                      done.add(proj)
+                      print(f"DEPLOYED {proj}")
+              if len(done) < len(created): time.sleep(15)
+
+          print("--- live verification ---")
+          for proj in created:
+              try:
+                  r = urllib.request.urlopen("https://" + proj + ".pages.dev/", timeout=15)
+                  body = r.read().decode()
+                  t = body.find("<title>")
+                  print(f"LIVE     https://{proj}.pages.dev/ -> HTTP {r.status} | {body[t+7:body.find('</title>')][:50]}")
+              except Exception as e:
+                  print(f"CHECK    https://{proj}.pages.dev/ -> {type(e).__name__} {str(e)[:80]}")
           EOF
-
-          echo "== get dashboard files =="
-          if git clone --depth 1 https://github.com/skmstudioservices-cyber/my-dashboard.git /tmp/md 2>/dev/null; then
-            echo "cloned my-dashboard (public)"
-          else
-            echo "clone failed - using inline fallback"
-            mkdir -p /tmp/md
-            python3 - << 'EOF'
-          import base64
-          # not used unless clone fails
-          EOF
-          fi
-          ls /tmp/md
-          cat /tmp/md/robots.txt || true
-
-          echo "== wrangler deploy to skm-spoc =="
-          cd /tmp/md
-          npx -y wrangler@3 pages deploy . --project-name=skm-spoc --branch=main --commit-dirty=true 2>&1 | tail -8
-
-          echo "== verify live =="
-          sleep 10
-          curl -s -o /tmp/live.html -w "HTTP %{http_code}\n" https://skm-spoc.pages.dev/
-          grep -o "<title>[^<]*" /tmp/live.html || head -c 200 /tmp/live.html
-          echo
-          grep -c "SKM SPOC" /tmp/live.html || echo "SPOC content MISSING"
 
