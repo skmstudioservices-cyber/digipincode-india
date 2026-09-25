@@ -9,12 +9,10 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-      - name: State check
+      - name: Byte truth
         run: |
           set -e
-          echo "===== GIT LOG ====="; git log --oneline -10
-          echo "===== SEG5 BLOCK ====="; sed -n '60,95p' src/pages/'[...path]'.astro
-          echo "===== grep subSlug ====="; grep -n "subSlug" src/pages/'[...path]'.astro | head -5
-          echo "===== grep collecting ====="; grep -rn "Collecting from public" src/ public/ | head -5
-          echo "===== db.ts check ====="; grep -n "sub_district_slug" src/lib/db.ts | head -3
+          echo "===== od line 71 area ====="; sed -n '69,72p' src/pages/'[...path]'.astro | od -c | head -20
+          echo "===== od givenPin ====="; grep -n "const givenPin" src/pages/'[...path]'.astro | head -2
+          sed -n '74p' src/pages/'[...path]'.astro | od -c | tail -4
 
