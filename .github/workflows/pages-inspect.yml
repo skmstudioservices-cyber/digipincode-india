@@ -8,11 +8,30 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-      - name: Byte truth
+      - name: Verify live
         run: |
-          set -e
-          echo "===== od line 71 area ====="; sed -n '69,72p' src/pages/'[...path]'.astro | od -c | head -20
-          echo "===== od givenPin ====="; grep -n "const givenPin" src/pages/'[...path]'.astro | head -2
-          sed -n '74p' src/pages/'[...path]'.astro | od -c | tail -4
+          set +e
+          echo "===== ROBOTS workers.dev ====="
+          curl -s https://digipincode.india-in.workers.dev/robots.txt | grep -E "Claude-SearchBot|ChatGPT-User|Googlebot|Sitemap"
+          echo "===== ROBOTS pages.dev ====="
+          curl -s https://digipincode.pages.dev/robots.txt | grep -E "Claude-SearchBot|Sitemap"
+          echo "===== SITEMAP INDEX ====="
+          curl -s https://digipincode.india-in.workers.dev/sitemap.xml | head -6
+          echo "===== UP SITEMAP: url count + empty tehsil count ====="
+          UP=$(curl -s https://digipincode.india-in.workers.dev/sitemap-uttar-pradesh.xml)
+          echo "urls: $(echo "$UP" | grep -c "<loc>")"
+          echo "empty-tehsil: $(echo "$UP" | grep -c "tehsil-</loc>")"
+          echo "===== TEHSIL- URL STATUS (was 301, expect 200) ====="
+          curl -s -o /dev/null -w "%{http_code}\n" "https://digipincode.india-in.workers.dev/uttar-pradesh/district-ballia/tehsil-/village-malera/pincode-221716"
+          curl -s -o /dev/null -w "%{http_code}\n" "https://digipincode.india-in.workers.dev/bihar/district-jamui/tehsil-/village-tola-gongakura/pincode-811308"
+          echo "===== COLLECTING NOTE PRESENT ====="
+          curl -s "https://digipincode.india-in.workers.dev/uttar-pradesh/district-ballia/tehsil-/village-malera/pincode-221716" | grep -o "Collecting from public sources" | head -1
+          curl -s "https://digipincode.india-in.workers.dev/uttar-pradesh/district-ballia/tehsil-/village-malera/pincode-221716" | grep -o "being collected from public sources" | head -1
+          echo "===== VALID VILLAGE 200 ====="
+          curl -s -o /dev/null -w "%{http_code}\n" "https://digipincode.india-in.workers.dev/jharkhand/district-chatra/tehsil-pratappur/village-kasmar-11/pincode-825404"
+          echo "===== DISTRICT TOP-VILLAGE LINKS ====="
+          curl -s "https://digipincode.india-in.workers.dev/uttar-pradesh/district-gorakhpur" | grep -o 'tehsil-[a-z0-9-]*-/village-' | head -4
+          echo "empty-tehsil links on district page: $(curl -s https://digipincode.india-in.workers.dev/uttar-pradesh/district-gorakhpur | grep -c 'tehsil-/village-')"
+          echo "===== PINCODE PAGE 200 ====="
+          curl -s -o /dev/null -w "%{http_code}\n" "https://digipincode.india-in.workers.dev/uttar-pradesh/district-gorakhpur/pincode-273001"
 
