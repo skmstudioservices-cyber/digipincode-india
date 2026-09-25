@@ -8,27 +8,99 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Diagnose
-        env:
-          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CF_ACC: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      - name: Branding audit (4 sites)
         run: |
-          echo "=== digipincode homepage first 250 chars ==="
-          curl -sL --max-time 25 -A "Mozilla/5.0" "https://digipincode.india-in.workers.dev/" | head -c 250
-          echo ""
-          echo "=== mapsnearme homepage first 250 chars ==="
-          curl -sL --max-time 25 -A "Mozilla/5.0" "https://mapsnearme.pages.dev/" | head -c 250
-          echo ""
-          echo "=== CF Pages deployments (latest per project) ==="
-          for p in mapsnearme dashboardmapsnearme; do
-            curl -s -H "Authorization: Bearer $CF_TOKEN" "https://api.cloudflare.com/client/v4/accounts/$CF_ACC/pages/projects/$p/deployments?per_page=2" > /tmp/d.json
-            python3 - "$p" << 'PY'
-            import json, sys
-            d = json.load(open('/tmp/d.json'))
-            for dep in (d.get('result') or {}).get('deployments', []):
-                src = dep.get('deployment_trigger') or {}
-                meta = dep.get('meta') or {}
-                print(sys.argv[1], '|', dep.get('id','')[:8], '|', dep.get('latest_stage',{}).get('name'), dep.get('latest_stage',{}).get('status'), '|', dep.get('env'), '|', (meta.get('commit_message') or '')[:60])
-            print('success:', d.get('success'), '| errors:', str(d.get('errors'))[:120])
-            PY
-          done
+          python3 << 'PY'
+          import re, time, json
+          import urllib.request, urllib.error
+
+          SITES = [
+              "https://digipincode.india-in.workers.dev",
+              "https://digipincode.pages.dev",
+              "https://mapsnearme.pages.dev",
+              "https://examstatus.india-in.workers.dev",
+          ]
+          ICONS = ["/favicon.svg", "/favicon.ico", "/apple-touch-icon.png", "/og-image.png"]
+          CANON_HOST = "digipincode.india-in.workers.dev"
+
+          def get(url):
+              req = urllib.request.Request(url, headers={
+                  "User-Agent": "Mozilla/5.0 (branding-audit)",
+                  "Cache-Control": "no-cache",
+              })
+              try:
+                  with urllib.request.urlopen(req, timeout=25) as r:
+                      return r.status, r.read().decode("utf-8", "replace")
+              except urllib.error.HTTPError as e:
+                  try:
+                      return e.code, e.read().decode("utf-8", "replace")
+                  except Exception:
+                      return e.code, ""
+              except Exception:
+                  return 0, ""
+
+          failures = []
+          report = {}
+
+          for site in SITES:
+              name = site.replace("https://", "")
+              cb = str(int(time.time()))
+              st, html = get(site + "/?cb=" + cb)
+              r = {"home_status": st, "title": None, "og_site_name": None,
+                   "theme_color": None, "website_jsonld": False, "icons": {}}
+
+              if st == 200 and html:
+                  m = re.search(r"<title[^>]*>(.*?)</title>", html, re.S | re.I)
+                  if m: r["title"] = m.group(1).strip()[:90]
+                  m = (re.search(r'property=["\']og:site_name["\']\s+content=["\'](.*?)["\']', html, re.I)
+                       or re.search(r'content=["\'](.*?)["\']\s+property=["\']og:site_name["\']', html, re.I))
+                  if m: r["og_site_name"] = m.group(1).strip()[:60]
+                  m = (re.search(r'name=["\']theme-color["\']\s+content=["\'](.*?)["\']', html, re.I)
+                       or re.search(r'content=["\'](.*?)["\']\s+name=["\']theme-color["\']', html, re.I))
+                  if m: r["theme_color"] = m.group(1).strip()[:30]
+                  r["website_jsonld"] = bool(re.search(r'"@type"\s*:\s*"WebSite"', html))
+
+                  if not r["title"]: failures.append(f"{name}: <title> missing")
+                  if not r["og_site_name"]: failures.append(f"{name}: og:site_name missing")
+                  if not r["theme_color"]: failures.append(f"{name}: theme-color missing")
+                  if not r["website_jsonld"]: failures.append(f"{name}: WebSite JSON-LD missing")
+
+                  for icon in ICONS:
+                      ist, _ = get(site + icon + "?cb=" + cb)
+                      r["icons"][icon] = ist
+                      if ist != 200:
+                          failures.append(f"{name}: {icon} -> {ist}")
+              else:
+                  failures.append(f"{name}: homepage status {st}")
+              report[name] = r
+
+          # Canonical check: digipincode.pages.dev -> workers.dev
+          cb = str(int(time.time()))
+          st, html = get("https://digipincode.pages.dev/?cb=" + cb)
+          m = re.search(r'<link\s+rel=["\']canonical["\']\s+href=["\'](.*?)["\']', html, re.I)
+          canon = m.group(1) if m else None
+          canon_ok = bool(canon and canon.startswith("https://" + CANON_HOST))
+          report["canonical_digipincode_pages"] = {"status": st, "canonical": canon, "ok": canon_ok}
+          if not canon_ok:
+              failures.append("digipincode.pages.dev canonical does not point to " + CANON_HOST + " (got: " + str(canon) + ")")
+
+          # Privacy policy: should disclose Ahrefs analytics
+          pp_status, pp_html = get("https://digipincode.india-in.workers.dev/privacy-policy?cb=" + cb)
+          if pp_status != 200:
+              pp_status, pp_html = get("https://digipincode.india-in.workers.dev/privacy-policy/?cb=" + cb)
+          ahrefs_ok = "ahrefs" in pp_html.lower()
+          report["digipincode_privacy_policy"] = {"status": pp_status, "discloses_ahrefs": ahrefs_ok}
+          if not ahrefs_ok:
+              failures.append(f"digipincode privacy-policy: status {pp_status}, Ahrefs disclosure missing")
+
+          print("=== AUDIT_JSON_BEGIN ===")
+          print(json.dumps(report, indent=1))
+          print("=== AUDIT_JSON_END ===")
+          print("=== FAILURES ===")
+          for f in failures:
+              print("FAIL:", f)
+          if not failures:
+              print("ALL CHECKS PASSED")
+          if failures:
+              raise SystemExit(1)
+          PY
