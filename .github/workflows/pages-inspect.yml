@@ -6,27 +6,17 @@ on:
 jobs:
   inspect:
     runs-on: ubuntu-latest
-    timeout-minutes: 9
+    timeout-minutes: 6
     steps:
-      - name: Wait for GSC tags live
+      - name: CF Pages deployment status
         run: |
           set -e
-          T="GlkDu5ZL-CyyKjwPSj9d9X3Y2qsHUj_qAwRwxiLr7nl"
-          for i in $(seq 1 14); do
-            allok=1
-            for s in toiletsnearme cngpumpsnearme evchargersnearme restareanearme aadhaar-seva-kendra-near-me bloodbanksnearme; do
-              curl -sL --max-time 15 https://$s.pages.dev/ -o /tmp/i.html
-              tag=$(grep -c "$T" /tmp/i.html || true)
-              if [ "$tag" -lt 1 ]; then allok=0; fi
-            done
-            if [ "$allok" = "1" ]; then echo "ALL 6 GSC TAGS LIVE (attempt $i)"; exit 0; fi
-            echo "attempt $i: not all live yet, waiting 30s"
-            sleep 30
-          done
-          echo "TIMEOUT - final state:"
-          for s in toiletsnearme cngpumpsnearme evchargersnearme restareanearme aadhaar-seva-kendra-near-me bloodbanksnearme; do
-            curl -sL --max-time 15 https://$s.pages.dev/ -o /tmp/i.html
-            tag=$(grep -c "$T" /tmp/i.html || true)
-            echo "$s gsc-tag-live $tag"
+          for p in toiletsnearme cngpumpsnearme evchargersnearme restareanearme aadhaar-seva-kendra-near-me bloodbanksnearme; do
+            echo "=== $p ==="
+            curl -s --max-time 20 "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects/$p/deployments?per_page=3" \
+              -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" | jq -r '.result[] | "\(.id[0:8]) \(.latest_stage.status // "?") | \(.deployment_trigger.metadata.commit_sha[0:10] // "no-commit") | \(.created_on) | \(.env_type)"' || echo "API FAIL"
           done
 
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
