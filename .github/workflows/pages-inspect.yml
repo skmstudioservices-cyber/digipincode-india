@@ -6,16 +6,16 @@ on:
 jobs:
   inspect:
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 10
     steps:
-      - name: CF create dashboard pages project
+      - name: CF cleanup + inspect
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           set -e
           python3 << 'EOF'
-          import os, json, time, urllib.request
+          import os, json, urllib.request
           TOKEN = os.environ["CLOUDFLARE_API_TOKEN"]
           ACC = os.environ["CLOUDFLARE_ACCOUNT_ID"]
 
@@ -29,35 +29,27 @@ jobs:
               except urllib.error.HTTPError as e:
                   return e.code, json.loads(e.read().decode() or "{}")
 
-          code, d = api(f"/accounts/{ACC}/pages/projects", "POST", {
-              "name": "dashboard",
-              "production_branch": "main",
-              "source": {
-                  "type": "github",
-                  "config": {
-                      "owner": "skmstudioservices-cyber",
-                      "repo_name": "my-dashboard",
-                      "production_branch": "main",
-                      "deployments_enabled": True
-                  }
-              }
-          })
-          print("CREATE dashboard:", code)
-          print(json.dumps(d)[:600])
-          if code in (200, 201):
-              time.sleep(90)
-              import socket
-              try:
-                  socket.getaddrinfo("dashboard.pages.dev", 443, proto=socket.IPPROTO_TCP)
-                  print("DNS: dashboard.pages.dev RESOLVES")
-              except Exception:
-                  print("DNS: not resolving yet (deploy may still be queued)")
-              req = urllib.request.Request("https://dashboard.pages.dev/")
-              try:
-                  r = urllib.request.urlopen(req, timeout=15)
-                  body = r.read().decode()[:200]
-                  print("HTTP", r.status, "|", body.replace("\n", " ")[:180])
-              except Exception as e:
-                  print("HTTP check:", type(e).__name__, str(e)[:120])
+          # 1) inspect skm-spoc (the user's "random page" from 23 Sep)
+          code, d = api(f"/accounts/{ACC}/pages/projects/skm-spoc")
+          res = d.get("result") or {}
+          src = (res.get("source") or {}).get("config") or {}
+          print("SKM-SPOC:", code,
+                "| subdomain:", res.get("subdomain"),
+                "| repo:", src.get("owner", "?") + "/" + str(src.get("repo_name", "?")),
+                "| branch:", src.get("production_branch"),
+                "| created:", str(res.get("created_on", ""))[:10])
+
+          # 2) delete the auto-suffixed 'dashboard' project (name taken globally -> CF made dashboard-bjc)
+          code, d = api(f"/accounts/{ACC}/pages/projects/dashboard", "DELETE")
+          print("DELETE dashboard:", code, "| success:", d.get("success"))
+
+          # 3) confirm skm-spoc live content
+          try:
+              body = urllib.request.urlopen("https://skm-spoc.pages.dev/", timeout=10).read().decode()
+              import re
+              t = re.search(r"<title>(.*?)</title>", body, re.S)
+              print("skm-spoc live title:", (t.group(1).strip()[:80] if t else body[:120].replace("\n", " ")))
+          except Exception as e:
+              print("skm-spoc live check:", type(e).__name__, str(e)[:100])
           EOF
 
