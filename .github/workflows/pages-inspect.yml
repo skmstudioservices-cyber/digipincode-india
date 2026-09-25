@@ -6,30 +6,18 @@ on:
 jobs:
   inspect:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
-      - name: Reference UI + CF state
+      - name: skm-spoc removal + v2 verify
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           set -e
-          echo "==== dashboardmapsnearme UI sample ===="
-          curl -s --max-time 20 https://dashboardmapsnearme.pages.dev/ -o /tmp/dm.html
-          wc -c /tmp/dm.html
-          echo "-- head/style --"
-          head -c 3500 /tmp/dm.html
-          echo
-          echo "-- key UI hints --"
-          grep -oE 'class="[^"]{3,60}"' /tmp/dm.html | sort -u | head -30
-          grep -oE '<(section|nav|aside|header|main)[^>]*>' /tmp/dm.html | head -15
-          echo
-          echo "==== linked css/js ===="
-          grep -oE '(href|src)="[^"]*\.(css|js)[^"]*"' /tmp/dm.html | head -10
-          echo
-          echo "==== CF projects ===="
+          echo "waiting 100s for git-connected Pages build..."
+          sleep 100
           python3 << 'EOF'
-          import os, json, urllib.request
+          import os, json, time, urllib.request
           TOKEN = os.environ["CLOUDFLARE_API_TOKEN"]
           ACC = os.environ["CLOUDFLARE_ACCOUNT_ID"]
           def api(path, method="GET", body=None):
@@ -41,11 +29,24 @@ jobs:
                   return r.status, json.loads(r.read().decode())
               except urllib.error.HTTPError as e:
                   return e.code, json.loads(e.read().decode() or "{}")
-          for name in ["my-dashboard", "my-dashboard-2av", "skm-spoc"]:
-              code, d = api(f"/accounts/{ACC}/pages/projects/{name}")
-              res = d.get("result") or {}
-              src = (res.get("source") or {}).get("type") or "direct-upload"
-              repo = ((res.get("source") or {}).get("config") or {}).get("repo_name")
-              print(f"{name}: {code} | subdomain: {res.get('subdomain')} | source: {src} {repo or ''} | created: {str(res.get('created_on',''))[:10]}")
+
+          # delete skm-spoc (replaced by my-dashboard-2av)
+          code, d = api(f"/accounts/{ACC}/pages/projects/skm-spoc", "DELETE")
+          print("DELETE skm-spoc:", code, "| success:", d.get("success"))
+          code, d = api(f"/accounts/{ACC}/pages/projects/skm-spoc")
+          print("confirm gone:", code, "(404 = deleted)")
           EOF
+          echo "---- verify new dashboard ----"
+          for i in 1 2 3 4 5; do
+            code=$(curl -s -o /tmp/n.html -w "%{http_code}" --max-time 20 https://my-dashboard-2av.pages.dev/)
+            echo "try $i: HTTP $code"
+            [ "$code" = "200" ] && break
+            sleep 40
+          done
+          grep -o "<title>[^<]*" /tmp/n.html
+          grep -c "sidebar" /tmp/n.html || echo "OLD VERSION STILL SERVING"
+          robots=$(curl -s --max-time 10 https://my-dashboard-2av.pages.dev/robots.txt | head -2 | tr '\n' ' ')
+          echo "robots: $robots"
+          spoc=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 https://skm-spoc.pages.dev/)
+          echo "skm-spoc now: HTTP $spoc (522/404 = gone)"
 
