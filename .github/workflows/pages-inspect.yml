@@ -6,16 +6,16 @@ on:
 jobs:
   inspect:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
-      - name: CF cleanup + inspect
+      - name: Connect skm-spoc to my-dashboard
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           set -e
           python3 << 'EOF'
-          import os, json, urllib.request
+          import os, json, time, urllib.request
           TOKEN = os.environ["CLOUDFLARE_API_TOKEN"]
           ACC = os.environ["CLOUDFLARE_ACCOUNT_ID"]
 
@@ -29,27 +29,31 @@ jobs:
               except urllib.error.HTTPError as e:
                   return e.code, json.loads(e.read().decode() or "{}")
 
-          # 1) inspect skm-spoc (the user's "random page" from 23 Sep)
-          code, d = api(f"/accounts/{ACC}/pages/projects/skm-spoc")
-          res = d.get("result") or {}
-          src = (res.get("source") or {}).get("config") or {}
-          print("SKM-SPOC:", code,
-                "| subdomain:", res.get("subdomain"),
-                "| repo:", src.get("owner", "?") + "/" + str(src.get("repo_name", "?")),
-                "| branch:", src.get("production_branch"),
-                "| created:", str(res.get("created_on", ""))[:10])
+          # connect skm-spoc to my-dashboard repo (git source -> push = deploy)
+          code, d = api(f"/accounts/{ACC}/pages/projects/skm-spoc", "PATCH", {
+              "source": {"type": "github", "config": {
+                  "owner": "skmstudioservices-cyber",
+                  "repo_name": "my-dashboard",
+                  "production_branch": "main",
+                  "deployments_enabled": True}}})
+          src = ((d.get("result") or {}).get("source") or {}).get("config") or {}
+          print("PATCH skm-spoc:", code, "| repo:", src.get("repo_name"), "| branch:", src.get("production_branch"))
 
-          # 2) delete the auto-suffixed 'dashboard' project (name taken globally -> CF made dashboard-bjc)
-          code, d = api(f"/accounts/{ACC}/pages/projects/dashboard", "DELETE")
-          print("DELETE dashboard:", code, "| success:", d.get("success"))
-
-          # 3) confirm skm-spoc live content
-          try:
-              body = urllib.request.urlopen("https://skm-spoc.pages.dev/", timeout=10).read().decode()
-              import re
-              t = re.search(r"<title>(.*?)</title>", body, re.S)
-              print("skm-spoc live title:", (t.group(1).strip()[:80] if t else body[:120].replace("\n", " ")))
-          except Exception as e:
-              print("skm-spoc live check:", type(e).__name__, str(e)[:100])
+          # wait for first deploy, then verify live
+          for i in range(10):
+              time.sleep(30)
+              code, d = api(f"/accounts/{ACC}/pages/projects/skm-spoc/deployments")
+              deps = d.get("result") or []
+              if deps:
+                  latest = deps[0]
+                  print(f"deploy[{i}]:", latest.get("latest_stage", {}).get("name"), latest.get("latest_stage", {}).get("status"), "| alia:", (latest.get("aliases") or [""])[0])
+                  if latest.get("latest_stage", {}).get("status") == "success":
+                      try:
+                          body = urllib.request.urlopen("https://skm-spoc.pages.dev/", timeout=15).read().decode()
+                          print("LIVE HTTP OK | title:", body[body.find("<title>"):body.find("</title>")][:80])
+                          print("has SPOC:", "SKM SPOC" in body, "| noindex:", "noindex" in body)
+                      except Exception as e:
+                          print("live check:", type(e).__name__, str(e)[:100])
+                      break
           EOF
 
