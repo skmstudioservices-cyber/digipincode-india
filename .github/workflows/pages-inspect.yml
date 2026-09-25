@@ -9,15 +9,13 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-      - name: Dump routing/sitemap/robots
+      - name: Dump routing details
         run: |
           set -e
-          echo "===== PUBLIC DIR ====="; ls -la public/ 2>/dev/null | head -30 || echo "no public/"
-          echo "===== ROBOTS ====="; find . -name "robots*" -not -path "./node_modules/*" | head; for f in $(find . -name "robots*" -not -path "./node_modules/*"); do echo "--- $f ---"; cat "$f"; done
-          echo "===== MIDDLEWARE ====="; cat src/middleware.ts 2>/dev/null | head -80
-          echo "===== sitemap.xml.ts ====="; cat src/pages/sitemap.xml.ts | head -60
-          echo "===== sitemap-index.xml.ts ====="; cat src/pages/sitemap-index.xml.ts | head -80
-          echo "===== sitemap-[slug].xml.ts ====="; cat "src/pages/sitemap-[slug].xml.ts" | head -60
-          echo "===== 301 / redirect logic in catch-all ====="; grep -n "301\|redirect\|tehsil\|Redirect" src/pages/'[...path]'.astro | head -50
-          echo "===== robots in code ====="; grep -rn "robots" src/ --include=*.ts --include=*.astro | grep -v node_modules | head -20
+          echo "===== LIB DIR ====="; ls src/lib/ src/config/ 2>/dev/null
+          echo "===== URLS LIB ====="; for f in src/lib/urls.ts src/lib/url.ts src/config/site.ts src/config/index.ts src/config.ts; do [ -f "$f" ] && echo "--- $f ---" && cat "$f" | head -60; done
+          echo "===== BASE const ====="; grep -rn "BASE" src/pages/'[...path]'.astro | head -8
+          echo "===== CATCH-ALL FULL 1-130 ====="; sed -n '1,130p' src/pages/'[...path]'.astro
+          echo "===== SITEMAP SLUG FULL ====="; cat "src/pages/sitemap-[slug].xml.ts"
+          echo "===== VILLAGES TABLE SCHEMA ====="; grep -rn "CREATE TABLE" migrations/ db/ schema* 2>/dev/null | head; ls migrations/ 2>/dev/null | head
 
