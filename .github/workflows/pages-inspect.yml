@@ -6,15 +6,55 @@ on:
 jobs:
   inspect:
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 15
     steps:
-      - name: Verify 6 sites live
+      - name: Create safe-alleys pages project
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           set -e
-          for s in bloodbanksnearme toiletsnearme cngpumpsnearme evchargersnearme restareanearme aadhaar-seva-kendra-near-me; do
-            code=$(curl -s -o /tmp/b.html -w "%{http_code}" --max-time 20 https://$s.pages.dev/)
-            title=$(grep -o "<title>[^<]*" /tmp/b.html | head -1 | cut -c8-60)
-            robots=$(curl -s --max-time 10 https://$s.pages.dev/robots.txt | tr '\n' ' ' | head -c 60)
-            echo "$s | HTTP $code | $title | robots: $robots"
-          done
+          python3 << 'EOF'
+          import os, json, time, urllib.request
+          TOKEN = os.environ["CLOUDFLARE_API_TOKEN"]
+          ACC = os.environ["CLOUDFLARE_ACCOUNT_ID"]
+          def api(path, method="GET", body=None):
+              req = urllib.request.Request("https://api.cloudflare.com/client/v4" + path,
+                  data=json.dumps(body).encode() if body else None, method=method,
+                  headers={"Authorization": "Bearer " + TOKEN, "Content-Type": "application/json"})
+              try:
+                  r = urllib.request.urlopen(req, timeout=30)
+                  return r.status, json.loads(r.read().decode())
+              except urllib.error.HTTPError as e:
+                  return e.code, json.loads(e.read().decode() or "{}")
+
+          code, d = api(f"/accounts/{ACC}/pages/projects", "POST", {
+              "name": "safe-alleys", "production_branch": "main",
+              "source": {"type": "github", "config": {"owner": "skmstudioservices-cyber", "repo_name": "Safe-Alleys",
+                  "production_branch": "main", "deployments_enabled": True}}})
+          sub = ((d.get("result") or {}).get("subdomain")) or ""
+          if code in (200, 201) and sub == "safe-alleys.pages.dev":
+              print("CREATED safe-alleys ->", sub)
+              api(f"/accounts/{ACC}/pages/projects/safe-alleys/deployments", "POST", {})
+              time.sleep(60)
+              for i in range(8):
+                  code, d = api(f"/accounts/{ACC}/pages/projects/safe-alleys/deployments")
+                  deps = d.get("result") or []
+                  if deps and deps[0].get("latest_stage", {}).get("status") in ("success", "failure"):
+                      print("build:", deps[0].get("latest_stage", {}).get("status"))
+                      break
+                  time.sleep(15)
+              time.sleep(20)
+              try:
+                  r = urllib.request.urlopen("https://safe-alleys.pages.dev/", timeout=15)
+                  b = r.read().decode()
+                  print("LIVE: HTTP", r.status, "|", b[b.find("<title>")+7:b.find("</title>")][:40])
+              except Exception as e:
+                  print("live:", type(e).__name__, str(e)[:80])
+          elif code in (200, 201):
+              api(f"/accounts/{ACC}/pages/projects/safe-alleys", "DELETE")
+              print("NAME TAKEN (got suffix", sub, ") - deleted")
+          else:
+              print("FAIL:", code, json.dumps(d.get("errors"))[:200])
+          EOF
 
