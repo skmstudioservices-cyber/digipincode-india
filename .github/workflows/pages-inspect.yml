@@ -6,19 +6,93 @@ on:
 jobs:
   inspect:
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 18
     steps:
-      - name: Verify both UIs (follow redirects)
+      - name: Deploy worker + verify all
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           set -e
-          echo "== classic (/) =="
-          curl -sL -o /tmp/a.html -w "HTTP %{http_code}\n" --max-time 20 https://my-dashboard-2av.pages.dev/
-          grep -o "<title>[^<]*" /tmp/a.html
-          echo "zenith switch links: $(grep -c 'zenith.html' /tmp/a.html)"
-          echo "== zenith (/zenith) =="
-          curl -sL -o /tmp/b.html -w "HTTP %{http_code}\n" --max-time 20 https://my-dashboard-2av.pages.dev/zenith
-          grep -o "<title>[^<]*" /tmp/b.html
-          echo "comments engine: $(grep -c 'spoc_comments_v1' /tmp/b.html)"
-          echo "theme toggle: $(grep -c 'cycleTheme' /tmp/b.html)"
-          echo "robots: $(curl -s --max-time 10 https://my-dashboard-2av.pages.dev/robots.txt | head -2 | tr '\n' ' ')"
+          echo "==== deploy spoc-writer worker ===="
+          mkdir -p /tmp/w
+          cat > /tmp/w/worker.js << 'WORKER_EOF'
+          const ALLOWED = ["toiletsnearme","cngpumpsnearme","EVchargersnearme","restareanearme","Aadhaar-Seva-Kendra-near-me","bloodbanksnearme","Safe-Alleys","my-dashboard"];
+          const OWNER = "skmstudioservices-cyber";
+          const CORS = {"Access-Control-Allow-Origin":"*","Access-Control-Allow-Methods":"POST, OPTIONS","Access-Control-Allow-Headers":"Content-Type"};
+          const json = (data, status) => new Response(JSON.stringify(data), {status: status||200, headers: Object.assign({"Content-Type":"application/json"}, CORS)});
+          const b64e = s => btoa(unescape(encodeURIComponent(s)));
+          const b64d = s => decodeURIComponent(escape(atob(s.replace(/\n/g, ""))));
+
+          export default {
+            async fetch(req, env) {
+              if (req.method === "OPTIONS") return new Response(null, {headers: CORS});
+              if (req.method !== "POST") return json({ok: false, error: "POST only"}, 405);
+              let body; try { body = await req.json(); } catch { return json({ok: false, error: "bad json"}, 400); }
+              if (!env.PASSCODE || !env.GH_PAT) return json({ok: false, error: "Worker not configured yet. Cloudflare dashboard -> Workers -> spoc-writer -> Settings -> Variables: add secrets GH_PAT and PASSCODE."}, 500);
+              if (body.passcode !== env.PASSCODE) return json({ok: false, error: "wrong passcode"}, 403);
+              const repo = String(body.repo || "");
+              if (!ALLOWED.includes(repo)) return json({ok: false, error: "repo not allowed"}, 403);
+              const H = {Authorization: "Bearer " + env.GH_PAT, Accept: "application/vnd.github+json", "Content-Type": "application/json", "User-Agent": "spoc-writer"};
+              const gh = async (path, method, payload) => {
+                const r = await fetch("https://api.github.com" + path, {method: method || "GET", headers: H, body: payload ? JSON.stringify(payload) : null});
+                return {status: r.status, data: await r.json().catch(() => ({}))};
+              };
+              if (body.op === "gsc") {
+                const code = String(body.code || "").trim();
+                if (!/^[A-Za-z0-9:_-]{8,150}$/.test(code)) return json({ok: false, error: "invalid verification code format"}, 400);
+                const f = await gh("/repos/" + OWNER + "/" + repo + "/contents/index.html");
+                if (f.status !== 200) return json({ok: false, error: "could not read index.html"}, 502);
+                let html = b64d(f.data.content);
+                const meta = '<meta name="google-site-verification" content="' + code + '">';
+                if (/<meta\s+name="google-site-verification"[^>]*>/.test(html)) html = html.replace(/<meta\s+name="google-site-verification"[^>]*>/, meta);
+                else if (html.indexOf("<!--GSC-VERIFY-->") >= 0) html = html.replace("<!--GSC-VERIFY-->", meta);
+                else html = html.replace("</head>", meta + "\n</head>");
+                const upd = await gh("/repos/" + OWNER + "/" + repo + "/contents/index.html", "PUT",
+                  {message: "GSC verification code (via SPOC dashboard)", content: b64e(html), sha: f.data.sha});
+                if (upd.status !== 200 && upd.status !== 201) return json({ok: false, error: "commit failed", detail: (upd.data && upd.data.message) || upd.status}, 502);
+                return json({ok: true, commit: upd.data.commit.html_url, note: "live on pages.dev in ~1 min"});
+              }
+              if (body.op === "file") {
+                const name = String(body.name || "").trim();
+                const content = String(body.content || "");
+                if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,80}$/.test(name) || !/\.(txt|js|html|json|xml)$/.test(name))
+                  return json({ok: false, error: "filename not allowed (letters/digits/dots/hyphens, extension .txt .js .html .json .xml)"}, 400);
+                if (content.length > 100000) return json({ok: false, error: "file too large (100 KB max)"}, 400);
+                const ex = await gh("/repos/" + OWNER + "/" + repo + "/contents/" + name);
+                const payload = {message: "add " + name + " (via SPOC dashboard)", content: b64e(content)};
+                if (ex.status === 200) payload.sha = ex.data.sha;
+                const upd = await gh("/repos/" + OWNER + "/" + repo + "/contents/" + name, "PUT", payload);
+                if (upd.status !== 200 && upd.status !== 201) return json({ok: false, error: "commit failed", detail: (upd.data && upd.data.message) || upd.status}, 502);
+                return json({ok: true, commit: upd.data.commit.html_url, note: "live on pages.dev in ~1 min"});
+              }
+              return json({ok: false, error: "unknown op (use gsc or file)"}, 400);
+            }
+          }
+
+          WORKER_EOF
+          cat > /tmp/w/wrangler.toml << 'TOML_EOF'
+          name = "spoc-writer"
+          main = "worker.js"
+          compatibility_date = "2024-09-01"
+          TOML_EOF
+          cd /tmp/w && npx -y wrangler@3 deploy 2>&1 | tail -4
+          echo "==== verify worker ===="
+          sleep 15
+          curl -s --max-time 15 https://spoc-writer.india-in.workers.dev/ | head -c 200
+          echo
+          curl -s --max-time 15 -X POST https://spoc-writer.india-in.workers.dev/ -H "Content-Type: application/json" -d '{"passcode":"x","op":"ping"}' | head -c 250
+          echo
+          echo "==== verify 6 sites live (after CF builds) ===="
+          sleep 120
+          for s in toiletsnearme cngpumpsnearme evchargersnearme restareanearme aadhaar-seva-kendra-near-me bloodbanksnearme; do
+            code=$(curl -sL -o /tmp/b.html -w "%{http_code}" --max-time 20 https://$s.pages.dev/)
+            title=$(grep -o "<title>[^<]*" /tmp/b.html | head -1 | cut -c8-58)
+            echo "$s | HTTP $code | $title"
+          done
+          echo "==== verify dashboards ===="
+          for u in "" zenith; do
+            code=$(curl -sL -o /tmp/d.html -w "%{http_code}" --max-time 20 https://my-dashboard-2av.pages.dev/$u)
+            echo "/$u | HTTP $code | config section: $(grep -c 's-config' /tmp/d.html)"
+          done
 
