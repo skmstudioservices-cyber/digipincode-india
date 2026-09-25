@@ -9,8 +9,9 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-      - name: Dump village render
+      - name: Dump deploy workflows
         run: |
           set -e
-          echo "===== CATCH-ALL 185-250 ====="; sed -n '185,250p' src/pages/'[...path]'.astro
+          echo "===== deploy.yml ====="; cat .github/workflows/deploy.yml
+          echo "===== pages-mirror.yml head ====="; head -40 .github/workflows/pages-mirror.yml
 
