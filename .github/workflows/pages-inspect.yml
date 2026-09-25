@@ -6,16 +6,16 @@ on:
 jobs:
   inspect:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 12
     steps:
-      - name: CF pages check/create
+      - name: CF create dashboard pages project
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           set -e
           python3 << 'EOF'
-          import os, json, urllib.request
+          import os, json, time, urllib.request
           TOKEN = os.environ["CLOUDFLARE_API_TOKEN"]
           ACC = os.environ["CLOUDFLARE_ACCOUNT_ID"]
 
@@ -29,26 +29,35 @@ jobs:
               except urllib.error.HTTPError as e:
                   return e.code, json.loads(e.read().decode() or "{}")
 
-          for name in ["dashboard", "skm-spoc", "mydashboard", "dashboardmapsnearme"]:
-              code, d = api(f"/accounts/{ACC}/pages/projects/{name}")
-              res = d.get("result") or {}
-              err = ""
-              if code != 200:
-                  errs = d.get("errors") or []
-                  err = (str(errs[0].get("code", "")) if errs else "") + " " + (str(errs[0].get("message", ""))[:80] if errs else "")
-              print(f"GET {name}: {code} | created: {str(res.get('created_on', ''))[:10]} | {err.strip() if err else 'OURS'}")
-
           code, d = api(f"/accounts/{ACC}/pages/projects", "POST", {
               "name": "dashboard",
               "production_branch": "main",
               "source": {
                   "type": "github",
-                  "owner": "skmstudioservices-cyber",
-                  "repo_name": "my-dashboard",
-                  "production_branch": "main",
-                  "deployments_enabled": True,
-              },
+                  "config": {
+                      "owner": "skmstudioservices-cyber",
+                      "repo_name": "my-dashboard",
+                      "production_branch": "main",
+                      "deployments_enabled": True
+                  }
+              }
           })
-          print("CREATE dashboard:", code, json.dumps(d)[:500])
+          print("CREATE dashboard:", code)
+          print(json.dumps(d)[:600])
+          if code in (200, 201):
+              time.sleep(90)
+              import socket
+              try:
+                  socket.getaddrinfo("dashboard.pages.dev", 443, proto=socket.IPPROTO_TCP)
+                  print("DNS: dashboard.pages.dev RESOLVES")
+              except Exception:
+                  print("DNS: not resolving yet (deploy may still be queued)")
+              req = urllib.request.Request("https://dashboard.pages.dev/")
+              try:
+                  r = urllib.request.urlopen(req, timeout=15)
+                  body = r.read().decode()[:200]
+                  print("HTTP", r.status, "|", body.replace("\n", " ")[:180])
+              except Exception as e:
+                  print("HTTP check:", type(e).__name__, str(e)[:120])
           EOF
 
