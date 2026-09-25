@@ -6,22 +6,19 @@ on:
 jobs:
   inspect:
     runs-on: ubuntu-latest
-    timeout-minutes: 14
+    timeout-minutes: 8
     steps:
-      - name: Verify both UIs live
+      - name: Verify both UIs (follow redirects)
         run: |
           set -e
-          echo "waiting 100s for Pages build..."
-          sleep 100
-          for u in "" zenith.html; do
-            for i in 1 2 3 4 5; do
-              code=$(curl -s -o /tmp/p.html -w "%{http_code}" --max-time 20 "https://my-dashboard-2av.pages.dev/$u")
-              [ "$code" = "200" ] && break
-              sleep 35
-            done
-            echo "== /$u -> HTTP $code =="
-            grep -o "<title>[^<]*" /tmp/p.html
-          done
-          echo "-- classic has zenith switch:"; curl -s --max-time 15 https://my-dashboard-2av.pages.dev/ | grep -c "zenith.html"
-          echo "-- zenith has comments+theme:"; curl -s --max-time 15 https://my-dashboard-2av.pages.dev/zenith.html | grep -c "cycleTheme\|spoc_comments_v1"
+          echo "== classic (/) =="
+          curl -sL -o /tmp/a.html -w "HTTP %{http_code}\n" --max-time 20 https://my-dashboard-2av.pages.dev/
+          grep -o "<title>[^<]*" /tmp/a.html
+          echo "zenith switch links: $(grep -c 'zenith.html' /tmp/a.html)"
+          echo "== zenith (/zenith) =="
+          curl -sL -o /tmp/b.html -w "HTTP %{http_code}\n" --max-time 20 https://my-dashboard-2av.pages.dev/zenith
+          grep -o "<title>[^<]*" /tmp/b.html
+          echo "comments engine: $(grep -c 'spoc_comments_v1' /tmp/b.html)"
+          echo "theme toggle: $(grep -c 'cycleTheme' /tmp/b.html)"
+          echo "robots: $(curl -s --max-time 10 https://my-dashboard-2av.pages.dev/robots.txt | head -2 | tr '\n' ' ')"
 
