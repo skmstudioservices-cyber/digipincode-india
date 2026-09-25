@@ -9,10 +9,8 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-      - name: Dump schema
+      - name: Dump village render
         run: |
           set -e
-          echo "===== SCHEMA villages ====="; sed -n '30,62p' schema.sql
-          echo "===== db.ts village fns ====="; grep -n "getVillageBySlug\|getTopVillagesByDistrict\|getSiblingVillages" -A 12 src/lib/db.ts | head -60
-          echo "===== top villages link render ====="; grep -n "top" src/pages/'[...path]'.astro | head -10
+          echo "===== CATCH-ALL 185-250 ====="; sed -n '185,250p' src/pages/'[...path]'.astro
 
