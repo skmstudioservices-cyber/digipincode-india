@@ -6,47 +6,22 @@ on:
 jobs:
   inspect:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 14
     steps:
-      - name: skm-spoc removal + v2 verify
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      - name: Verify both UIs live
         run: |
           set -e
-          echo "waiting 100s for git-connected Pages build..."
+          echo "waiting 100s for Pages build..."
           sleep 100
-          python3 << 'EOF'
-          import os, json, time, urllib.request
-          TOKEN = os.environ["CLOUDFLARE_API_TOKEN"]
-          ACC = os.environ["CLOUDFLARE_ACCOUNT_ID"]
-          def api(path, method="GET", body=None):
-              req = urllib.request.Request("https://api.cloudflare.com/client/v4" + path,
-                  data=json.dumps(body).encode() if body else None, method=method,
-                  headers={"Authorization": "Bearer " + TOKEN, "Content-Type": "application/json"})
-              try:
-                  r = urllib.request.urlopen(req, timeout=30)
-                  return r.status, json.loads(r.read().decode())
-              except urllib.error.HTTPError as e:
-                  return e.code, json.loads(e.read().decode() or "{}")
-
-          # delete skm-spoc (replaced by my-dashboard-2av)
-          code, d = api(f"/accounts/{ACC}/pages/projects/skm-spoc", "DELETE")
-          print("DELETE skm-spoc:", code, "| success:", d.get("success"))
-          code, d = api(f"/accounts/{ACC}/pages/projects/skm-spoc")
-          print("confirm gone:", code, "(404 = deleted)")
-          EOF
-          echo "---- verify new dashboard ----"
-          for i in 1 2 3 4 5; do
-            code=$(curl -s -o /tmp/n.html -w "%{http_code}" --max-time 20 https://my-dashboard-2av.pages.dev/)
-            echo "try $i: HTTP $code"
-            [ "$code" = "200" ] && break
-            sleep 40
+          for u in "" zenith.html; do
+            for i in 1 2 3 4 5; do
+              code=$(curl -s -o /tmp/p.html -w "%{http_code}" --max-time 20 "https://my-dashboard-2av.pages.dev/$u")
+              [ "$code" = "200" ] && break
+              sleep 35
+            done
+            echo "== /$u -> HTTP $code =="
+            grep -o "<title>[^<]*" /tmp/p.html
           done
-          grep -o "<title>[^<]*" /tmp/n.html
-          grep -c "sidebar" /tmp/n.html || echo "OLD VERSION STILL SERVING"
-          robots=$(curl -s --max-time 10 https://my-dashboard-2av.pages.dev/robots.txt | head -2 | tr '\n' ' ')
-          echo "robots: $robots"
-          spoc=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 https://skm-spoc.pages.dev/)
-          echo "skm-spoc now: HTTP $spoc (522/404 = gone)"
+          echo "-- classic has zenith switch:"; curl -s --max-time 15 https://my-dashboard-2av.pages.dev/ | grep -c "zenith.html"
+          echo "-- zenith has comments+theme:"; curl -s --max-time 15 https://my-dashboard-2av.pages.dev/zenith.html | grep -c "cycleTheme\|spoc_comments_v1"
 
