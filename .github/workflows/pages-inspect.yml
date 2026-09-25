@@ -6,20 +6,14 @@ on:
 jobs:
   inspect:
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 8
     steps:
-      - name: Verify v3 map sites
+      - name: Final data check
         run: |
           set -e
-          sleep 150
+          sleep 75
           for s in toiletsnearme cngpumpsnearme evchargersnearme; do
-            code=$(curl -sL -o /tmp/i.html -w "%{http_code}" --max-time 20 https://$s.pages.dev/)
-            ccode=$(curl -sL -o /tmp/c.html -w "%{http_code}" --max-time 20 https://$s.pages.dev/delhi/)
-            xcode=$(curl -sL -o /tmp/x.html -w "%{http_code}" --max-time 20 https://$s.pages.dev/chandigarh/)
-            mcode=$(curl -sL -o /tmp/m.json -w "%{http_code}" --max-time 20 https://$s.pages.dev/data/manifest.json)
-            info=$(python3 -c "import json;d=json.load(open('/tmp/m.json'));print(sum(c['n'] for c in d['cities'].values()),'POIs in',len(d['cities']),'cities')" 2>/dev/null || echo "manifest $mcode")
-            ext=$(grep -c "card official" /tmp/i.html /tmp/c.html || true)
-            dp=$(grep -c "DIGIPIN" /tmp/i.html)
-            echo "$s | home $code | /delhi/ $ccode | /chandigarh/ $xcode | $info | external-cards:$ext | digipin-refs:$dp"
+            curl -sL --max-time 20 https://$s.pages.dev/data/manifest.json -o /tmp/m.json
+            python3 -c "import json;d=json.load(open('/tmp/m.json'));cs=d['cities'];print('$s:',sum(c['n'] for c in cs.values()),'POIs in',len(cs),'cities (new:',','.join(sorted(set(cs)-{'delhi','mumbai','bengaluru','hyderabad','chennai','kolkata','pune','ahmedabad','jaipur','lucknow','surat','indore'})),')')" 2>/dev/null || echo "$s: manifest not updated yet"
           done
 
