@@ -6,13 +6,16 @@ on:
 jobs:
   inspect:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 8
     steps:
-      - name: Worker diagnostic
+      - name: GSC tag live verify
         run: |
           set -e
-          code=$(curl -s -o /tmp/w.txt -w "%{http_code}" --max-time 25 -X POST https://spoc-writer.india-in.workers.dev/ -H "Content-Type: application/json" -d '{"passcode":"test-diagnostic","op":"gsc","repo":"toiletsnearme","code":"test"}')
-          echo "HTTP $code"
-          head -c 300 /tmp/w.txt
-          echo ""
+          T="GlkDu5ZL-CyyKjwPSj9d9X3Y2qsHUj_qAwRwxiLr7nl"
+          for s in toiletsnearme cngpumpsnearme evchargersnearme restareanearme aadhaar-seva-kendra-near-me bloodbanksnearme; do
+            code=$(curl -sL -o /tmp/i.html -w "%{http_code}" --max-time 20 https://$s.pages.dev/)
+            tag=$(grep -c "$T" /tmp/i.html || true)
+            sm=$(curl -sL -o /tmp/s.xml -w "%{http_code}" --max-time 20 https://$s.pages.dev/sitemap.xml)
+            echo "$s | home $code | gsc-tag-live $tag | sitemap $sm"
+          done
 
