@@ -6,16 +6,27 @@ on:
 jobs:
   inspect:
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 9
     steps:
-      - name: GSC tag live verify
+      - name: Wait for GSC tags live
         run: |
           set -e
           T="GlkDu5ZL-CyyKjwPSj9d9X3Y2qsHUj_qAwRwxiLr7nl"
+          for i in $(seq 1 14); do
+            allok=1
+            for s in toiletsnearme cngpumpsnearme evchargersnearme restareanearme aadhaar-seva-kendra-near-me bloodbanksnearme; do
+              curl -sL --max-time 15 https://$s.pages.dev/ -o /tmp/i.html
+              tag=$(grep -c "$T" /tmp/i.html || true)
+              if [ "$tag" -lt 1 ]; then allok=0; fi
+            done
+            if [ "$allok" = "1" ]; then echo "ALL 6 GSC TAGS LIVE (attempt $i)"; exit 0; fi
+            echo "attempt $i: not all live yet, waiting 30s"
+            sleep 30
+          done
+          echo "TIMEOUT - final state:"
           for s in toiletsnearme cngpumpsnearme evchargersnearme restareanearme aadhaar-seva-kendra-near-me bloodbanksnearme; do
-            code=$(curl -sL -o /tmp/i.html -w "%{http_code}" --max-time 20 https://$s.pages.dev/)
+            curl -sL --max-time 15 https://$s.pages.dev/ -o /tmp/i.html
             tag=$(grep -c "$T" /tmp/i.html || true)
-            sm=$(curl -sL -o /tmp/s.xml -w "%{http_code}" --max-time 20 https://$s.pages.dev/sitemap.xml)
-            echo "$s | home $code | gsc-tag-live $tag | sitemap $sm"
+            echo "$s gsc-tag-live $tag"
           done
 
