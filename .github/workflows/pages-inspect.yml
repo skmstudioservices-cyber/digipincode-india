@@ -8,65 +8,16 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Observability aggregates
-        env:
-          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CF_ACC: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      - uses: actions/checkout@v4
+      - name: Dump routing/sitemap/robots
         run: |
-          python3 << 'PY'
-          import json, os, urllib.request, datetime
-          TOKEN = os.environ["CF_TOKEN"]; ACC = os.environ["CF_ACC"]
-          def post(path, body):
-              req = urllib.request.Request("https://api.cloudflare.com/client/v4" + path,
-                  data=json.dumps(body).encode(),
-                  headers={"Authorization": "Bearer " + TOKEN, "Content-Type": "application/json"})
-              try: return json.load(urllib.request.urlopen(req, timeout=40))
-              except urllib.error.HTTPError as e:
-                  return {"success": False, "errors": [e.read().decode()[:300]]}
-              except Exception as e:
-                  return {"success": False, "errors": [str(e)[:150]]}
+          set -e
+          echo "===== PUBLIC DIR ====="; ls -la public/ 2>/dev/null | head -30 || echo "no public/"
+          echo "===== ROBOTS ====="; find . -name "robots*" -not -path "./node_modules/*" | head; for f in $(find . -name "robots*" -not -path "./node_modules/*"); do echo "--- $f ---"; cat "$f"; done
+          echo "===== MIDDLEWARE ====="; cat src/middleware.ts 2>/dev/null | head -80
+          echo "===== sitemap.xml.ts ====="; cat src/pages/sitemap.xml.ts | head -60
+          echo "===== sitemap-index.xml.ts ====="; cat src/pages/sitemap-index.xml.ts | head -80
+          echo "===== sitemap-[slug].xml.ts ====="; cat "src/pages/sitemap-[slug].xml.ts" | head -60
+          echo "===== 301 / redirect logic in catch-all ====="; grep -n "301\|redirect\|tehsil\|Redirect" src/pages/'[...path]'.astro | head -50
+          echo "===== robots in code ====="; grep -rn "robots" src/ --include=*.ts --include=*.astro | grep -v node_modules | head -20
 
-          now = int(datetime.datetime.now(datetime.timezone.utc).timestamp() * 1000)
-          start = now - 7 * 3600 * 1000  # last 7 hours
-
-          def q(name, groupby, extra=None, view="aggregate"):
-              body = {
-                  "queryId": "workers-observability",
-                  "timeframe": {"from": start, "to": now},
-                  "parameters": {"datasets": ["cloudflare-workers"], "limit": 100,
-                      "filters": [{"id": "f0", "key": "$workers.scriptName", "operation": "eq", "value": "digipincode"}]},
-                  "view": view,
-                  "groupby": groupby,
-                  "functions": [{"function": "count", "alias": "cnt", "arguments": {"column": "$metadata.id"}}],
-              }
-              if extra: body.update(extra)
-              r = post("/accounts/" + ACC + "/workers/observability/telemetry/query", body)
-              print("=== " + name + " ===")
-              if r.get("success"):
-                  res = r.get("result") or {}
-                  series = res.get("series") or res.get("data") or res
-                  print(json.dumps(series)[:1500])
-              else:
-                  print("ERR:", str(r.get("errors"))[:250])
-
-          q("BOT CATEGORY (last 7h)", ["$workers.event.request.cf.verifiedBotCategory"])
-          q("RESPONSE STATUS (last 7h)", ["$workers.event.response.status"])
-          q("USER AGENT (last 7h)", ["$workers.event.request.headers.user-agent"])
-          q("HOST (last 7h)", ["$workers.event.request.headers.host"])
-
-          # tehsil- (empty segment) URL count via query filter, aggregate on path
-          q2 = {
-              "queryId": "workers-observability",
-              "timeframe": {"from": start, "to": now},
-              "parameters": {"datasets": ["cloudflare-workers"], "limit": 100,
-                  "filters": [{"id": "f0", "key": "$workers.scriptName", "operation": "eq", "value": "digipincode"},
-                              {"id": "f1", "key": "$workers.event.request.path", "operation": "includes", "value": "tehsil-"}]},
-              "view": "aggregate",
-              "groupby": ["$workers.event.response.status"],
-              "functions": [{"function": "count", "alias": "cnt", "arguments": {"column": "$metadata.id"}}],
-          }
-          r = post("/accounts/" + ACC + "/workers/observability/telemetry/query", q2)
-          print("=== TEHSIL- (empty) URL requests by status (last 7h) ===")
-          print(json.dumps((r.get("result") or r))[:1200] if r.get("success") else "ERR: " + str(r.get("errors"))[:250])
-
-          PY
