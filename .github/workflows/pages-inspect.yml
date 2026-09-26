@@ -6,21 +6,22 @@ on:
 jobs:
   inspect:
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 9
     steps:
-      - name: Create 5 CF Pages projects
+      - name: Poll 5 new sites
         run: |
           set -e
-          for name in airqualitynearme earthquakenearme isrotracker bharatlive issspotter; do
-            echo "=== $name ==="
-            R=$(curl -s --max-time 30 -X POST "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects" \
-              -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H "Content-Type: application/json" \
-              -d "{\"name\":\"$name\",\"production_branch\":\"main\",\"source\":{\"type\":\"github\",\"config\":{\"owner\":\"skmstudioservices-cyber\",\"repo_name\":\"$name\",\"production_branch\":\"main\",\"deployments_enabled\":true}}}")
-            echo "$R" | jq -c '{success, name: .result.name, domains: .result.domains, err: .errors}'
-            curl -s --max-time 30 -X POST "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects/$name/deployments" \
-              -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H "Content-Type: application/json" -d '{}' | jq -c '{deploy: .success}'
+          for i in $(seq 1 12); do
+            out=""; allok=1
+            for s in airqualitynearme earthquakenearme isrotracker bharatlive issspotter; do
+              c=$(curl -sL -o /tmp/i.html -w "%{http_code}" --max-time 15 "https://$s.pages.dev/")
+              t=$(grep -c "google-site-verification" /tmp/i.html || true)
+              out="$out $s=$c/$t"
+              [ "$c" = "200" ] && [ "$t" -ge 1 ] || allok=0
+            done
+            echo "check $i:$out"
+            [ "$allok" = "1" ] && { echo "ALL 5 SITES LIVE"; exit 0; }
+            sleep 30
           done
+          echo "NOT ALL LIVE YET"
 
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
