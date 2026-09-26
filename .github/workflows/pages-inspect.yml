@@ -1,55 +1,41 @@
-name: Deploy New Pages Projects
+name: Pages Inspect
 
 on:
   workflow_dispatch:
 
 jobs:
-  deploy:
+  inspect:
     runs-on: ubuntu-latest
-    timeout-minutes: 18
+    timeout-minutes: 14
     steps:
-      - name: Create + deploy asiangamesmedaltally2026
-        env:
-          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CF_ACC: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      - name: Check UGC NET page
         run: |
-          set -e
-          create() {
-            NAME=$1; REPO=$2
-            CODE=$(curl -s -o /tmp/c.json -w "%{http_code}" -X POST \
-              -H "Authorization: Bearer $CF_TOKEN" -H "Content-Type: application/json" \
-              "https://api.cloudflare.com/client/v4/accounts/$CF_ACC/pages/projects" \
-              -d '{"name":"'"$NAME"'","production_branch":"main","source":{"type":"github","config":{"owner":"skmstudioservices-cyber","repo_name":"'"$REPO"'","production_branch":"main","deployments_enabled":true}}}')
-            echo "create $NAME -> $CODE"; cat /tmp/c.json; echo
-            if [ "$CODE" = "400" ]; then echo "exists? checking"; fi
-          }
-          create asiangamesmedaltally2026 asiangamesmedaltally2026
-          create floodsnearme floodsnearme
-          for NAME in asiangamesmedaltally2026 floodsnearme; do
-            curl -s -o /dev/null -w "deploy trigger $NAME -> %{http_code}\n" -X POST \
-              -H "Authorization: Bearer $CF_TOKEN" -H "Content-Type: application/json" \
-              "https://api.cloudflare.com/client/v4/accounts/$CF_ACC/pages/projects/$NAME/deployments" -d '{}'
-          done
-          echo "waiting for builds..."
-          for i in $(seq 1 20); do
-            sleep 15
-            DONE=1
-            for NAME in asiangamesmedaltally2026 floodsnearme; do
-              ST=$(curl -s -H "Authorization: Bearer $CF_TOKEN" "https://api.cloudflare.com/client/v4/accounts/$CF_ACC/pages/projects/$NAME/deployments" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d['result'][0]['latest_stage']['status'] if d.get('result') else 'none')" 2>/dev/null || echo "?")
-              echo "poll $i $NAME: $ST"
-              [ "$ST" = "success" ] || DONE=0
-            done
-            [ "$DONE" = "1" ] && break
-          done
-          echo "=== LIVE CHECKS ==="
-          for NAME in asiangamesmedaltally2026 floodsnearme; do
-            for P in "" "index.html"; do
-              U="https://$NAME.pages.dev/"
-              CODE=$(curl -s -o /tmp/l.html -w "%{http_code}" --max-time 20 "$U")
-              TAG=$(grep -c "GlkDu5ZL-CyyKjwPSj9d9X3Y2qsHUj_qAwRwxiLr7nI" /tmp/l.html || true)
-              echo "LIVE $NAME -> HTTP $CODE, GSC_TAG=$TAG"
-              break
-            done
-          done
-          curl -s -o /tmp/f.html -w "floods CG page -> %{http_code}\n" --max-time 20 "https://floodsnearme.pages.dev/chhattisgarh-floods-2026/"
-          curl -s -o /tmp/w.html -w "asian winners page -> %{http_code}\n" --max-time 20 "https://asiangamesmedaltally2026.pages.dev/india-medal-winners/"
+          CODE=$(curl -s -o /tmp/u.html -w "%{http_code}" --max-time 25 "https://examstatus.india-in.workers.dev/ugc-net-june-2026-result")
+          echo "UGC_PAGE_STATUS=$CODE"
+          if [ "$CODE" = "200" ]; then echo "already live"; exit 0; fi
+          echo "not live - deploying..."
+      - uses: actions/checkout@v4
+        with:
+          repository: skmstudioservices-cyber/examstatus
+          token: ${{ secrets.GH_PAT }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Build
+        run: |
+          npm install --no-audit --no-fund 2>&1 | tail -2
+          npm run build 2>&1 | tail -15
+          ls dist/_worker.js/ | head -3
+      - name: Deploy with wrangler
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          npx wrangler deploy 2>&1 | tail -8
+      - name: Verify
+        run: |
+          sleep 20
+          CODE=$(curl -s -o /tmp/u2.html -w "%{http_code}" --max-time 25 "https://examstatus.india-in.workers.dev/ugc-net-june-2026-result")
+          echo "UGC_AFTER_DEPLOY=$CODE"
+          grep -o "UGC NET June 2026 Result" /tmp/u2.html | head -1 || true
+          curl -s -o /dev/null -w "sitemap -> %{http_code}\n" --max-time 25 "https://examstatus.india-in.workers.dev/sitemap-index.xml"
