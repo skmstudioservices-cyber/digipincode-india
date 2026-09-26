@@ -1,26 +1,28 @@
 name: Pages Inspect
 on:
   workflow_dispatch:
+permissions:
+  contents: read
 jobs:
   inspect:
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-      - name: D1 recon
+      - name: Seed trending pincode queries into D1
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CI: "true"
         run: |
-          set -e
-          echo "=== wrangler.toml (d1 section) ==="
-          grep -A6 "d1_databases" wrangler.toml || echo "no d1 in toml"
-          echo "=== D1 tables ==="
-          DB=$(grep -oP 'database_name = "\K[^"]+' wrangler.toml | head -1)
+          set -x
+          echo "=== d1 in wrangler.toml ==="
+          grep -B1 -A5 "d1_databases" wrangler.toml || echo "NO_D1_IN_TOML"
+          DB=$(grep -o 'database_name = "[^"]*"' wrangler.toml | head -1 | cut -d'"' -f2)
           echo "DB=$DB"
-          npx --yes wrangler d1 execute "$DB" --remote --command "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name" --json 2>/dev/null | python3 -c "import json,sys; d=json.load(sys.stdin); print([r['name'] for r in d[0]['results']])" || echo "table list failed"
-          echo "=== trending/query-like table schemas ==="
-          for T in trending_queries search_queries popular_queries queries keywords popular_searches; do
-            SC=$(npx --yes wrangler d1 execute "$DB" --remote --command "SELECT sql FROM sqlite_master WHERE name='$T'" --json 2>/dev/null | python3 -c "import json,sys; d=json.load(sys.stdin); print(d[0]['results'][0]['sql'] if d[0]['results'] else '')" 2>/dev/null || echo "")
-            if [ -n "$SC" ]; then echo "TABLE $T: $SC"; fi
-          done
+          if [ -z "$DB" ]; then echo "NO_DB_FOUND"; exit 1; fi
+          npx --yes wrangler d1 execute "$DB" --remote --file ops/trending-queries.sql -y 2>&1 | tail -6
+          echo "=== VERIFY COUNT ==="
+          npx --yes wrangler d1 execute "$DB" --remote --command "SELECT COUNT(*) AS total, SUM(CASE WHEN interest>=30 THEN 1 ELSE 0 END) AS high_interest FROM trending_queries" -y 2>&1 | tail -8
+          echo "=== ALL TABLES ==="
+          npx --yes wrangler d1 execute "$DB" --remote --command "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name" -y 2>&1 | tail -15
