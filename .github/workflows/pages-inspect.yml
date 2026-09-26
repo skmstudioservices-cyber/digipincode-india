@@ -1,62 +1,15 @@
 name: Pages Inspect
 on:
   workflow_dispatch:
-permissions:
-  contents: write
-  actions: write
 jobs:
   inspect:
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
-      - name: Patch GA tag into Base layout
-        run: |
-          set -e
-          ls src/layouts/ || true
-          python3 - <<'PY'
-          import os
-          p = None
-          for root, dirs, files in os.walk('src'):
-              if 'Base.astro' in files:
-                  p = os.path.join(root, 'Base.astro')
-                  break
-          if not p:
-              print('NO_BASE_ASTRO_FOUND'); raise SystemExit(1)
-          src = open(p, encoding='utf-8').read()
-          if 'G-30JK9GG08F' in src:
-              print('ALREADY_PRESENT'); raise SystemExit(0)
-          lines = src.split('\n')
-          idx = None
-          for i, l in enumerate(lines):
-              if '<head>' in l:
-                  idx = i; break
-          if idx is None:
-              print('NO_HEAD_TAG_FOUND'); raise SystemExit(1)
-          snippet = [
-            '  <script async src="https://www.googletagmanager.com/gtag/js?id=G-30JK9GG08F"></script>',
-            '  <script is:inline>',
-            '    window.dataLayer = window.dataLayer || [];',
-            '    function gtag(){dataLayer.push(arguments);}',
-            "    gtag('js', new Date());",
-            "    gtag('config', 'G-30JK9GG08F');",
-            '  </script>',
-          ]
-          lines[idx+1:idx+1] = snippet
-          open(p, 'w', encoding='utf-8').write('\n'.join(lines))
-          print('PATCHED', p)
-          
-          PY
-          echo "=== CSP check ==="
-          grep -rn "Content-Security-Policy" src/ | head -5 || echo "no CSP found"
-          git config user.name "ga-bot" && git config user.email "actions@github.com"
-          git add -A && git commit -m "Add Google Analytics gtag (G-30JK9GG08F) site-wide via Base layout" && git push
-          echo "PUSHED - deploys auto-trigger on push"
-      - name: Wait for deploy then verify tag live
-        run: |
-          sleep 200
-          for U in "digipincode.india-in.workers.dev/" "digipincode.pages.dev/" "digipincode.india-in.workers.dev/digipin/" "digipincode.pages.dev/digipin/"; do
+      - run: |
+          sleep 60
+          for U in "digipincode.india-in.workers.dev/" "digipincode.pages.dev/" "digipincode.india-in.workers.dev/digipin/" "digipincode.pages.dev/digipin/" "digipincode.india-in.workers.dev/robots.txt"; do
             CODE=$(curl -s -L -o /tmp/d.html -w "%{http_code}" --max-time 25 "https://$U" || echo 000)
             TAG=$(grep -c "G-30JK9GG08F" /tmp/d.html 2>/dev/null || true)
-            echo "LIVECHECK $U -> $CODE GA_TAG=$TAG"
+            echo "VERIFY $U -> $CODE GA_TAG=$TAG"
           done
