@@ -6,22 +6,23 @@ on:
 jobs:
   inspect:
     runs-on: ubuntu-latest
-    timeout-minutes: 9
+    timeout-minutes: 7
     steps:
-      - name: Poll 5 new sites
+      - name: Poll AQI city pages
         run: |
           set -e
-          for i in $(seq 1 12); do
+          for i in $(seq 1 8); do
             out=""; allok=1
-            for s in airqualitynearme earthquakenearme isrotracker bharatlive issspotter; do
-              c=$(curl -sL -o /tmp/i.html -w "%{http_code}" --max-time 15 "https://$s.pages.dev/")
-              t=$(grep -c "google-site-verification" /tmp/i.html || true)
-              out="$out $s=$c/$t"
-              [ "$c" = "200" ] && [ "$t" -ge 1 ] || allok=0
+            for s in "" delhi mumbai chandigarh nagpur; do
+              c=$(curl -sL -o /tmp/p.html -w "%{http_code}" --max-time 15 "https://airqualitynearme.pages.dev/$s")
+              g=$(grep -c "google-site-verification" /tmp/p.html || true)
+              q=$(grep -c "live" /tmp/p.html || true)
+              out="$out [/$s]=$c/$g"
+              { [ "$c" = "200" ] && [ "$g" -ge 1 ]; } || allok=0
             done
             echo "check $i:$out"
-            [ "$allok" = "1" ] && { echo "ALL 5 SITES LIVE"; exit 0; }
+            [ "$allok" = "1" ] && { echo "ALL CITY PAGES LIVE"; exit 0; }
             sleep 30
           done
-          echo "NOT ALL LIVE YET"
+          echo "NOT ALL LIVE"
 
