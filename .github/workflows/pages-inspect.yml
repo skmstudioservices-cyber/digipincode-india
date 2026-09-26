@@ -8,66 +8,41 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 6
     steps:
-      - name: DNS availability EMD names
+      - name: checks
         run: |
-          python3 -c "
-          import socket
-          names = '''asiangamesmedaltally2026
-          asiad2026medaltally
-          indiamedaltally2026
-          asian-games-tally-2026
-          asiangames2026india
-          asian-games-medal-table
-          medaltally2026
-          asiangames2026live
-          indiaasianmedals2026
-          asiangamesrank2026
-          ugcnetresult2026
-          ugcnetjune2026result
-          ugcnet2026resultlink
-          ugcnetcutoff2026
-          ugcnetscorecard2026
-          ugcnetresultdate2026
-          checkugcnetresult2026
-          ugcnetjune2026
-          ugcnetresulttoday2026
-          ugcnet2026news
-          indvswi2026
-          indiavswestindies2026
-          indvswi2026schedule
-          indvswiodi2026
-          indvswi2026live
-          indwi2026schedule
-          indvswiplaying11
-          westindiesinindia2026
-          indvswisquad2026
-          indvswi3rdodi
-          karvachauth2026date
-          karvachauth2026moontime
-          karvachauthmoonrise2026
-          karvachauth2026muhurat
-          karvachauth2026vrat
-          karvachauthkatha2026
-          karvachauth2026wishes
-          karvachauth2026today
-          chhattisgarhflood2026
-          chhattisgarhrainalert2026
-          cgschoolholiday2026
-          chhattisgarhfloodnews
-          raipurflood2026
-          bastarflood2026
-          chhattisgarhfloodhelpline
-          chhattisgarhweather2026
-          cgrainalert
-          chhattisgarhfloodupdate
-          nepalfloods2026
-          nepalfloodsupdate
-          gandakriverlevel2026
-          nepalindiafloods2026'''.split()
-          for n in names:
-              try:
-                  socket.gethostbyname(n + '.pages.dev')
-                  print(n, 'TAKEN')
-              except Exception:
-                  print(n, 'AVAILABLE')
-          "
+          set -x
+          for n in floodsnearme recentfloodsnearme flashfloodsnearme floods-near-me floodalertsnearme asiangamesmedaltally2026; do
+            getent hosts "$n.pages.dev" >/dev/null && echo "DNS $n TAKEN" || echo "DNS $n AVAILABLE"
+          done
+          echo "=== WIKIPEDIA TEST ==="
+          curl -s --max-time 20 "https://en.wikipedia.org/w/api.php?action=parse&page=2026_Asian_Games_medal_table&prop=text&format=json" -o /tmp/wt.json
+          python3 - <<'PY'
+          import json, re, html as H
+          try:
+              d = json.load(open('/tmp/wt.json'))
+              if 'error' in d:
+                  print('WIKI_ERROR:', d['error'].get('info'))
+              else:
+                  t = d['parse']['text']['*']
+                  rows = re.findall(r'<tr>(.*?)</tr>', t, re.S)
+                  print('WIKI_OK title:', d['parse']['title'], 'rows:', len(rows))
+                  for r in rows[1:6]:
+                      cells = re.findall(r'<t[dh][^>]*>(.*?)</t[dh]>', r, re.S)
+                      clean = [re.sub(r'<[^>]+>', '', c).replace(' ',' ').strip() for c in cells]
+                      print('ROW:', clean[:6])
+          except Exception as e:
+              print('WIKI_FAIL', e)
+          PY
+          echo "=== GDACS TEST ==="
+          curl -s --max-time 25 "https://www.gdacs.org/xml/rss.xml" -o /tmp/gdacs.xml
+          python3 - <<'PY'
+          import re
+          t = open('/tmp/gdacs.xml', encoding='utf-8', errors='ignore').read()
+          items = re.findall(r'<item>(.*?)</item>', t, re.S)
+          print('GDACS items:', len(items))
+          fl = [i for i in items if 'lood' in i]
+          print('flood items:', len(fl))
+          for i in (fl or items)[:4]:
+              title = re.search(r'<title>(.*?)</title>', i, re.S)
+              print('GD:', title.group(1)[:120] if title else '?')
+          PY
