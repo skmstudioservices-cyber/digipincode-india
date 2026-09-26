@@ -4,12 +4,12 @@ on:
 jobs:
   inspect:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 7
     steps:
       - run: |
-          sleep 60
-          for U in "digipincode.india-in.workers.dev/" "digipincode.pages.dev/" "digipincode.india-in.workers.dev/digipin/" "digipincode.pages.dev/digipin/" "digipincode.india-in.workers.dev/robots.txt"; do
+          sleep 180
+          for U in "digipincode.india-in.workers.dev/" "digipincode.india-in.workers.dev/digipin/" "digipincode.pages.dev/" "digipincode.pages.dev/digipin/"; do
             CODE=$(curl -s -L -o /tmp/d.html -w "%{http_code}" --max-time 25 "https://$U" || echo 000)
             TAG=$(grep -c "G-30JK9GG08F" /tmp/d.html 2>/dev/null || true)
-            echo "VERIFY $U -> $CODE GA_TAG=$TAG"
+            echo "FINAL $U -> $CODE GA_TAG=$TAG"
           done
