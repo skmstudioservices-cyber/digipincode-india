@@ -6,11 +6,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 6
     steps:
-      - name: wait for pages build then check
+      - name: wait for deploy then check tag
         run: |
-          sleep 90
-          for U in "floodsnearme.pages.dev/about/" "floodsnearme.pages.dev/privacy/" "floodsnearme.pages.dev/terms/" "floodsnearme.pages.dev/contact/" "floodsnearme.pages.dev/design-preview/" "floodsnearme.pages.dev/favicon.svg" "floodsnearme.pages.dev/logo.svg" "floodsnearme.pages.dev/"; do
-            CODE=$(curl -s -L -o /tmp/p.html -w "%{http_code}" --max-time 20 "https://$U")
-            TAG=$(grep -c "GlkDu5ZL" /tmp/p.html 2>/dev/null || true)
-            echo "RECHECK $U -> $CODE TAG=$TAG"
+          sleep 100
+          for U in "examstatus.india-in.workers.dev/" "examstatus.india-in.workers.dev/ugc-net-june-2026-result" "examstatus.india-in.workers.dev/about"; do
+            CODE=$(curl -s -L -o /tmp/p.html -w "%{http_code}" --max-time 25 "https://$U")
+            TAG=$(grep -c "G-S4Q4JRTE2Y" /tmp/p.html || true)
+            GTM=$(grep -c "googletagmanager.com/gtag/js" /tmp/p.html || true)
+            echo "GACHECK $U -> $CODE GA_ID_HITS=$TAG GTM_SCRIPT=$GTM"
           done
