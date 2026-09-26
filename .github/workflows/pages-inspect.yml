@@ -1,17 +1,33 @@
 name: Pages Inspect
 on:
   workflow_dispatch:
+permissions:
+  contents: write
+  actions: write
 jobs:
   inspect:
     runs-on: ubuntu-latest
-    timeout-minutes: 6
+    timeout-minutes: 10
     steps:
-      - run: |
-          sleep 120
-          TS=$(date +%s)
-          for U in "digipincode.india-in.workers.dev/" "digipincode.india-in.workers.dev/digipin/" "digipincode.pages.dev/" "digipincode.pages.dev/digipin/"; do
-            CODE=$(curl -s -L -o /tmp/d.html -w "%{http_code}" --max-time 25 "https://$U?v=$TS" || echo 000)
-            TAG=$(grep -c "G-30JK9GG08F" /tmp/d.html 2>/dev/null || true)
-            echo "CB $U -> $CODE GA_TAG=$TAG (cache-busted)"
-          done
-          echo "=== queue status ==="
+      - uses: actions/checkout@v4
+      - name: Dual GA tag by hostname
+        run: |
+          set -e
+          python3 - <<'PY'
+          p = 'src/layouts/Base.astro'
+          src = open(p, encoding='utf-8').read()
+          OLD = "    gtag('config', 'G-30JK9GG08F');"
+          NEW = "    var GA_ID = (location.hostname === 'digipincode.pages.dev') ? 'G-99Z495K2T8' : 'G-30JK9GG08F';\n    gtag('config', GA_ID);"
+          if "G-99Z495K2T8" in src:
+              print('ALREADY_DUAL'); raise SystemExit(0)
+          if OLD not in src:
+              print('CONFIG_LINE_NOT_FOUND'); raise SystemExit(1)
+          src = src.replace(OLD, NEW, 1)
+          open(p, 'w', encoding='utf-8').write(src)
+          print('DUAL_TAG_PATCHED')
+          
+          PY
+          grep -n "GA_ID" src/layouts/Base.astro
+          git config user.name "ga-bot" && git config user.email "actions@github.com"
+          git add -A && git commit -m "GA: route pages.dev to Digipincode Pages property, workers.dev to Worker property" && git push
+          echo "PUSHED"
