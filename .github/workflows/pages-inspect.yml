@@ -6,34 +6,28 @@ on:
 jobs:
   inspect:
     runs-on: ubuntu-latest
-    timeout-minutes: 9
+    timeout-minutes: 8
     steps:
-      - name: Branding audit (4 sites)
+      - name: Old sites tags + corrected tag live check
         run: |
-          set -u
-          CB=$(date +%s)
-          audit() {
-            U="$1"
-            echo "=== SITE $U ==="
-            H=$(curl -sL --max-time 30 "$U/?cb=$CB-$RANDOM" || true)
-            T=$(echo "$H" | grep -oP '(?<=<title>)[^<]+' | head -1)
-            if [ -n "$T" ]; then echo "RESULT $U title OK :: $T"; else echo "RESULT $U title FAIL"; fi
-            if echo "$H" | grep -q 'og:site_name'; then echo "RESULT $U og-site-name OK :: $(echo "$H" | grep -oP 'og:site_name" content="[^"]*' | head -1 | cut -d'"' -f4)"; else echo "RESULT $U og-site-name FAIL"; fi
-            if echo "$H" | grep -q 'name="theme-color"'; then echo "RESULT $U theme-color OK :: $(echo "$H" | grep -oP 'name="theme-color" content="[^"]*' | head -1 | cut -d'"' -f4)"; else echo "RESULT $U theme-color FAIL"; fi
-            if echo "$H" | grep -qE '"@type": ?"WebSite"'; then echo "RESULT $U website-jsonld OK"; else echo "RESULT $U website-jsonld FAIL"; fi
-            for icon in favicon.svg favicon.ico apple-touch-icon.png og-image.png; do
-              code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "$U/$icon?cb=$CB")
-              if [ "$code" = "200" ]; then echo "RESULT $U $icon OK-200"; else echo "RESULT $U $icon FAIL-$code"; fi
+          set -e
+          T="GlkDu5ZL-CyyKjwPSj9d9X3Y2qsHUj_qAwRwxiLr7nI"
+          echo "--- OLD VERIFIED SITES: their live GSC meta tags ---"
+          for s in digipincode.pages.dev digipincode.india-in.workers.dev skmtools.pages.dev mapsnearme.pages.dev examstatus.india-in.workers.dev karvachauth.india-in.workers.dev; do
+            tag=$(curl -sL --max-time 20 "https://$s/" | grep -o 'google-site-verification" content="[^"]*"' || echo NONE)
+            echo "$s -> $tag"
+          done
+          echo "--- NEW TAG LIVE CHECK (4 updated sites) ---"
+          for i in $(seq 1 10); do
+            out=""; allok=1
+            for s in toiletsnearme cngpumpsnearme evchargersnearme restareanearme; do
+              tag=$(curl -sL --max-time 15 "https://$s.pages.dev/?cb=$RANDOM$i" | grep -c "$T" || true)
+              out="$out $s=$tag"
+              [ "$tag" -lt 1 ] && allok=0
             done
-          }
-          audit https://digipincode.india-in.workers.dev
-          audit https://digipincode.pages.dev
-          audit https://mapsnearme.pages.dev
-          audit https://examstatus.india-in.workers.dev
-          C=$(curl -sL --max-time 30 "https://digipincode.pages.dev/?cb=$CB")
-          CANON=$(echo "$C" | grep -o '<link rel="canonical" href="[^"]*"' | head -1)
-          echo "CANONICAL: $CANON"
-          if echo "$CANON" | grep -q 'digipincode.india-in.workers.dev'; then echo "RESULT pagesdev-canonical OK"; else echo "RESULT pagesdev-canonical FAIL"; fi
-          P=$(curl -sL --max-time 30 "https://digipincode.india-in.workers.dev/privacy-policy?cb=$CB")
-          if echo "$P" | grep -qi 'ahrefs'; then echo "RESULT privacy-ahrefs OK"; else echo "RESULT privacy-ahrefs FAIL"; fi
-          echo "AUDIT DONE"
+            echo "check $i:$out"
+            [ "$allok" = "1" ] && { echo "ALL 4 CORRECTED TAGS LIVE"; exit 0; }
+            sleep 30
+          done
+          echo "STILL NOT ALL LIVE"
+
