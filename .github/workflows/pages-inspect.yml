@@ -6,20 +6,50 @@ on:
 jobs:
   inspect:
     runs-on: ubuntu-latest
-    timeout-minutes: 7
+    timeout-minutes: 8
     steps:
-      - name: Poll safealleys app UI
+      - name: DNS check + data fetch
         run: |
           set -e
-          for i in $(seq 1 8); do
-            h=$(curl -sL -o /tmp/i.html -w "%{http_code}" --max-time 20 "https://safealleys.pages.dev/")
-            ab=$(curl -sL -o /tmp/a.html -w "%{http_code}" --max-time 20 "https://safealleys.pages.dev/about.html")
-            d=$(curl -sL -o /dev/null -w "%{http_code}" --max-time 20 "https://safealleys.pages.dev/sw.js")
-            dock=$(grep -c "report-fab" /tmp/i.html || true)
-            about=$(grep -c "page-main" /tmp/a.html || true)
-            echo "check $i: home $h dock $dock | about $ab pagemain $about | sw $d"
-            if [ "$h" = "200" ] && [ "$ab" = "200" ] && [ "$dock" -ge 1 ] && [ "$about" -ge 1 ] && [ "$d" = "200" ]; then echo "APP UI LIVE"; exit 0; fi
-            sleep 30
-          done
-          echo "STILL NOT LIVE"
+          echo "=== DNS availability (NXDOMAIN = available) ==="
+          python3 -c "
+          import socket
+          names = ['aqinearme','airqualitynearme','earthquakenearme','quakesnearme','isrolaunches','isrotracker','bharatlive','godseyeindia','issspotter','isstrackerindia']
+          for n in names:
+              try:
+                  socket.gethostbyname(n + '.pages.dev')
+                  print(n, 'TAKEN')
+              except Exception:
+                  print(n, 'AVAILABLE')
+          "
+          echo "=== AQI open-meteo (15 Indian cities) ==="
+          python3 -c "
+          import json, urllib.request
+          cities = {'delhi':(28.61,77.23),'mumbai':(19.08,72.88),'bengaluru':(12.97,77.59),'hyderabad':(17.39,78.49),'chennai':(13.06,80.22),'kolkata':(22.57,88.36),'pune':(18.52,73.86),'ahmedabad':(23.02,72.57),'jaipur':(26.91,75.79),'lucknow':(26.85,80.95),'surat':(21.17,72.83),'indore':(22.72,75.86),'chandigarh':(30.73,76.78),'bhopal':(23.26,77.41),'nagpur':(21.15,79.09)}
+          out = {}
+          for c,(la,lo) in cities.items():
+              u = f'https://air-quality-api.open-meteo.com/v1/air-quality?latitude={la}&longitude={lo}&current=us_aqi,pm2_5,pm10'
+              d = json.loads(urllib.request.urlopen(u, timeout=20).read())['current']
+              out[c] = {'aqi': d.get('us_aqi'), 'pm25': d.get('pm2_5'), 'pm10': d.get('pm10'), 'lat': la, 'lon': lo, 'time': d.get('time')}
+          print('AQI_JSON=' + json.dumps(out))
+          "
+          echo "=== USGS quakes past 7 days M4.5+ (India region) ==="
+          python3 -c "
+          import json, urllib.request
+          u = 'https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&minlatitude=5&maxlatitude=38&minlongitude=65&maxlongitude=98&minmagnitude=4&orderby=time&limit=15'
+          d = json.loads(urllib.request.urlopen(u, timeout=20).read())
+          q = [{'mag': f['properties']['mag'], 'place': f['properties']['place'], 'time': f['properties']['time'], 'lat': f['geometry']['coordinates'][1], 'lon': f['geometry']['coordinates'][0], 'url': f['properties']['url']} for f in d['features']]
+          print('QUAKES_JSON=' + json.dumps(q))
+          "
+          echo "=== Launch Library 2 upcoming (next 10) ==="
+          python3 -c "
+          import json, urllib.request
+          u = 'https://ll.thespacedevs.com/2.2.0/launches/upcoming/?limit=10&mode=list'
+          d = json.loads(urllib.request.urlopen(u, timeout=20).read())
+          l = [{'name': r['name'], 'agency': (r.get('launch_service_provider') or {}).get('name'), 'net': r['net'], 'status': (r.get('status') or {}).get('abbrev')} for r in d['results']]
+          print('LAUNCHES_JSON=' + json.dumps(l))
+          "
+          echo "=== ISS current position ==="
+          curl -s --max-time 15 "https://api.wheretheiss.at/v1/satellites/25544"
+          echo ""
 
