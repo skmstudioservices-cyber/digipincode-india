@@ -1,14 +1,70 @@
 name: Pages Inspect
 on:
   workflow_dispatch:
+permissions:
+  contents: write
+  actions: write
 jobs:
   inspect:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 12
     steps:
-      - run: |
-          for U in "digipincode.india-in.workers.dev/" "digipincode.pages.dev/"; do
-            CODE=$(curl -s -L -o /tmp/d.html -w "%{http_code}" --max-time 25 "https://$U")
-            TAG=$(grep -c "G-30JK9GG08F" /tmp/d.html || true)
-            echo "DPCHECK $U -> $CODE GA_TAG=$TAG"
-          done
+      - uses: actions/checkout@v4
+      - name: Show layout + patch GA tag
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          ls src/layouts/
+          python3 - <<'PY'
+p = 'src/layouts/Base.astro'
+src = open(p, encoding='utf-8').read()
+if 'G-30JK9GG08F' in src:
+    print('ALREADY_PRESENT'); raise SystemExit(0)
+lines = src.split('\n')
+idx = None
+for i, l in enumerate(lines):
+    if '<head>' in l:
+        idx = i; break
+if idx is None:
+    print('NO_HEAD_TAG_FOUND'); raise SystemExit(1)
+snippet = [
+  '  <script async src="https://www.googletagmanager.com/gtag/js?id=G-30JK9GG08F"></script>',
+  '  <script is:inline>',
+  '    window.dataLayer = window.dataLayer || [];',
+  '    function gtag(){dataLayer.push(arguments);}',
+  "    gtag('js', new Date());",
+  "    gtag('config', 'G-30JK9GG08F');",
+  '  </script>',
+]
+lines[idx+1:idx+1] = snippet
+open(p, 'w', encoding='utf-8').write('\n'.join(lines))
+print('PATCHED Base.astro')
+PY
+          echo "=== head area now ==="
+          grep -n -A2 -B2 "G-30JK9GG08F" src/layouts/Base.astro | head -20
+          echo "=== CSP check ==="
+          grep -rn "Content-Security-Policy" src/ | head -5 || echo "no CSP"
+          git config user.name "ga-bot" && git config user.email "actions@github.com"
+          git add -A && git commit -m "Add Google Analytics gtag (G-30JK9GG08F) site-wide via Base layout" && git push
+          echo "PUSHED"
+          echo "=== workflow triggers ==="
+          for f in .github/workflows/*.yml; do echo "--- $f"; grep -A4 "^on:" "$f" | head -6; done
+          sleep 50
+          echo "=== auto-triggered runs? ==="
+          gh run list --limit 6 --json name,status,createdAt --jq '.[] | .name + " " + .status + " " + .createdAt' || true
+          # ensure workers deploy + mirror run with the new tag
+          if ! grep -A4 "^on:" .github/workflows/deploy.yml 2>/dev/null | grep -q "push"; then
+            gh workflow run deploy.yml && echo "DISPATCHED deploy.yml"
+          fi
+          MIRROR=""
+          for f in .github/workflows/*.yml; do grep -lq "digipincode.pages.dev" "$f" && MIRROR="$f"; done
+          if [ -n "$MIRROR" ]; then
+            BN=$(basename "$MIRROR")
+            if ! grep -A4 "^on:" "$MIRROR" | grep -q "push"; then
+              gh workflow run "$BN" && echo "DISPATCHED $BN"
+            fi
+          fi
+          sleep 40
+          echo "=== runs after dispatch ==="
+          gh run list --limit 6 --json name,status --jq '.[] | .name + " " + .status'
