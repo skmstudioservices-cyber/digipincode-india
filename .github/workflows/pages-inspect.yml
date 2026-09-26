@@ -8,23 +8,18 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 7
     steps:
-      - name: Poll safealleys Phase 0
+      - name: Poll safealleys app UI
         run: |
           set -e
           for i in $(seq 1 8); do
             h=$(curl -sL -o /tmp/i.html -w "%{http_code}" --max-time 20 "https://safealleys.pages.dev/")
-            sw=$(curl -sL -o /dev/null -w "%{http_code}" --max-time 20 "https://safealleys.pages.dev/sw.js")
-            mf=$(curl -sL -o /dev/null -w "%{http_code}" --max-time 20 "https://safealleys.pages.dev/manifest.json")
-            pv=$(curl -sL -o /dev/null -w "%{http_code}" --max-time 20 "https://safealleys.pages.dev/privacy.html")
-            ic=$(curl -sL -o /dev/null -w "%{http_code}" --max-time 20 "https://safealleys.pages.dev/icons/icon-192.png")
-            sm=$(curl -sL -o /dev/null -w "%{http_code}" --max-time 20 "https://safealleys.pages.dev/sitemap.xml")
-            gsc=$(grep -c "google-site-verification" /tmp/i.html || true)
-            echo "check $i: home $h | sw $sw | manifest $mf | privacy $pv | icon $ic | sitemap $sm | gsc-tag $gsc"
-            if [ "$h" = "200" ] && [ "$sw" = "200" ] && [ "$mf" = "200" ] && [ "$pv" = "200" ] && [ "$ic" = "200" ] && [ "$sm" = "200" ] && [ "$gsc" -ge 1 ]; then
-              echo "SAFE-ALLEYS PHASE 0 FULLY LIVE"
-              exit 0
-            fi
+            ab=$(curl -sL -o /tmp/a.html -w "%{http_code}" --max-time 20 "https://safealleys.pages.dev/about.html")
+            d=$(curl -sL -o /dev/null -w "%{http_code}" --max-time 20 "https://safealleys.pages.dev/sw.js")
+            dock=$(grep -c "report-fab" /tmp/i.html || true)
+            about=$(grep -c "page-main" /tmp/a.html || true)
+            echo "check $i: home $h dock $dock | about $ab pagemain $about | sw $d"
+            if [ "$h" = "200" ] && [ "$ab" = "200" ] && [ "$dock" -ge 1 ] && [ "$about" -ge 1 ] && [ "$d" = "200" ]; then echo "APP UI LIVE"; exit 0; fi
             sleep 30
           done
-          echo "STILL NOT FULLY LIVE"
+          echo "STILL NOT LIVE"
 
