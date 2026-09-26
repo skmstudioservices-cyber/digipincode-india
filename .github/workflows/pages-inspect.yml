@@ -4,33 +4,14 @@ on:
 jobs:
   inspect:
     runs-on: ubuntu-latest
-    timeout-minutes: 14
+    timeout-minutes: 6
     steps:
-      - uses: actions/checkout@v4
-        with:
-          repository: skmstudioservices-cyber/karvachauth
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-      - name: Build karvachauth with GA tag
-        run: |
-          npm install --no-audit --no-fund 2>&1 | tail -1
-          node generate.js 2>&1 | tail -2
-          grep -o "G-BFN01W2RX9" dist/index.html | head -1 && echo "TAG_IN_BUILD"
-      - name: Deploy karvachauth pages
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: |
-          npx --yes wrangler pages deploy dist --project-name=karvachauth --branch=main --commit-dirty=true 2>&1 | tail -3
-      - name: Verify all GA tags live
-        run: |
-          sleep 200
+      - run: |
+          sleep 120
           TS=$(date +%s)
-          declare -A S=( ["https://toiletsnearme.pages.dev/"]="G-D74LPRXWDW" ["https://cngpumpsnearme.pages.dev/"]="G-0M6041TYXM" ["https://evchargersnearme.pages.dev/"]="G-ZE1GR23S8E" ["https://restareanearme.pages.dev/"]="G-0X9R1NP7T0" ["https://bloodbanksnearme.pages.dev/"]="G-2NK1PGYMJ9" ["https://airqualitynearme.pages.dev/"]="G-2MHNZEB6CH" ["https://earthquakenearme.pages.dev/"]="G-EV785X26ZR" ["https://safealleys.pages.dev/"]="G-GLNKRTPSC1" ["https://mapsnearme.pages.dev/"]="G-NH42KZNW9F" ["https://karvachauth.pages.dev/"]="G-BFN01W2RX9" )
-          for U in "${!S[@]}"; do
-            G="${S[$U]}"
-            CODE=$(curl -s -L -o /tmp/v.html -w "%{http_code}" --max-time 25 "$U?v=$TS" || echo 000)
-            TAG=$(grep -c "$G" /tmp/v.html 2>/dev/null || true)
-            echo "TAGLIVE $U -> $CODE TAG=$TAG"
-          done
+          C1=$(curl -s -o /tmp/d.html -w "%{http_code}" --max-time 25 "https://my-dashboard-2av.pages.dev/?t=$TS")
+          G1=$(grep -c "s-analytics" /tmp/d.html || true)
+          G2=$(grep -c "GA_GLOSSARY" /tmp/d.html || true)
+          C2=$(curl -s -o /tmp/g.json -w "%{http_code}" --max-time 25 "https://my-dashboard-2av.pages.dev/ga-data.json?t=$TS")
+          P=$(python3 -c "import json;print(len(json.load(open('/tmp/g.json'))['properties']))" 2>/dev/null || echo 0)
+          echo "DASH home=$C1 section=$G1 glossary=$G2 gadata=$C2 props=$P"
