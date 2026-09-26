@@ -8,26 +8,32 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 9
     steps:
-      - name: Retry cng + poll all
+      - name: Branding audit (4 sites)
         run: |
-          set -e
-          echo "--- retry cng deployment ---"
-          curl -s --max-time 20 -X POST "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects/cngpumpsnearme/deployments" -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H "Content-Type: application/json" -d '{}' | jq -c '{success, id: .result.id[0:8]}'
-          T="GlkDu5ZL-CyyKjwPSj9d9X3Y2qsHUj_qAwRwxiLr7nl"
-          for i in $(seq 1 12); do
-            out=""; allok=1
-            for s in toiletsnearme cngpumpsnearme evchargersnearme restareanearme aadhaar-seva-kendra-near-me bloodbanksnearme; do
-              curl -sL --max-time 15 "https://$s.pages.dev/?cb=$RANDOM$i" -o /tmp/i.html
-              tag=$(grep -c "$T" /tmp/i.html || true)
-              out="$out $s=$tag"
-              if [ "$tag" -lt 1 ]; then allok=0; fi
+          set -u
+          CB=$(date +%s)
+          audit() {
+            U="$1"
+            echo "=== SITE $U ==="
+            H=$(curl -sL --max-time 30 "$U/?cb=$CB-$RANDOM" || true)
+            T=$(echo "$H" | grep -oP '(?<=<title>)[^<]+' | head -1)
+            if [ -n "$T" ]; then echo "RESULT $U title OK :: $T"; else echo "RESULT $U title FAIL"; fi
+            if echo "$H" | grep -q 'og:site_name'; then echo "RESULT $U og-site-name OK :: $(echo "$H" | grep -oP 'og:site_name" content="[^"]*' | head -1 | cut -d'"' -f4)"; else echo "RESULT $U og-site-name FAIL"; fi
+            if echo "$H" | grep -q 'name="theme-color"'; then echo "RESULT $U theme-color OK :: $(echo "$H" | grep -oP 'name="theme-color" content="[^"]*' | head -1 | cut -d'"' -f4)"; else echo "RESULT $U theme-color FAIL"; fi
+            if echo "$H" | grep -qE '"@type": ?"WebSite"'; then echo "RESULT $U website-jsonld OK"; else echo "RESULT $U website-jsonld FAIL"; fi
+            for icon in favicon.svg favicon.ico apple-touch-icon.png og-image.png; do
+              code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "$U/$icon?cb=$CB")
+              if [ "$code" = "200" ]; then echo "RESULT $U $icon OK-200"; else echo "RESULT $U $icon FAIL-$code"; fi
             done
-            echo "check $i:$out"
-            if [ "$allok" = "1" ]; then echo "ALL 6 GSC TAGS LIVE"; exit 0; fi
-            sleep 30
-          done
-          echo "STILL NOT ALL LIVE"
-
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          }
+          audit https://digipincode.india-in.workers.dev
+          audit https://digipincode.pages.dev
+          audit https://mapsnearme.pages.dev
+          audit https://examstatus.india-in.workers.dev
+          C=$(curl -sL --max-time 30 "https://digipincode.pages.dev/?cb=$CB")
+          CANON=$(echo "$C" | grep -o '<link rel="canonical" href="[^"]*"' | head -1)
+          echo "CANONICAL: $CANON"
+          if echo "$CANON" | grep -q 'digipincode.india-in.workers.dev'; then echo "RESULT pagesdev-canonical OK"; else echo "RESULT pagesdev-canonical FAIL"; fi
+          P=$(curl -sL --max-time 30 "https://digipincode.india-in.workers.dev/privacy-policy?cb=$CB")
+          if echo "$P" | grep -qi 'ahrefs'; then echo "RESULT privacy-ahrefs OK"; else echo "RESULT privacy-ahrefs FAIL"; fi
+          echo "AUDIT DONE"
