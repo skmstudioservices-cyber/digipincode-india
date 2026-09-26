@@ -1,51 +1,10 @@
 name: Pages Inspect
 on:
   workflow_dispatch:
-permissions:
-  contents: read
 jobs:
   inspect:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-      - name: Diagnose and seed D1 (no early exits)
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          CI: "true"
+      - name: Wait for deploy to settle
         run: |
-          set -x
-          ls -la
-          echo "=== wrangler.toml full ==="
-          cat wrangler.toml
-          echo "=== package.json wrangler dep ==="
-          grep -i wrangler package.json || echo "no wrangler dep"
-          DB=""
-          for TOML in wrangler.toml wrangler.jsonc wrangler.json; do
-            if [ -f "$TOML" ]; then
-              DB=$(python3 -c "import re; t=open('$TOML').read(); m=re.search(r'database_name\\s*=\\s*[\"\']([^\"\']+)', t); print(m.group(1) if m else '')" 2>/dev/null || echo "")
-            fi
-            [ -n "$DB" ] && break
-          done
-          echo "PARSED_DB=$DB"
-          if [ -z "$DB" ]; then
-            echo "=== d1 list fallback ==="
-            npx --yes wrangler@latest d1 list 2>&1 | tail -12
-            DB=$(npx --yes wrangler@latest d1 list --json 2>/dev/null | python3 -c "import json,sys
-try:
-  d=json.load(sys.stdin)
-  names=[x['name'] for x in d if 'pin' in x.get('name','').lower()]
-  print(names[0] if names else (d[0]['name'] if d else ''))
-except Exception:
-  print('')" || echo "")
-            echo "FALLBACK_DB=$DB"
-          fi
-          if [ -n "$DB" ]; then
-            echo "=== SEEDING $DB ==="
-            npx --yes wrangler@latest d1 execute "$DB" --remote --file ops/trending-queries.sql --yes 2>&1 | tail -8
-            echo "=== VERIFY ==="
-            npx --yes wrangler@latest d1 execute "$DB" --remote --command "SELECT COUNT(*) AS total FROM trending_queries" --yes 2>&1 | tail -8
-          else
-            echo "NO_DB_RESOLVED — see d1 list above"
-          fi
+          sleep 120
