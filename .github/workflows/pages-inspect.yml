@@ -4,14 +4,23 @@ on:
 jobs:
   inspect:
     runs-on: ubuntu-latest
-    timeout-minutes: 6
+    timeout-minutes: 8
     steps:
-      - run: |
-          sleep 120
-          TS=$(date +%s)
-          C1=$(curl -s -o /tmp/d.html -w "%{http_code}" --max-time 25 "https://my-dashboard-2av.pages.dev/?t=$TS")
-          G1=$(grep -c "s-analytics" /tmp/d.html || true)
-          G2=$(grep -c "GA_GLOSSARY" /tmp/d.html || true)
-          C2=$(curl -s -o /tmp/g.json -w "%{http_code}" --max-time 25 "https://my-dashboard-2av.pages.dev/ga-data.json?t=$TS")
-          P=$(python3 -c "import json;print(len(json.load(open('/tmp/g.json'))['properties']))" 2>/dev/null || echo 0)
-          echo "DASH home=$C1 section=$G1 glossary=$G2 gadata=$C2 props=$P"
+      - uses: actions/checkout@v4
+      - name: D1 recon
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -e
+          echo "=== wrangler.toml (d1 section) ==="
+          grep -A6 "d1_databases" wrangler.toml || echo "no d1 in toml"
+          echo "=== D1 tables ==="
+          DB=$(grep -oP 'database_name = "\K[^"]+' wrangler.toml | head -1)
+          echo "DB=$DB"
+          npx --yes wrangler d1 execute "$DB" --remote --command "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name" --json 2>/dev/null | python3 -c "import json,sys; d=json.load(sys.stdin); print([r['name'] for r in d[0]['results']])" || echo "table list failed"
+          echo "=== trending/query-like table schemas ==="
+          for T in trending_queries search_queries popular_queries queries keywords popular_searches; do
+            SC=$(npx --yes wrangler d1 execute "$DB" --remote --command "SELECT sql FROM sqlite_master WHERE name='$T'" --json 2>/dev/null | python3 -c "import json,sys; d=json.load(sys.stdin); print(d[0]['results'][0]['sql'] if d[0]['results'] else '')" 2>/dev/null || echo "")
+            if [ -n "$SC" ]; then echo "TABLE $T: $SC"; fi
+          done
