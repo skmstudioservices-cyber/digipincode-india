@@ -6,39 +6,21 @@ on:
 jobs:
   inspect:
     runs-on: ubuntu-latest
-    timeout-minutes: 9
+    timeout-minutes: 8
     steps:
-      - name: Data fetch 2
+      - name: Create 5 CF Pages projects
         run: |
-          echo "=== DNS2 ==="
-          python3 -c "
-          import socket
-          for n in ['airqualitynearme','aqitoday','aqimapindia','isrotracker','isronow','isromissions']:
-              try:
-                  socket.gethostbyname(n + '.pages.dev'); print(n, 'TAKEN')
-              except Exception: print(n, 'AVAILABLE')
-          "
-          echo "=== AQI15 ==="
-          python3 -c "
-          import json, time, urllib.request
-          cities = {'delhi':(28.61,77.23),'mumbai':(19.08,72.88),'bengaluru':(12.97,77.59),'hyderabad':(17.39,78.49),'chennai':(13.06,80.22),'kolkata':(22.57,88.36),'pune':(18.52,73.86),'ahmedabad':(23.02,72.57),'jaipur':(26.91,75.79),'lucknow':(26.85,80.95),'surat':(21.17,72.83),'indore':(22.72,75.86),'chandigarh':(30.73,76.78),'bhopal':(23.26,77.41),'nagpur':(21.15,79.09)}
-          out = {}
-          for c,(la,lo) in cities.items():
-              try:
-                  u = f'https://air-quality-api.open-meteo.com/v1/air-quality?latitude={la}&longitude={lo}&current=us_aqi,pm2_5,pm10'
-                  d = json.loads(urllib.request.urlopen(u, timeout=25).read())['current']
-                  out[c] = {'aqi': d.get('us_aqi'), 'pm25': d.get('pm2_5'), 'pm10': d.get('pm10'), 'lat': la, 'lon': lo}
-                  time.sleep(1)
-              except Exception as e:
-                  out[c] = {'error': str(e)[:60]}
-          print('AQI15=' + json.dumps(out))
-          "
-          echo "=== LL2 retry ==="
-          sleep 20
-          curl -s --retry 4 --retry-delay 10 --max-time 40 "https://ll.thespacedevs.com/2.2.0/launches/upcoming/?limit=8&mode=list" -o /tmp/l.json
-          head -c 400 /tmp/l.json
-          echo ""
-          echo "=== ISS retry ==="
-          curl -s --retry 3 --retry-delay 5 --max-time 25 "https://api.wheretheiss.at/v1/satellites/25544"
-          echo ""
+          set -e
+          for name in airqualitynearme earthquakenearme isrotracker bharatlive issspotter; do
+            echo "=== $name ==="
+            R=$(curl -s --max-time 30 -X POST "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects" \
+              -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H "Content-Type: application/json" \
+              -d "{\"name\":\"$name\",\"production_branch\":\"main\",\"source\":{\"type\":\"github\",\"config\":{\"owner\":\"skmstudioservices-cyber\",\"repo_name\":\"$name\",\"production_branch\":\"main\",\"deployments_enabled\":true}}}")
+            echo "$R" | jq -c '{success, name: .result.name, domains: .result.domains, err: .errors}'
+            curl -s --max-time 30 -X POST "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects/$name/deployments" \
+              -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H "Content-Type: application/json" -d '{}' | jq -c '{deploy: .success}'
+          done
 
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
