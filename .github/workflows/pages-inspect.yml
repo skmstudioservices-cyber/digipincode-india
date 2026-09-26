@@ -6,23 +6,68 @@ on:
 jobs:
   inspect:
     runs-on: ubuntu-latest
-    timeout-minutes: 7
+    timeout-minutes: 6
     steps:
-      - name: Poll AQI city pages
+      - name: DNS availability EMD names
         run: |
-          set -e
-          for i in $(seq 1 8); do
-            out=""; allok=1
-            for s in "" delhi mumbai chandigarh nagpur; do
-              c=$(curl -sL -o /tmp/p.html -w "%{http_code}" --max-time 15 "https://airqualitynearme.pages.dev/$s")
-              g=$(grep -c "google-site-verification" /tmp/p.html || true)
-              q=$(grep -c "live" /tmp/p.html || true)
-              out="$out [/$s]=$c/$g"
-              { [ "$c" = "200" ] && [ "$g" -ge 1 ]; } || allok=0
-            done
-            echo "check $i:$out"
-            [ "$allok" = "1" ] && { echo "ALL CITY PAGES LIVE"; exit 0; }
-            sleep 30
-          done
-          echo "NOT ALL LIVE"
-
+          python3 -c "
+          import socket
+          names = '''asiangamesmedaltally2026
+          asiad2026medaltally
+          indiamedaltally2026
+          asian-games-tally-2026
+          asiangames2026india
+          asian-games-medal-table
+          medaltally2026
+          asiangames2026live
+          indiaasianmedals2026
+          asiangamesrank2026
+          ugcnetresult2026
+          ugcnetjune2026result
+          ugcnet2026resultlink
+          ugcnetcutoff2026
+          ugcnetscorecard2026
+          ugcnetresultdate2026
+          checkugcnetresult2026
+          ugcnetjune2026
+          ugcnetresulttoday2026
+          ugcnet2026news
+          indvswi2026
+          indiavswestindies2026
+          indvswi2026schedule
+          indvswiodi2026
+          indvswi2026live
+          indwi2026schedule
+          indvswiplaying11
+          westindiesinindia2026
+          indvswisquad2026
+          indvswi3rdodi
+          karvachauth2026date
+          karvachauth2026moontime
+          karvachauthmoonrise2026
+          karvachauth2026muhurat
+          karvachauth2026vrat
+          karvachauthkatha2026
+          karvachauth2026wishes
+          karvachauth2026today
+          chhattisgarhflood2026
+          chhattisgarhrainalert2026
+          cgschoolholiday2026
+          chhattisgarhfloodnews
+          raipurflood2026
+          bastarflood2026
+          chhattisgarhfloodhelpline
+          chhattisgarhweather2026
+          cgrainalert
+          chhattisgarhfloodupdate
+          nepalfloods2026
+          nepalfloodsupdate
+          gandakriverlevel2026
+          nepalindiafloods2026'''.split()
+          for n in names:
+              try:
+                  socket.gethostbyname(n + '.pages.dev')
+                  print(n, 'TAKEN')
+              except Exception:
+                  print(n, 'AVAILABLE')
+          "
