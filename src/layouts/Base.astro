@@ -46,7 +46,8 @@ const COLLECTING = 'Coming soon — we are collecting this from government recor
     window.dataLayer = window.dataLayer || [];
     function gtag(){dataLayer.push(arguments);}
     gtag('js', new Date());
-    gtag('config', 'G-30JK9GG08F');
+    var GA_ID = (location.hostname === 'digipincode.pages.dev') ? 'G-99Z495K2T8' : 'G-30JK9GG08F';
+    gtag('config', GA_ID);
   </script>
   <meta name="google-site-verification" content="GlkDu5ZL-CyyKjwPSj9d9X3Y2qsHUj_qAwRwxiLr7nI" />
   <meta charset="UTF-8" />
