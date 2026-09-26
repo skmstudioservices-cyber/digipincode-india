@@ -4,14 +4,11 @@ on:
 jobs:
   inspect:
     runs-on: ubuntu-latest
-    timeout-minutes: 6
+    timeout-minutes: 5
     steps:
-      - name: wait for deploy then check tag
-        run: |
-          sleep 100
-          for U in "examstatus.india-in.workers.dev/" "examstatus.india-in.workers.dev/ugc-net-june-2026-result" "examstatus.india-in.workers.dev/about"; do
-            CODE=$(curl -s -L -o /tmp/p.html -w "%{http_code}" --max-time 25 "https://$U")
-            TAG=$(grep -c "G-S4Q4JRTE2Y" /tmp/p.html || true)
-            GTM=$(grep -c "googletagmanager.com/gtag/js" /tmp/p.html || true)
-            echo "GACHECK $U -> $CODE GA_ID_HITS=$TAG GTM_SCRIPT=$GTM"
+      - run: |
+          for U in "digipincode.india-in.workers.dev/" "digipincode.pages.dev/"; do
+            CODE=$(curl -s -L -o /tmp/d.html -w "%{http_code}" --max-time 25 "https://$U")
+            TAG=$(grep -c "G-30JK9GG08F" /tmp/d.html || true)
+            echo "DPCHECK $U -> $CODE GA_TAG=$TAG"
           done
