@@ -4,12 +4,14 @@ on:
 jobs:
   inspect:
     runs-on: ubuntu-latest
-    timeout-minutes: 7
+    timeout-minutes: 6
     steps:
       - run: |
-          sleep 180
+          sleep 120
+          TS=$(date +%s)
           for U in "digipincode.india-in.workers.dev/" "digipincode.india-in.workers.dev/digipin/" "digipincode.pages.dev/" "digipincode.pages.dev/digipin/"; do
-            CODE=$(curl -s -L -o /tmp/d.html -w "%{http_code}" --max-time 25 "https://$U" || echo 000)
+            CODE=$(curl -s -L -o /tmp/d.html -w "%{http_code}" --max-time 25 "https://$U?v=$TS" || echo 000)
             TAG=$(grep -c "G-30JK9GG08F" /tmp/d.html 2>/dev/null || true)
-            echo "FINAL $U -> $CODE GA_TAG=$TAG"
+            echo "CB $U -> $CODE GA_TAG=$TAG (cache-busted)"
           done
+          echo "=== queue status ==="
