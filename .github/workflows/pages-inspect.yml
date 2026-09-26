@@ -1,19 +1,16 @@
 name: Pages Inspect
-
 on:
   workflow_dispatch:
-
 jobs:
   inspect:
     runs-on: ubuntu-latest
     timeout-minutes: 6
     steps:
-      - name: live checks
+      - name: wait for pages build then check
         run: |
-          for U in "asiangamesmedaltally2026.pages.dev/" "asiangamesmedaltally2026.pages.dev/about/" "floodsnearme.pages.dev/" "floodsnearme.pages.dev/design-preview/" "floodsnearme.pages.dev/chhattisgarh-floods-2026/" "floodsnearme.pages.dev/about/" "floodsnearme.pages.dev/privacy/" "floodsnearme.pages.dev/terms/" "floodsnearme.pages.dev/contact/" "floodsnearme.pages.dev/flood-safety/" "asiangamesmedaltally2026.pages.dev/privacy/" "asiangamesmedaltally2026.pages.dev/terms/" "asiangamesmedaltally2026.pages.dev/contact/" "asiangamesmedaltally2026.pages.dev/india-medal-winners/" "asiangamesmedaltally2026.pages.dev/asian-games-cricket/"; do
+          sleep 90
+          for U in "floodsnearme.pages.dev/about/" "floodsnearme.pages.dev/privacy/" "floodsnearme.pages.dev/terms/" "floodsnearme.pages.dev/contact/" "floodsnearme.pages.dev/design-preview/" "floodsnearme.pages.dev/favicon.svg" "floodsnearme.pages.dev/logo.svg" "floodsnearme.pages.dev/"; do
             CODE=$(curl -s -L -o /tmp/p.html -w "%{http_code}" --max-time 20 "https://$U")
-            TAG=$(grep -c "GlkDu5ZL" /tmp/p.html || true)
-            echo "CHECK $U -> $CODE TAG=$TAG"
+            TAG=$(grep -c "GlkDu5ZL" /tmp/p.html 2>/dev/null || true)
+            echo "RECHECK $U -> $CODE TAG=$TAG"
           done
-          echo "FAVICON_AG=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 https://asiangamesmedaltally2026.pages.dev/favicon.svg)"
-          echo "FAVICON_FL=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 https://floodsnearme.pages.dev/favicon.svg)"
