@@ -1,33 +1,18 @@
 name: Pages Inspect
 on:
   workflow_dispatch:
-permissions:
-  contents: write
-  actions: write
 jobs:
   inspect:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 7
     steps:
-      - uses: actions/checkout@v4
-      - name: Dual GA tag by hostname
-        run: |
-          set -e
-          python3 - <<'PY'
-          p = 'src/layouts/Base.astro'
-          src = open(p, encoding='utf-8').read()
-          OLD = "    gtag('config', 'G-30JK9GG08F');"
-          NEW = "    var GA_ID = (location.hostname === 'digipincode.pages.dev') ? 'G-99Z495K2T8' : 'G-30JK9GG08F';\n    gtag('config', GA_ID);"
-          if "G-99Z495K2T8" in src:
-              print('ALREADY_DUAL'); raise SystemExit(0)
-          if OLD not in src:
-              print('CONFIG_LINE_NOT_FOUND'); raise SystemExit(1)
-          src = src.replace(OLD, NEW, 1)
-          open(p, 'w', encoding='utf-8').write(src)
-          print('DUAL_TAG_PATCHED')
-          
-          PY
-          grep -n "GA_ID" src/layouts/Base.astro
-          git config user.name "ga-bot" && git config user.email "actions@github.com"
-          git add -A && git commit -m "GA: route pages.dev to Digipincode Pages property, workers.dev to Worker property" && git push
-          echo "PUSHED"
+      - run: |
+          sleep 150
+          TS=$(date +%s)
+          declare -A SITES=( ["https://floodsnearme.pages.dev/"]="G-S9LPPYLJNR" ["https://floodsnearme.pages.dev/chhattisgarh-floods-2026/"]="G-S9LPPYLJNR" ["https://floodsnearme.pages.dev/privacy/"]="G-S9LPPYLJNR" ["https://asiangamesmedaltally2026.pages.dev/"]="G-2B2GJVCH3N" ["https://asiangamesmedaltally2026.pages.dev/india-medal-winners/"]="G-2B2GJVCH3N" ["https://asiangamesmedaltally2026.pages.dev/privacy/"]="G-2B2GJVCH3N" ["https://digipincode.india-in.workers.dev/"]="G-99Z495K2T8" ["https://digipincode.pages.dev/"]="G-99Z495K2T8" )
+          for U in "${!SITES[@]}"; do
+            G="${SITES[$U]}"
+            CODE=$(curl -s -L -o /tmp/v.html -w "%{http_code}" --max-time 25 "$U?v=$TS" || echo 000)
+            TAG=$(grep -c "$G" /tmp/v.html 2>/dev/null || true)
+            echo "TAGCHECK $U -> $CODE TAG=$TAG"
+          done
