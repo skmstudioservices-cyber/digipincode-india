@@ -2,16 +2,23 @@ name: Pages Inspect
 on:
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   inspect:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
       - name: Branding audit - 4 sites
         run: |
           set -u
           CB=$(date +%s)
           FAIL=0
+          REPORT="audit-$(date -u +%Y%m%dT%H%M%SZ).txt"
 
           audit_site () {
             NAME="$1"; URL="$2"
@@ -47,6 +54,7 @@ jobs:
             done
           }
 
+          {
           audit_site digipincode-workers https://digipincode.india-in.workers.dev
           audit_site digipincode-pages https://digipincode.pages.dev
           audit_site mapsnearme-pages https://mapsnearme.pages.dev
@@ -76,4 +84,15 @@ jobs:
           fi
 
           echo "===== SUMMARY fail_flag=$FAIL ====="
-          exit $FAIL
+          } 2>&1 | tee "$REPORT"
+
+          mkdir -p .branding-audit
+          cp "$REPORT" .branding-audit/last-run.txt
+          git config user.name "skm-ops-bot"
+          git config user.email "skmstudio.services@gmail.com"
+          git checkout -b branding-audit-reports || git checkout branding-audit-reports
+          git add .branding-audit
+          git commit -m "branding audit report $(date -u +%FT%TZ)" || echo "nothing to commit"
+          git push origin branding-audit-reports -f || echo "push failed (report still in logs)"
+
+          grep -q 'fail_flag=0' "$REPORT" && exit 0 || exit 1
