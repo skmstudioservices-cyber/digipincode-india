@@ -1,0 +1,165 @@
+---
+import Layout from '../../layouts/Base.astro';
+import { festivalCities } from '../../data/cities';
+import { diwaliDays2026, diwaliFacts2026 } from '../../data/diwali';
+
+export const prerender = false;
+
+const q = Astro.url.searchParams.get('q')?.trim().toLowerCase() || '';
+const filtered = q
+  ? festivalCities.filter((c) => c.name.toLowerCase().includes(q) || c.state.toLowerCase().includes(q))
+  : festivalCities;
+
+const byState = filtered.reduce<Record<string, typeof festivalCities>>((acc, c) => {
+  (acc[c.state] ??= []).push(c);
+  return acc;
+}, {});
+
+const BASE = 'https://digipincode.india-in.workers.dev';
+
+const jsonLd = JSON.stringify({
+  '@context': 'https://schema.org',
+  '@graph': [
+    {
+      '@type': 'Event',
+      name: 'Diwali 2026 (Lakshmi Puja)',
+      startDate: '2026-11-08',
+      endDate: '2026-11-08',
+      eventStatus: 'https://schema.org/EventScheduled',
+      eventAttendanceMode: 'https://schema.org/OfflineEventAttendanceMode',
+      location: { '@type': 'Place', name: 'India (nationwide)', address: { '@type': 'PostalAddress', addressCountry: 'IN' } },
+      description: `Diwali 2026 falls on Sunday, 8 November 2026. The five-day cluster runs 5-11 November. Lakshmi Puja muhurat, city-wise timings, samagri and vidhi for ${festivalCities.length} cities.`,
+      url: `${BASE}/diwali/`,
+    },
+    {
+      '@type': 'BreadcrumbList',
+      itemListElement: [
+        { '@type': 'ListItem', position: 1, name: 'Home', item: `${BASE}/` },
+        { '@type': 'ListItem', position: 2, name: 'Diwali 2026', item: `${BASE}/diwali/` },
+      ],
+    },
+  ],
+});
+
+const title = 'Diwali 2026 — Dates, Lakshmi Puja Muhurat & City-wise Timings (5-11 November)';
+const description = `Diwali 2026 is on Sunday, 8 November 2026. Full 5-day schedule (Dhanteras 6 Nov, Diwali 8 Nov, Govardhan Puja 10 Nov, Bhai Dooj 11 Nov), Lakshmi Puja muhurat, and city-wise puja timings for ${festivalCities.length} Indian cities.`;
+---
+
+<Layout title={title} description={description}>
+  <script slot="head" type="application/ld+json" set:html={jsonLd} is:inline />
+
+  <section class="hero">
+    <h1>🪔 Diwali 2026 — Dates & City-wise Lakshmi Puja Timings</h1>
+    <p>
+      Diwali (Lakshmi Puja) falls on <strong>Sunday, 8 November 2026</strong>, with the festive
+      cluster running 5-11 November. Find your city's computed puja timings below —
+      <strong>{festivalCities.length} cities</strong>, each with its own muhurat window.
+    </p>
+    <form action="/diwali/" method="get" class="csearch">
+      <input type="search" name="q" placeholder="Search city or state — e.g. Jaipur, Kerala" value={q} />
+      <button type="submit">Find Your City</button>
+    </form>
+  </section>
+
+  <section class="quick">
+    <h2>Quick Answer</h2>
+    <table>
+      <tbody>
+        <tr><th>Diwali (Lakshmi Puja)</th><td><strong>Sunday, 8 November 2026</strong></td></tr>
+        <tr><th>Lakshmi Puja muhurat</th><td>{diwaliFacts2026.lakshmiMuhuratDelhi}</td></tr>
+        <tr><th>Dhanteras</th><td>Friday, 6 November — {diwaliFacts2026.dhanterasMuhuratDelhi}</td></tr>
+        <tr><th>2026 oddity</th><td>Choti Diwali falls on the same day as Diwali (8 Nov); Govardhan Puja is pushed to 10 Nov.</td></tr>
+      </tbody>
+    </table>
+    <p class="note">{diwaliFacts2026.adhikMaasNote}</p>
+  </section>
+
+  <section class="dates">
+    <h2>The Full Diwali 2026 Calendar</h2>
+    <table>
+      <thead><tr><th>Day</th><th>Date</th><th>Note</th></tr></thead>
+      <tbody>
+        {diwaliDays2026.map((d) => (
+          <tr><td>{d.day}</td><td><strong>{d.date}</strong></td><td>{d.note}</td></tr>
+        ))}
+      </tbody>
+    </table>
+  </section>
+
+  <section class="cities">
+    <h2>{q ? `Search Results (${filtered.length})` : `Diwali 2026 by City — ${festivalCities.length} Cities`}</h2>
+    {q && filtered.length === 0 && <p>No cities found matching "{q}" — try a city or state name.</p>}
+    {Object.entries(byState).map(([state, cities]) => (
+      <div class="state-block">
+        <h3>{state}</h3>
+        <ul>
+          {cities.map((c) => (
+            <li><a href={`/diwali/${c.slug}`}>Diwali 2026 in {c.name} — Lakshmi Puja muhurat</a></li>
+          ))}
+        </ul>
+      </div>
+    ))}
+  </section>
+
+  <section class="samagri">
+    <h2>Lakshmi Puja Samagri Checklist</h2>
+    <ul class="samagri-list">
+      {diwaliFacts2026.samagri.map((s) => (
+        <li>{s}</li>
+      ))}
+    </ul>
+  </section>
+
+  <section class="vidhi">
+    <h2>Lakshmi Puja Vidhi — Step by Step</h2>
+    <ol>
+      {diwaliFacts2026.vidhi.map((v) => (
+        <li>{v}</li>
+      ))}
+    </ol>
+    <p class="disc">
+      Every muhurat is city-specific — Drik Panchang itself asks users to select their city. Our city
+      pages compute the window from local sunset (validated within ±1 minute against published
+      panchang times for Delhi, Mumbai, Bengaluru, Chennai, Kolkata and Pune). Confirm with your
+      local panchang for the exact lagna timing.
+    </p>
+  </section>
+
+  <section class="related">
+    <h2>Related Festival Guides</h2>
+    <ul>
+      <li><a href="/karva-chauth/">Karva Chauth 2026 — moonrise time city-wise (29 October) →</a></li>
+      <li><a href="/chhath/">Chhath Puja 2026 — ghat directory for 39 cities (13-16 November) →</a></li>
+    </ul>
+  </section>
+</Layout>
+
+<style>
+  .hero { text-align: center; padding: 2rem 1rem 1rem; }
+  .csearch { margin: 1rem auto; max-width: 520px; display: flex; gap: .5rem; }
+  .csearch input { padding: .6rem; flex: 1; }
+  .csearch button { padding: .6rem 1.2rem; }
+  .quick { padding: 1rem; max-width: 760px; margin: 0 auto; }
+  .quick table { border-collapse: collapse; width: 100%; }
+  .quick th, .quick td { border: 1px solid #ddd; padding: .5rem .75rem; text-align: left; }
+  .quick th { background: #f5f5f5; }
+  .note { color: #777; font-size: .85rem; }
+  .dates { padding: 1rem; }
+  .dates table { border-collapse: collapse; width: 100%; max-width: 860px; margin: 0 auto; }
+  .dates th, .dates td { border: 1px solid #ddd; padding: .5rem .75rem; text-align: left; font-size: .92rem; }
+  .dates th { background: #f5f5f5; }
+  .cities { padding: 1rem; }
+  .state-block { margin: 1rem 0; }
+  .state-block ul { list-style: none; padding: 0; columns: 2; }
+  .state-block li { padding: .3rem 0; }
+  .samagri { padding: 1rem; }
+  .samagri-list { columns: 2; list-style: none; padding: 0; max-width: 760px; margin: 0 auto; }
+  .samagri-list li { padding: .35rem 0; border-bottom: 1px dashed #e5e5e5; }
+  .samagri-list li::before { content: '🪔 '; }
+  .vidhi { padding: 1rem; max-width: 760px; margin: 0 auto; }
+  .vidhi ol li { padding: .3rem 0; }
+  .disc { color: #777; font-size: .85rem; }
+  .related { padding: 1rem; max-width: 760px; margin: 0 auto; }
+  .related ul { list-style: none; padding: 0; }
+  @media (max-width: 600px) { .state-block ul, .samagri-list { columns: 1; } }
+</style>
