@@ -12,6 +12,7 @@ import {
   getPincode, getVillagesByPincode, getPanchayatsByPincode, getPanchayatByVillage,
 } from '../lib/db';
 import { BASE, stateUrl, districtUrl, subUrl, villageUrl, pincodeUrl, parseSubSegment } from '../lib/urls';
+import { FRESHNESS, fmtDate } from '../config/site';
 
 const raw = Astro.params.path ?? '';
 const segs = (Array.isArray(raw) ? raw.join('/') : String(raw)).split('/').filter(Boolean).map(s => decodeURIComponent(s));
@@ -302,5 +303,5 @@ function subWordLocal(s) { return s && ['andhra-pradesh','telangana','karnataka'
     </details>
   ))}
   <Fragment set:html={share(title, url)} />
-  <p class="updated">✅ Data verified September 2026 · <a href="/states">All India states</a></p>
+  <p class="updated">✅ Data verified {fmtDate(FRESHNESS.dataVerified)} · <a href="/states">All India states</a></p>
 </Layout>
