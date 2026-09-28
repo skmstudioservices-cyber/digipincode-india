@@ -2,6 +2,7 @@
 import Layout from '../layouts/Base.astro';
 import { getStates } from '../lib/db';
 import { stateUrl } from '../lib/urls';
+import { FRESHNESS, fmtDate } from '../config/site';
 
 export const prerender = false;
 const states = await getStates(Astro.locals.runtime.env.DB);
@@ -38,5 +39,5 @@ const states = await getStates(Astro.locals.runtime.env.DB);
     ))}
   </div>
 
-  <p class="updated">✅ Data verified September 2026 · <a href="/">Back to search</a></p>
+  <p class="updated">✅ Data verified {fmtDate(FRESHNESS.dataVerified)} · <a href="/">Back to search</a></p>
 </Layout>
