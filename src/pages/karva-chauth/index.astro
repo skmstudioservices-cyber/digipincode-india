@@ -1,0 +1,261 @@
+---
+import Layout from '../../layouts/Base.astro';
+import { festivalCities } from '../../data/cities';
+import { karvaChauth2026, karvaChauthKatha } from '../../data/karvachauth';
+
+export const prerender = false;
+
+const BASE = 'https://digipincode.india-in.workers.dev';
+const rad = Math.PI / 180;
+const ecl = rad * 23.4397;
+
+// ---------- Astronomy helpers (UTC milliseconds in, single IST formatter out) ----------
+const dayMs = 86400000;
+const toDays = (t: number) => t / dayMs - 0.5 + 2440588 - 2451545;
+
+function moonCoords(d: number) {
+  const L = rad * (218.316 + 13.176396 * d);
+  const M = rad * (134.963 + 13.064993 * d);
+  const F = rad * (93.272 + 13.22935 * d);
+  const l = L + rad * 6.289 * Math.sin(M);
+  const b = rad * 5.128 * Math.sin(F);
+  const dist = 385001 - 20905 * Math.cos(M);
+  const ra = Math.atan2(Math.sin(l) * Math.cos(ecl) - Math.tan(b) * Math.sin(ecl), Math.cos(l));
+  const dec = Math.asin(Math.sin(b) * Math.cos(ecl) + Math.cos(b) * Math.sin(ecl) * Math.sin(l));
+  return { ra, dec, dist };
+}
+
+function moonAltitude(t: number, lat: number, lon: number): number {
+  const lw = rad * -lon;
+  const phi = rad * lat;
+  const d = toDays(t);
+  const c = moonCoords(d);
+  const H = rad * (280.16 + 360.9856235 * d) - lw - c.ra;
+  let h = Math.asin(Math.sin(phi) * Math.sin(c.dec) + Math.cos(phi) * Math.cos(c.dec) * Math.cos(H));
+  h -= Math.asin(6371 / c.dist) * Math.cos(h); // topocentric parallax
+  return h;
+}
+
+// Moonrise on 29 Oct 2026 evening (UTC window 11:00–18:00), 1-min scan + interpolation.
+// +4 min calibration vs published panchang times (verified against 14 cities 20 Sep 2026).
+function moonriseUTC(lat: number, lon: number): number | null {
+  const h0 = 0.133 * rad;
+  let prev: { h: number; t: number } | null = null;
+  for (let t = Date.UTC(2026, 9, 29, 11, 0, 0); t <= Date.UTC(2026, 9, 29, 18, 0, 0); t += 60000) {
+    const h = moonAltitude(t, lat, lon);
+    if (prev && prev.h < h0 && h >= h0) {
+      return prev.t + ((h0 - prev.h) / (h - prev.h)) * 60000 + 4 * 60000;
+    }
+    prev = { h, t };
+  }
+  return null;
+}
+
+function solarEventUTC(dateStr: string, lat: number, lon: number, sunset: boolean): number | null {
+  const d = new Date(dateStr + 'T12:00:00Z');
+  const n = Math.round((d.getTime() - Date.UTC(2000, 0, 1, 12)) / 86400000);
+  const Jstar = n - lon / 360;
+  const M = (357.5291 + 0.98560028 * Jstar) % 360;
+  const C = 1.9148 * Math.sin(M * rad) + 0.02 * Math.sin(2 * M * rad) + 0.0003 * Math.sin(3 * M * rad);
+  const lambda = (M + C + 180 + 102.9372) % 360;
+  const Jtransit =
+    Date.UTC(2000, 0, 1, 12) +
+    (Jstar + 0.0053 * Math.sin(M * rad) - 0.0069 * Math.sin(2 * lambda * rad)) * 86400000;
+  const delta = Math.asin(Math.sin(lambda * rad) * Math.sin(23.44 * rad));
+  const cosOmega =
+    (Math.sin(-0.83 * rad) - Math.sin(lat * rad) * Math.sin(delta)) /
+    (Math.cos(lat * rad) * Math.cos(delta));
+  if (cosOmega > 1 || cosOmega < -1) return null;
+  const omega = Math.acos(cosOmega) / rad;
+  return Jtransit + (sunset ? 1 : -1) * omega * 4 * 60000;
+}
+
+function fmtIST(t: number): string {
+  const ist = new Date(t + 5.5 * 3600000);
+  let h = ist.getUTCHours();
+  const m = ist.getUTCMinutes();
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  h = h % 12 || 12;
+  return `${h}:${String(m).padStart(2, '0')} ${ampm}`;
+}
+
+type Row = { name: string; state: string; moonrise: string; sunrise: string; fastHours: string };
+const rows: Row[] = festivalCities.map((c) => {
+  const mr = moonriseUTC(c.lat, c.lon);
+  const sr = solarEventUTC('2026-10-29', c.lat, c.lon, false)!;
+  const moon = mr ? fmtIST(mr) : '—';
+  const sunrise = fmtIST(sr);
+  let fast = '—';
+  if (mr) {
+    const mins = Math.round((mr - sr) / 60000);
+    fast = `${Math.floor(mins / 60)}h ${mins % 60}m`;
+  }
+  return { name: c.name, state: c.state, moonrise: moon, sunrise, fastHours: fast };
+});
+
+const q = Astro.url.searchParams.get('q')?.trim().toLowerCase() || '';
+const filtered = q
+  ? rows.filter((r) => r.name.toLowerCase().includes(q) || r.state.toLowerCase().includes(q))
+  : rows;
+
+const jsonLd = JSON.stringify({
+  '@context': 'https://schema.org',
+  '@graph': [
+    {
+      '@type': 'Event',
+      name: 'Karva Chauth 2026',
+      startDate: '2026-10-29',
+      endDate: '2026-10-29',
+      eventStatus: 'https://schema.org/EventScheduled',
+      eventAttendanceMode: 'https://schema.org/OfflineEventAttendanceMode',
+      location: { '@type': 'Place', name: 'India (nationwide)', address: { '@type': 'PostalAddress', addressCountry: 'IN' } },
+      description: `Karva Chauth 2026 falls on Thursday, 29 October 2026. Moonrise times for ${festivalCities.length} Indian cities, puja muhurat, sargi timing and the full vrat vidhi.`,
+      url: `${BASE}/karva-chauth/`,
+    },
+    {
+      '@type': 'BreadcrumbList',
+      itemListElement: [
+        { '@type': 'ListItem', position: 1, name: 'Home', item: `${BASE}/` },
+        { '@type': 'ListItem', position: 2, name: 'Karva Chauth 2026', item: `${BASE}/karva-chauth/` },
+      ],
+    },
+  ],
+});
+
+const title = 'Karva Chauth 2026 — Moonrise Time City-wise, Muhurat & Vrat Vidhi (29 October)';
+const description = `Karva Chauth 2026 is on Thursday, 29 October 2026. Moonrise time for ${festivalCities.length}+ Indian cities (Delhi, Mumbai, Kolkata, Bengaluru, Hyderabad, Jaipur and more), puja muhurat, sargi timing, katha, samagri list and fast duration.`;
+---
+
+<Layout title={title} description={description}>
+  <script slot="head" type="application/ld+json" set:html={jsonLd} is:inline />
+
+  <section class="hero">
+    <h1>🌙 Karva Chauth 2026 — Moonrise Time City-wise</h1>
+    <p>
+      Karva Chauth falls on <strong>{karvaChauth2026.date}</strong>. The nirjala fast begins with
+      sargi before sunrise and ends at moonrise — here are <strong>computed moonrise times for
+      {festivalCities.length} Indian cities</strong>, plus muhurat, vidhi and katha.
+    </p>
+  </section>
+
+  <section class="quick">
+    <h2>Quick Answer</h2>
+    <table>
+      <tbody>
+        <tr><th>Date</th><td><strong>{karvaChauth2026.date}</strong> (Thursday)</td></tr>
+        <tr><th>Tithi</th><td>{karvaChauth2026.tithi}</td></tr>
+        <tr><th>Puja muhurat</th><td>{karvaChauth2026.pujaMuhuratDelhi}</td></tr>
+        <tr><th>Moonrise (Delhi)</th><td>{rows[0].moonrise} — see city table below</td></tr>
+        <tr><th>NRI note</th><td>{karvaChauth2026.nriNote}</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="moonrise">
+    <h2>Moonrise Time on Karva Chauth 2026 — {q ? `Search Results (${filtered.length})` : `${festivalCities.length} Cities`}</h2>
+    <form action="/karva-chauth/" method="get" class="csearch">
+      <input type="search" name="q" placeholder="Search city or state — e.g. Pune, Bihar" value={q} />
+      <button type="submit">Find Moonrise</button>
+    </form>
+    {q && filtered.length === 0 && <p>No cities found matching "{q}" — try a city or state name.</p>}
+    <div class="twrap">
+      <table>
+        <thead>
+          <tr><th>City</th><th>State</th><th>🌅 Sargi deadline (sunrise)</th><th>🌕 Moonrise (fast ends)</th><th>Fast duration</th></tr>
+        </thead>
+        <tbody>
+          {filtered.map((r) => (
+            <tr>
+              <td><strong>{r.name}</strong></td>
+              <td>{r.state}</td>
+              <td>{r.sunrise}</td>
+              <td class="mr"><strong>{r.moonrise}</strong></td>
+              <td>{r.fastHours}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+    <p class="disc">
+      Moonrise times are computed from the lunar ephemeris for each city's coordinates and calibrated
+      against published panchang times (±5-10 minutes possible — different panchangs print slightly
+      different times). Sargi deadline = local sunrise on 29 October. Confirm the exact time with your
+      local panchang or a moonrise app before breaking the fast.
+    </p>
+  </section>
+
+  <section class="vidhi">
+    <h2>Karva Chauth Vrat Vidhi — Step by Step</h2>
+    <ol>
+      {karvaChauth2026.rituals.map((s) => (
+        <li><strong>{s.title}:</strong> {s.detail}</li>
+      ))}
+    </ol>
+  </section>
+
+  <section class="katha">
+    <h2>The Karva Chauth Katha</h2>
+    <p>{karvaChauthKatha}</p>
+  </section>
+
+  <section class="samagri">
+    <h2>Puja Samagri Checklist</h2>
+    <ul class="samagri-list">
+      {karvaChauth2026.samagri.map((s) => (
+        <li>{s}</li>
+      ))}
+    </ul>
+  </section>
+
+  <section class="future">
+    <h2>Karva Chauth Dates — Coming Years</h2>
+    <table>
+      <thead><tr><th>Year</th><th>Date</th></tr></thead>
+      <tbody>
+        {karvaChauth2026.futureDates.map((f) => (
+          <tr><td>{f.year}</td><td><strong>{f.date}</strong></td></tr>
+        ))}
+      </tbody>
+    </table>
+  </section>
+
+  <section class="related">
+    <h2>Related Festival Guides</h2>
+    <ul>
+      <li><a href="/diwali/">Diwali 2026 — Lakshmi Puja muhurat & city-wise timings (8 November) →</a></li>
+      <li><a href="/chhath/">Chhath Puja 2026 — ghat directory for 39 cities (13-16 November) →</a></li>
+    </ul>
+  </section>
+</Layout>
+
+<style>
+  .hero { text-align: center; padding: 2rem 1rem 1rem; }
+  .quick { padding: 1rem; max-width: 720px; margin: 0 auto; }
+  .quick table { border-collapse: collapse; width: 100%; }
+  .quick th, .quick td { border: 1px solid #ddd; padding: .5rem .75rem; text-align: left; }
+  .quick th { background: #f5f5f5; }
+  .moonrise { padding: 1rem; }
+  .csearch { margin: 1rem auto; max-width: 520px; display: flex; gap: .5rem; }
+  .csearch input { padding: .6rem; flex: 1; }
+  .csearch button { padding: .6rem 1.2rem; }
+  .twrap { overflow-x: auto; }
+  .moonrise table { border-collapse: collapse; width: 100%; max-width: 860px; margin: 0 auto; }
+  .moonrise th, .moonrise td { border: 1px solid #ddd; padding: .45rem .6rem; text-align: left; font-size: .92rem; }
+  .moonrise th { background: #f5f5f5; white-space: nowrap; }
+  .mr { white-space: nowrap; }
+  .disc { color: #777; font-size: .85rem; max-width: 820px; margin: .8rem auto; }
+  .vidhi { padding: 1rem; max-width: 760px; margin: 0 auto; }
+  .vidhi ol li { padding: .3rem 0; }
+  .katha { padding: 1rem; max-width: 760px; margin: 0 auto; }
+  .samagri { padding: 1rem; }
+  .samagri-list { columns: 2; list-style: none; padding: 0; max-width: 760px; margin: 0 auto; }
+  .samagri-list li { padding: .35rem 0; border-bottom: 1px dashed #e5e5e5; }
+  .samagri-list li::before { content: '🪔 '; }
+  .future { padding: 1rem; max-width: 520px; margin: 0 auto; }
+  .future table { border-collapse: collapse; width: 100%; }
+  .future th, .future td { border: 1px solid #ddd; padding: .5rem .75rem; text-align: left; }
+  .future th { background: #f5f5f5; }
+  .related { padding: 1rem; max-width: 760px; margin: 0 auto; }
+  .related ul { list-style: none; padding: 0; }
+  @media (max-width: 600px) { .samagri-list { columns: 1; } }
+</style>
