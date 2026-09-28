@@ -1,0 +1,20 @@
+name: Tmp Footer Verify (one-off)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Grep live pages for freshness line
+        run: |
+          for u in "" "kerala" "states" "pincode/110001"; do
+            url="https://digipincode.india-in.workers.dev/$u?cb=$RANDOM"
+            code=$(curl -s -o /tmp/f.html -w "%{http_code}" --max-time 30 "$url")
+            echo "=== /$u -> $code"
+            echo "  last-updated line: $(grep -c 'Page last updated' /tmp/f.html || true)"
+            echo "  data-verified 22 Sep: $(grep -c '22 September 2026' /tmp/f.html || true)"
+            echo "  online-since 14 Sep: $(grep -c '14 September 2026' /tmp/f.html || true)"
+            grep -o 'Page last updated[^<]*' /tmp/f.html | head -1
+          done
