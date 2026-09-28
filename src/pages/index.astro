@@ -2,6 +2,7 @@
 import Layout from '../layouts/Base.astro';
 import { getStates } from '../lib/db';
 import { chhathCities, chhathDates2026 } from '../data/chhath';
+import { festivalCities } from '../data/cities';
 import { stateUrl } from '../lib/urls';
 
 export const prerender = false;
@@ -26,13 +27,25 @@ const states = await getStates(Astro.locals.runtime.env.DB);
     </form>
   </section>
 
-  <section class="chhath-banner">
-    <h2>🌊 Chhath Puja 2026 — Ghat Directory</h2>
-    <p>
-      {chhathDates2026[0].date.split(', ')[1]} se {chhathDates2026[3].date.split(', ')[1]} — find Chhath ghats, ponds and beaches
-      in {chhathCities.length} cities: Patna, Delhi, Varanasi, Lucknow, Mumbai, Bengaluru, Hyderabad & more.
-    </p>
-    <p><a href="/chhath/">View all Chhath Puja 2026 ghats →</a></p>
+  <section class="fest-banner">
+    <h2>🪔 Festival Season 2026</h2>
+    <div class="fest-grid">
+      <div class="fest-card kc">
+        <h3>🌙 Karva Chauth — 29 October</h3>
+        <p>Moonrise time for {festivalCities.length} cities, sargi deadline, muhurat & vrat vidhi.</p>
+        <p><a href="/karva-chauth/">Karva Chauth 2026 moonrise timings →</a></p>
+      </div>
+      <div class="fest-card diwali">
+        <h3>🪔 Diwali — 8 November</h3>
+        <p>Lakshmi Puja muhurat & city-wise timings for {festivalCities.length} cities, full 5-day calendar, samagri & vidhi.</p>
+        <p><a href="/diwali/">Diwali 2026 city-wise timings →</a></p>
+      </div>
+      <div class="fest-card chhath">
+        <h3>🌊 Chhath Puja — 13-16 November</h3>
+        <p>Chhath ghats, ponds and beaches in {chhathCities.length} cities: Patna, Delhi, Varanasi, Lucknow & more.</p>
+        <p><a href="/chhath/">View all Chhath Puja 2026 ghats →</a></p>
+      </div>
+    </div>
   </section>
 
   <h2>Browse by State</h2>
@@ -48,7 +61,7 @@ const states = await getStates(Astro.locals.runtime.env.DB);
 </Layout>
 
 <style>
-  .chhath-banner {
+  .fest-banner {
     background: #fff8ec;
     border: 1px solid #f0dcb4;
     border-radius: 10px;
@@ -56,6 +69,12 @@ const states = await getStates(Astro.locals.runtime.env.DB);
     margin: 0 0 2rem;
     text-align: center;
   }
-  .chhath-banner h2 { margin: 0 0 .4rem; font-size: 1.25rem; }
-  .chhath-banner p { margin: .3rem 0; }
+  .fest-banner h2 { margin: 0 0 .8rem; font-size: 1.25rem; }
+  .fest-grid { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
+  .fest-card { flex: 1 1 240px; max-width: 320px; border-radius: 10px; padding: .9rem 1.1rem; text-align: left; }
+  .fest-card.kc { background: #f3f0fa; border: 1px solid #d9d0ee; }
+  .fest-card.diwali { background: #fdf1e3; border: 1px solid #f0dcb4; }
+  .fest-card.chhath { background: #e9f4f9; border: 1px solid #c9e2ee; }
+  .fest-card h3 { margin: 0 0 .4rem; font-size: 1rem; }
+  .fest-card p { margin: .3rem 0; font-size: .88rem; }
 </style>
