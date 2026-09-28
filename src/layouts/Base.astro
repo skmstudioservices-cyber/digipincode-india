@@ -1,5 +1,5 @@
 ---
-import { SITE, NAV_LINKS, FOOTER_LINKS } from '../config/site';
+import { SITE, NAV_LINKS, FOOTER_LINKS, FRESHNESS, fmtDate } from '../config/site';
 interface Props {
   title?: string;
   description?: string;
@@ -128,6 +128,11 @@ const COLLECTING = 'Coming soon — we are collecting this from government recor
         {FOOTER_LINKS.map((l) => <p><a href={l.href}>{l.label}</a></p>)}
       </div>
     </div>
+    <p class="muted">
+      Page last updated <time datetime={FRESHNESS.codeUpdated}>{fmtDate(FRESHNESS.codeUpdated)}</time> ·
+      India Post & LGD data verified <time datetime={FRESHNESS.dataVerified}>{fmtDate(FRESHNESS.dataVerified)}</time> ·
+      directory online since <time datetime={FRESHNESS.firstPublished}>{fmtDate(FRESHNESS.firstPublished)}</time>
+    </p>
     <p class="muted">© {new Date().getFullYear()} {SITE.name} · SKM Studio Network · Data: India Post & LGD Directory</p>
   </footer>
   <button id="save-page-btn" class="save-btn" type="button" title="Save this page to your favourites">🔖 Save</button>
