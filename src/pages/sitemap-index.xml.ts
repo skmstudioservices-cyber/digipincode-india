@@ -1,6 +1,6 @@
 // Sitemap index — SSR endpoint. Google allows 50K URLs per sitemap.
 // We generate one sitemap per state (37 states × ~16K villages = ~600K URLs)
-// plus dedicated sitemaps for special sections (chhath).
+// plus dedicated sitemaps for special sections (chhath, diwali, karva-chauth).
 export const prerender = false;
 
 export async function GET({ request, locals }) {
@@ -13,6 +13,8 @@ export async function GET({ request, locals }) {
       `${base}/sitemap-${s.slug}.xml`
     ),
     `${base}/sitemap-chhath.xml`,
+    `${base}/sitemap-diwali.xml`,
+    `${base}/sitemap-karvachauth.xml`,
   ];
 
   const body = `<?xml version="1.0" encoding="UTF-8"?>
