@@ -1,32 +1,16 @@
-# Digipincode
+# India Pincode Directory (digipincode)
 
-India's village, pincode and panchayat directory: 6 lakh villages, 1.5 lakh+ pincodes, LGD codes, DIGIPIN and post office details for every place in India.
-
-> Data sources: India Post pincode directory, Census of India, Local Government Directory (LGD), Ministry of Panchayati Raj. Facility data is progressively verified from Census 2011 Village Directory / DCHB records.
+Free directory of every pincode, village, panchayat and district in India — 6 lakh places with LGD codes, census data and DIGIPIN. Independent site, not an official India Post website.
 
 ## Key pages
 
-- [Home & search](https://digipincode.india-in.workers.dev/): search any pincode, village or panchayat
-- [All states](https://digipincode.india-in.workers.dev/states): browse the full state › district › tehsil › village hierarchy
-- [DIGIPIN guide & tools](https://digipincode.india-in.workers.dev/digipin/): what is my DIGIPIN, official India Post encoder + decoder
-- [Pincode pages](https://digipincode.india-in.workers.dev/haryana/district-jhajjar/pincode-124507): post office, delivery status, villages and panchayats per pincode
-- [Village pages](https://digipincode.india-in.workers.dev/haryana/district-kaithal/tehsil-dhand-st/village-aahu-19/pincode-136021): population, LGD/census codes, DIGIPIN, panchayat, post office and facilities
-- [Panchayat pages](https://digipincode.india-in.workers.dev/panchayat/1234567): local body details, block, villages
-- [Saved pages](https://digipincode.india-in.workers.dev/saved): user favourites (client-side only)
+- [Home — India Pincode Directory](https://digipincode.pages.dev/): search 6 lakh villages, panchayats & pincodes; browse states → districts → tehsils → villages → pincodes.
+- [DIGIPIN — India Post Digital Address Code](https://digipincode.pages.dev/digipin/): what DIGIPIN is (10-character official digital address code, ~3.8 m precision), how to find your DIGIPIN, decode any DIGIPIN code to its location, DIGIPIN vs PIN code difference, format (XXX-YYY-ZZZZ), and uses for delivery, emergency services, KYC and logistics. Runs India Post's official open-source algorithm entirely in the browser.
 
-## Site structure (URL v2 — full hierarchy)
+## About
 
-/{state} — all districts of a state
-/{state}/district-{district} — sub-districts, village stats, largest villages
-/{state}/district-{district}/{tehsil|taluk}-{tehsil} — all villages with pincodes
-/{state}/district-{district}/{tehsil|taluk}-{tehsil}/village-{village}/pincode-{pincode} — individual village profile
-/{state}/district-{district}/pincode-{6-digit-pincode} — post office and area details
-/panchayat/{lgd-code} — panchayat administration details
-/digipin/ — DIGIPIN guide, finder and decoder (official India Post algorithm)
+All data is collected from government records (Census 2011, District Census Handbooks, India Post). Where a value is not collected yet, the site says so explicitly — no guessed data.
 
-Legacy short URLs (/village/…, /pincode/…, /state/…) permanently redirect (301) to the hierarchy URLs above.
+## Contact
 
-## Notes
-
-- Facility fields on village pages show collection status until verified Census 2011 values are imported — no invented data.
-- User corrections welcome via the Report an Issue button on every page.
+- Report an issue: use the "Report an Issue" button on any pincode page.
