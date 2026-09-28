@@ -3,6 +3,7 @@ import Layout from '../../layouts/Base.astro';
 // Panchayat page — SSR from LGD data
 export const prerender = false;
 import { getPanchayatByCode, getVillagesByPanchayat } from '../../lib/db';
+import { FRESHNESS, fmtDate } from '../../config/site';
 
 const { lgd_code } = Astro.params;
 const panchayat = await getPanchayatByCode(Astro.locals.runtime.env.DB, lgd_code);
@@ -105,5 +106,5 @@ const shareText = encodeURIComponent(`${panchayat.local_body_name} — ${panchay
   </div>
 
   <p class="note">Panchayat details from the Ministry of Panchayati Raj's Local Government Directory (LGD).</p>
-  <p class="updated">✅ Data verified September 2026</p>
+  <p class="updated">✅ Data verified {fmtDate(FRESHNESS.dataVerified)}</p>
 </Layout>
