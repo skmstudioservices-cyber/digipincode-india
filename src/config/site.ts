@@ -26,3 +26,21 @@ export const FOOTER_LINKS = [
   { href: '/terms', label: 'Terms of Use' },
   { href: '/disclaimer', label: 'Disclaimer' },
 ];
+
+// Freshness dates — REAL dates only, from git history. Update ONLY when the
+// thing actually changes (fake freshness = spam signal for crawlers).
+// firstPublished: repo + directory first built (repo created 14 Sep 2026)
+// dataVerified:   last sql/ data commit (India Post / LGD refresh)
+// codeUpdated:    last src/ commit (site code + pages)
+export const FRESHNESS = {
+  firstPublished: '2026-09-14',
+  dataVerified: '2026-09-22',
+  codeUpdated: '2026-09-29',
+};
+
+// "14 September 2026" style formatter for visible <time> elements.
+export function fmtDate(iso: string): string {
+  return new Date(`${iso}T00:00:00Z`).toLocaleDateString('en-IN', {
+    day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC',
+  });
+}
