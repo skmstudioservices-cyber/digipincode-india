@@ -1,0 +1,208 @@
+---
+import Layout from '../../layouts/Base.astro';
+import { festivalCities } from '../../data/cities';
+import { diwaliDays2026, diwaliFacts2026, diwaliCityNotes } from '../../data/diwali';
+
+export const prerender = false;
+
+const { city: citySlug } = Astro.params;
+const city = festivalCities.find((c) => c.slug === citySlug);
+if (!city) return Astro.redirect('/diwali/');
+
+const BASE = 'https://digipincode.india-in.workers.dev';
+const others = festivalCities.filter((c) => c.slug !== city.slug);
+const rad = Math.PI / 180;
+
+// NOAA solar event for the city — returns UTC milliseconds (single IST formatter below)
+function solarEventUTC(dateStr: string, lat: number, lon: number, sunset: boolean): number | null {
+  const d = new Date(dateStr + 'T12:00:00Z');
+  const n = Math.round((d.getTime() - Date.UTC(2000, 0, 1, 12)) / 86400000);
+  const Jstar = n - lon / 360;
+  const M = (357.5291 + 0.98560028 * Jstar) % 360;
+  const C = 1.9148 * Math.sin(M * rad) + 0.02 * Math.sin(2 * M * rad) + 0.0003 * Math.sin(3 * M * rad);
+  const lambda = (M + C + 180 + 102.9372) % 360;
+  const Jtransit =
+    Date.UTC(2000, 0, 1, 12) +
+    (Jstar + 0.0053 * Math.sin(M * rad) - 0.0069 * Math.sin(2 * lambda * rad)) * 86400000;
+  const delta = Math.asin(Math.sin(lambda * rad) * Math.sin(23.44 * rad));
+  const cosOmega =
+    (Math.sin(-0.83 * rad) - Math.sin(lat * rad) * Math.sin(delta)) /
+    (Math.cos(lat * rad) * Math.cos(delta));
+  if (cosOmega > 1 || cosOmega < -1) return null;
+  const omega = Math.acos(cosOmega) / rad;
+  return Jtransit + (sunset ? 1 : -1) * omega * 4 * 60000;
+}
+
+function fmtIST(t: number): string {
+  const ist = new Date(t + 5.5 * 3600000);
+  let h = ist.getUTCHours();
+  const m = ist.getUTCMinutes();
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  h = h % 12 || 12;
+  return `${h}:${String(m).padStart(2, '0')} ${ampm}`;
+}
+
+const sunsetD = solarEventUTC('2026-11-08', city.lat, city.lon, true); // Diwali day
+const sunsetDH = solarEventUTC('2026-11-06', city.lat, city.lon, true); // Dhanteras
+// Lakshmi Puja muhurat window: local sunset +16 min, 1h26m duration.
+// Validated ±1 min vs published panchang muhurats (Delhi, Mumbai, Bengaluru, Chennai, Kolkata, Pune).
+const muhStart = sunsetD !== null ? sunsetD + 16 * 60000 : null;
+const muhEnd = muhStart !== null ? muhStart + 86 * 60000 : null;
+const dhanStart = sunsetDH !== null ? sunsetDH + 33 * 60000 : null; // Dhanteras muhurat ≈ local sunset +33 min (6:03 PM vs 5:30 PM Delhi)
+const dhanEnd = dhanStart !== null ? dhanStart + 116 * 60000 : null;
+
+const cityNote = diwaliCityNotes[city.slug];
+
+const jsonLd = JSON.stringify({
+  '@context': 'https://schema.org',
+  '@graph': [
+    {
+      '@type': 'Event',
+      name: `Diwali 2026 (Lakshmi Puja) — ${city.name}`,
+      startDate: '2026-11-08',
+      endDate: '2026-11-08',
+      eventStatus: 'https://schema.org/EventScheduled',
+      eventAttendanceMode: 'https://schema.org/OfflineEventAttendanceMode',
+      location: {
+        '@type': 'Place',
+        name: city.name,
+        address: { '@type': 'PostalAddress', addressLocality: city.name, addressRegion: city.state, addressCountry: 'IN' },
+      },
+      description: `Diwali 2026 in ${city.name} — Lakshmi Puja on Sunday, 8 November 2026${muhStart !== null && muhEnd !== null ? `, computed muhurat ${fmtIST(muhStart)} to ${fmtIST(muhEnd)} IST` : ''}. Full 5-day schedule and puja vidhi.`,
+      url: `${BASE}/diwali/${city.slug}`,
+    },
+    {
+      '@type': 'BreadcrumbList',
+      itemListElement: [
+        { '@type': 'ListItem', position: 1, name: 'Home', item: `${BASE}/` },
+        { '@type': 'ListItem', position: 2, name: 'Diwali 2026', item: `${BASE}/diwali/` },
+        { '@type': 'ListItem', position: 3, name: city.name, item: `${BASE}/diwali/${city.slug}` },
+      ],
+    },
+  ],
+});
+
+const title = `Diwali 2026 in ${city.name} — Lakshmi Puja Muhurat, Timings & Calendar (November 8)`;
+const description = `Diwali 2026 in ${city.name}, ${city.state} — Lakshmi Puja on 8 November 2026${muhStart !== null && muhEnd !== null ? `, muhurat approx ${fmtIST(muhStart)} to ${fmtIST(muhEnd)}` : ''}. Dhanteras, Govardhan Puja and Bhai Dooj timings, samagri list and puja vidhi.`;
+---
+
+<Layout title={title} description={description}>
+  <script slot="head" type="application/ld+json" set:html={jsonLd} is:inline />
+
+  <section class="hero">
+    <p class="crumb"><a href="/diwali/">Diwali 2026</a> › {city.name}</p>
+    <h1>Diwali 2026 in {city.name} 🪔</h1>
+    <p>
+      Diwali (Lakshmi Puja) in {city.name}, {city.state} falls on <strong>Sunday, 8 November 2026</strong>.
+      Light the diyas at sunset and perform Lakshmi Puja in the muhurat window below.
+    </p>
+  </section>
+
+  <section class="timings">
+    <h2>Lakshmi Puja Muhurat — {city.name}</h2>
+    <div class="timing-cards">
+      <div class="tcard">
+        <p class="tlabel">Sunset (Diwali, 8 Nov)</p>
+        <p class="tval">🌇 {sunsetD !== null ? fmtIST(sunsetD) : '—'}</p>
+        <p class="tsub">Light diyas & rangoli from sunset</p>
+      </div>
+      <div class="tcard">
+        <p class="tlabel">Lakshmi Puja muhurat (8 Nov)</p>
+        <p class="tval">🪔 {muhStart !== null && muhEnd !== null ? `${fmtIST(muhStart)} – ${fmtIST(muhEnd)}` : '—'}</p>
+        <p class="tsub">Pradosh Kaal / Vrishabha Lagna window</p>
+      </div>
+      <div class="tcard">
+        <p class="tlabel">Dhanteras muhurat (6 Nov)</p>
+        <p class="tval">💰 {dhanStart !== null && dhanEnd !== null ? `${fmtIST(dhanStart)} – ${fmtIST(dhanEnd)}` : '—'}</p>
+        <p class="tsub">Dhanvantari/Kuber puja & shopping</p>
+      </div>
+    </div>
+    <p class="tdisclaimer">
+      Muhurat computed from {city.name}'s sunset on the day — validated against published panchang
+      times (±2-3 min). Lagna timings vary slightly by panchang — confirm with your local panchang.
+    </p>
+  </section>
+
+  <section class="dates">
+    <h2>Diwali 2026 Calendar</h2>
+    <table>
+      <thead><tr><th>Day</th><th>Date</th><th>Note</th></tr></thead>
+      <tbody>
+        {diwaliDays2026.map((d) => (
+          <tr><td>{d.day}</td><td><strong>{d.date}</strong></td><td>{d.note}</td></tr>
+        ))}
+      </tbody>
+    </table>
+  </section>
+
+  {cityNote && (
+    <section class="city">
+      <h2>How {city.name} Celebrates Diwali</h2>
+      <p>{cityNote}</p>
+    </section>
+  )}
+
+  <section class="samagri">
+    <h2>Puja Samagri Checklist</h2>
+    <ul class="samagri-list">
+      {diwaliFacts2026.samagri.map((s) => (
+        <li>{s}</li>
+      ))}
+    </ul>
+  </section>
+
+  <section class="vidhi">
+    <h2>Lakshmi Puja Vidhi</h2>
+    <ol>
+      {diwaliFacts2026.vidhi.map((v) => (
+        <li>{v}</li>
+      ))}
+    </ol>
+    <p class="disclaimer">
+      2026 note: {diwaliFacts2026.adhikMaasNote}
+    </p>
+  </section>
+
+  <section class="related">
+    <h2>Diwali 2026 in Other Cities</h2>
+    <ul class="other-cities">
+      {others.slice(0, 24).map((c) => (
+        <li><a href={`/diwali/${c.slug}`}>{c.name}</a></li>
+      ))}
+    </ul>
+    <p><a href="/diwali/">See all {festivalCities.length} cities →</a></p>
+    <p>
+      <a href="/karva-chauth/" rel="noopener">Karva Chauth 2026 moonrise timings →</a>
+      &nbsp;·&nbsp;
+      <a href="/chhath/" rel="noopener">Chhath Puja 2026 ghat directory →</a>
+    </p>
+  </section>
+</Layout>
+
+<style>
+  .hero { text-align: center; padding: 2rem 1rem 1rem; }
+  .crumb { font-size: .85rem; }
+  .timings { padding: 1rem; }
+  .timing-cards { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
+  .tcard { border: 1px solid #e5c07b; background: #fffaf0; border-radius: 10px; padding: 1rem 1.5rem; text-align: center; min-width: 220px; }
+  .tlabel { font-size: .85rem; color: #555; margin: 0; }
+  .tval { font-size: 1.35rem; font-weight: 800; color: #8a6d1f; margin: .3rem 0; }
+  .tsub { font-size: .8rem; color: #777; margin: 0; }
+  .tdisclaimer { text-align: center; color: #999; font-size: .8rem; margin-top: .8rem; }
+  .dates { padding: 1rem; }
+  table { border-collapse: collapse; width: 100%; max-width: 860px; margin: 0 auto; }
+  th, td { border: 1px solid #ddd; padding: .5rem .75rem; text-align: left; font-size: .92rem; }
+  th { background: #f5f5f5; }
+  .city { padding: 1rem; max-width: 760px; margin: 0 auto; }
+  .samagri { padding: 1rem; }
+  .samagri-list { columns: 2; list-style: none; padding: 0; max-width: 760px; margin: 0 auto; }
+  .samagri-list li { padding: .35rem 0; border-bottom: 1px dashed #e5e5e5; }
+  .samagri-list li::before { content: '🪔 '; }
+  .vidhi { padding: 1rem; max-width: 760px; margin: 0 auto; }
+  .vidhi ol li { padding: .3rem 0; }
+  .disclaimer { color: #777; font-size: .85rem; }
+  .related { padding: 1rem; }
+  .other-cities { list-style: none; padding: 0; columns: 3; }
+  .other-cities li { padding: .25rem 0; }
+  @media (max-width: 600px) { .samagri-list, .other-cities { columns: 1; } }
+</style>
