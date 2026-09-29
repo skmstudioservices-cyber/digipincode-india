@@ -1,0 +1,46 @@
+===== SITE: digipincode-workers (https://digipincode.india-in.workers.dev) =====
+digipincode-workers | meta title | PASS
+digipincode-workers | meta og:site_name | PASS
+digipincode-workers | meta theme-color | PASS
+digipincode-workers | WebSite JSON-LD | PASS
+digipincode-workers | asset /favicon.svg | 200 PASS
+digipincode-workers | asset /favicon.ico | 200 PASS
+digipincode-workers | asset /apple-touch-icon.png | 200 PASS
+digipincode-workers | asset /og-image.png | 200 PASS
+===== SITE: digipincode-pages (https://digipincode.pages.dev) =====
+digipincode-pages | meta title | PASS
+digipincode-pages | meta og:site_name | PASS
+digipincode-pages | meta theme-color | PASS
+digipincode-pages | WebSite JSON-LD | PASS
+digipincode-pages | asset /favicon.svg | 200 PASS
+digipincode-pages | asset /favicon.ico | 200 PASS
+digipincode-pages | asset /apple-touch-icon.png | 200 PASS
+digipincode-pages | asset /og-image.png | 200 PASS
+===== SITE: mapsnearme-pages (https://mapsnearme.pages.dev) =====
+mapsnearme-pages | meta title | PASS
+mapsnearme-pages | meta og:site_name | PASS
+mapsnearme-pages | meta theme-color | PASS
+mapsnearme-pages | WebSite JSON-LD | PASS
+mapsnearme-pages | asset /favicon.svg | 200 PASS
+mapsnearme-pages | asset /favicon.ico | 200 PASS
+mapsnearme-pages | asset /apple-touch-icon.png | 200 PASS
+mapsnearme-pages | asset /og-image.png | 200 PASS
+===== SITE: examstatus-workers (https://examstatus.india-in.workers.dev) =====
+/home/runner/work/_temp/905c89ba-451d-4d91-a28c-65d9f1958628.sh: line 16: echo: write error: Broken pipe
+examstatus-workers | meta title | PASS
+/home/runner/work/_temp/905c89ba-451d-4d91-a28c-65d9f1958628.sh: line 16: echo: write error: Broken pipe
+examstatus-workers | meta og:site_name | PASS
+/home/runner/work/_temp/905c89ba-451d-4d91-a28c-65d9f1958628.sh: line 16: echo: write error: Broken pipe
+examstatus-workers | meta theme-color | PASS
+/home/runner/work/_temp/905c89ba-451d-4d91-a28c-65d9f1958628.sh: line 23: echo: write error: Broken pipe
+examstatus-workers | WebSite JSON-LD | PASS
+examstatus-workers | asset /favicon.svg | 200 PASS
+examstatus-workers | asset /favicon.ico | 200 PASS
+examstatus-workers | asset /apple-touch-icon.png | 200 PASS
+examstatus-workers | asset /og-image.png | 200 PASS
+===== canonical check: digipincode.pages.dev =====
+canonical tag: <link rel="canonical" href="https://digipincode.india-in.workers.dev/?cb=1790641029"
+digipincode-pages | canonical -> workers.dev | PASS
+===== privacy-policy Ahrefs disclosure (digipincode) =====
+digipincode-workers | privacy-policy Ahrefs disclosure | PASS
+===== SUMMARY fail_flag=0 =====
