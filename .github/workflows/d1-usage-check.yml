@@ -1,0 +1,24 @@
+name: D1 Usage Check
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 2 * * *"
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: D1 rows read/written by database (last day)
+        env:
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACC: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set +e
+          FROM=$(date -u -d '1 day ago' +%F)
+          TO=$(date -u +%F)
+          echo "window: $FROM .. $TO  (free-tier limit: 5,000,000 rows read/day)"
+          Q=$(printf 'query { viewer { accounts(filter: {accountTag: "%s"}) { d1AnalyticsAdaptiveGroups(limit: 20, filter: {date_geq: "%s", date_leq: "%s"}, orderBy: [sum_rowsRead_DESC]) { dimensions { databaseId } sum { rowsRead rowsWritten } } } } }' "$CF_ACC" "$FROM" "$TO")
+          jq -n --arg q "$Q" '{query:$q}' \
+            | curl -s -H "Authorization: Bearer $CF_TOKEN" -H "Content-Type: application/json" --data @- https://api.cloudflare.com/client/v4/graphql \
+            | jq -c '{errors: .errors, rows: [.data.viewer.accounts[0].d1AnalyticsAdaptiveGroups[]? | {db: .dimensions.databaseId, read: .sum.rowsRead, written: .sum.rowsWritten}]}'
