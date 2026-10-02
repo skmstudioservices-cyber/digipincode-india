@@ -1,6 +1,10 @@
 User-agent: *
 Allow: /
 
+# Search result pages - thin + D1 quota; never index
+User-agent: *
+Disallow: /search
+
 # Search engines always allowed
 User-agent: Googlebot
 Allow: /

@@ -6,10 +6,15 @@ import { searchAll } from '../lib/db';
 
 const q = Astro.url.searchParams.get('q')?.trim() || '';
 let results = [];
-if (q) results = await searchAll(Astro.locals.runtime.env.DB, q);
+// Only query for 3+ chars - avoids full-scan cost on tiny inputs (D1 rows-read guard)
+if (q.length >= 3) results = await searchAll(Astro.locals.runtime.env.DB, q);
+
+// Never let crawlers index search result pages (thin + D1 quota)
+Astro.response.headers.set('X-Robots-Tag', 'noindex, nofollow');
+Astro.response.headers.set('Cache-Control', 'public, max-age=1800');
 
 // Log every internal search — free keyword research (SEO intelligence loop)
-if (q) {
+if (q.length >= 3) {
   try {
     const seo = (Astro.locals.runtime.env as any).SEO_DB;
     if (seo?.prepare) {

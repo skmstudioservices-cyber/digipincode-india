@@ -27,7 +27,6 @@ export async function GET({ request, locals }) {
   const base = new URL(request.url).origin;
   const urls = [
     `${base}/`,
-    `${base}/search`,
     `${base}/states`,
     `${base}/digipin/`,
     `${base}/about`,

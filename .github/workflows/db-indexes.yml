@@ -15,6 +15,8 @@ jobs:
           npx --yes wrangler d1 execute pincode-india-db --remote --command "CREATE INDEX IF NOT EXISTS idx_villages_subdistrict ON villages(sub_district_id);"
           npx --yes wrangler d1 execute pincode-india-db --remote --command "CREATE INDEX IF NOT EXISTS idx_villages_lgd ON villages(lgd_code);"
           npx --yes wrangler d1 execute pincode-india-db --remote --command "CREATE INDEX IF NOT EXISTS idx_lgd_panchayats_code ON lgd_panchayats(lgd_code);"
+          npx --yes wrangler d1 execute pincode-india-db --remote --command "CREATE INDEX IF NOT EXISTS idx_villages_name ON villages(name COLLATE NOCASE);"
+          npx --yes wrangler d1 execute pincode-india-db --remote --command "CREATE INDEX IF NOT EXISTS idx_villages_pincode ON villages(pincode);"
 
       - name: Verify indexes exist
         env:
