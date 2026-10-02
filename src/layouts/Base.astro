@@ -64,12 +64,13 @@ const COLLECTING = 'Coming soon — we are collecting this from government recor
   <meta property="og:locale" content="en_IN" />
   <meta property="og:title" content={title} />
   <meta property="og:description" content={description} />
-  <meta property="og:url" content={Astro.url.href.replace('://digipincode.pages.dev', '://digipincode.india-in.workers.dev')} />
+  <meta property="og:url" content={new URL(Astro.url.pathname, 'https://digipincode.india-in.workers.dev').href} />
   <meta name="twitter:card" content="summary" />
   <meta name="twitter:title" content={title} />
   <meta name="twitter:description" content={description} />
   <meta property="og:image" content="https://digipincode.india-in.workers.dev/og-image.png" />
-  <link rel="canonical" href={Astro.url.href.replace('://digipincode.pages.dev', '://digipincode.india-in.workers.dev')} />
+  {/* ===== BLOCK:CANONICAL-CLEAN ===== strip query string; always point to canonical workers.dev host */}
+  <link rel="canonical" href={new URL(Astro.url.pathname, 'https://digipincode.india-in.workers.dev').href} />
   <link rel="sitemap" href="/sitemap.xml" />
   <script type="application/ld+json" set:html={JSON.stringify(orgLd)} />
   <script type="application/ld+json" set:html={JSON.stringify({ "@context": "https://schema.org", "@type": "WebSite", "name": "Digipincode", "url": "https://digipincode.india-in.workers.dev/" })} />

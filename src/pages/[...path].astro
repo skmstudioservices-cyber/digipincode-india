@@ -21,29 +21,43 @@ const DB = Astro.locals.runtime.env.DB;
 const faqLd = (faq) => ({ '@context': 'https://schema.org', '@type': 'FAQPage', mainEntity: faq.map(([q, a]) => ({ '@type': 'Question', name: q, acceptedAnswer: { '@type': 'Answer', text: a } })) });
 const crumbLd = (items) => ({ '@context': 'https://schema.org', '@type': 'BreadcrumbList', itemListElement: items.map((it, i) => ({ '@type': 'ListItem', position: i + 1, name: it[0], ...(it[1] ? { item: it[1] } : {}) })) });
 const L = (n) => Number(n ?? 0).toLocaleString('en-IN');
+/* ===== BLOCK:404-REAL =====
+   Returns a genuine HTTP 404 (not a 302 redirect). Fixes the GSC crawl-stats
+   "Moved temporarily (302)" waste: missing hierarchy paths now answer with a
+   404 status + a real HTML page, so crawlers stop re-queuing them. */
+const NF_HTML = `<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>404 — Not found | Digipincode India</title>
+<meta name="robots" content="noindex, follow">
+<style>body{font:16px/1.6 system-ui,sans-serif;max-width:640px;margin:0 auto;padding:48px 20px;color:#0f172a}h1{font-size:1.6rem}a{color:#2563eb}</style>
+</head><body><h1>404 — Record not found</h1>
+<p>This state, district, tehsil, village or pincode path is not in our directory. It may have been renamed or never existed.</p>
+<p><a href="/">Home</a> · <a href="/states">All India states</a> · <a href="/digipin/">DIGIPIN tool</a></p>
+</body></html>`;
+const notFound = () => new Response(NF_HTML, { status: 404, headers: { 'Content-Type': 'text/html; charset=utf-8' } });
+
 
 // ---------------- parse level ----------------
 let state: any = null, dist: any = null, sd: any = null, vil: any = null, pin: any = null;
 if (segs.length >= 1) {
   state = await getStateBySlug(DB, segs[0]);
-  if (!state) return Astro.redirect('/404');
+  if (!state) return notFound();
 }
 if (segs.length >= 2) {
   if (!segs[1].startsWith('district-')) return Astro.redirect(stateUrl(state.slug), 301);
   const dSlug = segs[1].slice('district-'.length);
   dist = await getDistrictBySlug(DB, state.id, dSlug);
-  if (!dist) return Astro.redirect('/404');
+  if (!dist) return notFound();
 }
 if (segs.length === 3) {
   if (segs[2].startsWith('pincode-')) {
     pin = segs[2].slice('pincode-'.length);
   } else if (parseSubSegment(segs[2])) {
     sd = await getSubDistrictBySlug(DB, dist.id, parseSubSegment(segs[2]));
-    if (!sd) return Astro.redirect('/404');
+    if (!sd) return notFound();
   } else if (segs[2].startsWith('village-')) {
     // village directly under district → 301 to full hierarchy path
     const v = await getVillageBySlug(DB, segs[2].slice('village-'.length));
-    if (!v) return Astro.redirect('/404');
+    if (!v) return notFound();
     if (!v.state_slug || !v.district_slug || !v.sub_district_slug) return Astro.redirect(districtUrl(dist.slug ? state.slug : state.slug, v.district_slug || dist.slug), 301);
     return Astro.redirect(villageUrl(v.state_slug, v.district_slug, v.sub_district_slug, v.slug, v.pincode), 301);
   } else return Astro.redirect(districtUrl(state.slug, dist.slug), 301);
@@ -52,11 +66,11 @@ if (segs.length === 4) {
   if (segs[2].startsWith('pincode-')) return Astro.redirect(pincodeUrl(state.slug, dist.slug, segs[2].slice('pincode-'.length)), 301);
   if (!parseSubSegment(segs[2])) return Astro.redirect(districtUrl(state.slug, dist.slug), 301);
   sd = await getSubDistrictBySlug(DB, dist.id, parseSubSegment(segs[2]));
-  if (!sd) return Astro.redirect('/404');
+  if (!sd) return notFound();
   if (segs[3].startsWith('village-')) {
     // village without pincode suffix → 301 to canonical .../village-{v}/pincode-{p}
     const v = await getVillageBySlug(DB, segs[3].slice('village-'.length));
-    if (!v) return Astro.redirect('/404');
+    if (!v) return notFound();
     if (v.pincode) return Astro.redirect(villageUrl(state.slug, dist.slug, sd.slug, v.slug, v.pincode), 301);
     vil = v; // no pincode on record — render at tehsil level (rare)
   } else if (segs[3].startsWith('pincode-')) {
@@ -70,26 +84,26 @@ if (segs.length === 5) {
   // villages whose sub-district slug is missing in D1. The page renders with
   // a "Collecting from public sources" note where tehsil data is absent.
   // One invocation instead of two, and Googlebot gets real content.
-  if (!segs[3].startsWith('village-') || !segs[4].startsWith('pincode-')) return Astro.redirect('/404');
+  if (!segs[3].startsWith('village-') || !segs[4].startsWith('pincode-')) return notFound();
   const subSlug = parseSubSegment(segs[2]);
   if (subSlug === null) return Astro.redirect(districtUrl(state.slug, dist.slug), 301);
   if (subSlug !== '') {
     sd = await getSubDistrictBySlug(DB, dist.id, subSlug);
-    if (!sd) return Astro.redirect('/404');
+    if (!sd) return notFound();
   }
   vil = await getVillageBySlug(DB, segs[3].slice('village-'.length));
-  if (!vil) return Astro.redirect('/404');
-  if (vil.district_slug && vil.district_slug !== dist.slug) return Astro.redirect('/404');
+  if (!vil) return notFound();
+  if (vil.district_slug && vil.district_slug !== dist.slug) return notFound();
   const givenPin = segs[4].slice('pincode-'.length);
   if (String(vil.pincode ?? '') !== givenPin || (sd && vil.sub_district_slug && vil.sub_district_slug !== sd.slug)) {
     // wrong pincode/tehsil in URL -> 301 to the true canonical path
     if (vil.state_slug && vil.district_slug && vil.sub_district_slug)
       return Astro.redirect(villageUrl(vil.state_slug, vil.district_slug, vil.sub_district_slug, vil.slug, vil.pincode), 301);
-    return Astro.redirect('/404');
+    return notFound();
   }
 }
 
-if (segs.length > 5) return Astro.redirect('/404');
+if (segs.length > 5) return notFound();
 
 // ---------------- level data ----------------
 let data: any = {};
@@ -110,7 +124,7 @@ if (!dist) {
   try { data.stats = await getSubdistrictVillageStats(DB, vil.sub_district_id); } catch {}
 } else if (pin) {
   data.pin = await getPincode(DB, pin);
-  if (!data.pin) return Astro.redirect('/404');
+  if (!data.pin) return notFound();
   data.villages = await getVillagesByPincode(DB, pin);
   data.panchayats = await getPanchayatsByPincode(DB, pin);
 }
