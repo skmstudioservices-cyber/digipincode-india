@@ -2,6 +2,10 @@ name: D1 Add Missing Indexes
 
 on:
   workflow_dispatch:
+  # Retry right after the daily D1 quota reset (00:00 UTC) - the CREATE INDEX
+  # reads the whole table, so it must run when rows-read budget is fresh.
+  schedule:
+    - cron: "10 0 * * *"
 
 jobs:
   apply:
@@ -15,8 +19,6 @@ jobs:
           npx --yes wrangler d1 execute pincode-india-db --remote --command "CREATE INDEX IF NOT EXISTS idx_villages_subdistrict ON villages(sub_district_id);"
           npx --yes wrangler d1 execute pincode-india-db --remote --command "CREATE INDEX IF NOT EXISTS idx_villages_lgd ON villages(lgd_code);"
           npx --yes wrangler d1 execute pincode-india-db --remote --command "CREATE INDEX IF NOT EXISTS idx_lgd_panchayats_code ON lgd_panchayats(lgd_code);"
-          npx --yes wrangler d1 execute pincode-india-db --remote --command "CREATE INDEX IF NOT EXISTS idx_villages_name ON villages(name COLLATE NOCASE);"
-          npx --yes wrangler d1 execute pincode-india-db --remote --command "CREATE INDEX IF NOT EXISTS idx_villages_pincode ON villages(pincode);"
 
       - name: Verify indexes exist
         env:
