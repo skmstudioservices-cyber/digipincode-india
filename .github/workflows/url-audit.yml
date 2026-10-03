@@ -1,0 +1,26 @@
+name: URL audit (broken + sample)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Collect sitemap URLs
+        run: |
+          curl -s -m 40 https://digipincode.india-in.workers.dev/sitemap.xml -o sm.xml || true
+          grep -o '<loc>[^<]*</loc>' sm.xml | sed 's/<[^>]*>//g' > subs.txt || true
+          : > urls.txt
+          while read s; do curl -s -m 40 "$s" | grep -o '<loc>[^<]*</loc>' | sed 's/<[^>]*>//g' >> urls.txt || true; done < subs.txt
+          sort -u urls.txt -o urls.txt
+          echo "sitemaps: $(wc -l < subs.txt) | total urls: $(wc -l < urls.txt)"
+          head -40 urls.txt
+      - name: Status check (400 sample, parallel)
+        run: |
+          head -400 urls.txt > sample.txt
+          cat sample.txt | xargs -P 12 -I{} sh -c 'c=$(curl -s -o /dev/null -w "%{http_code}" -m 12 "{}"); echo "$c {}"' > check.txt
+          echo "=== status counts (400 sample) ==="
+          cut -d" " -f1 check.txt | sort | uniq -c | sort -rn
+          echo "=== non-200 examples (first 25) ==="
+          grep -v "^200 " check.txt | head -25
