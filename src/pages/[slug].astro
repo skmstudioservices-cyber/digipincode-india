@@ -1,0 +1,29 @@
+---
+// src/pages/[slug].astro — BLOCK:FLAT-ROUTE
+// Flat single-segment URL resolver. Looks the slug up in url_index (one indexed
+// query) and renders the existing hierarchy page via Astro.rewrite — the URL
+// stays flat, so the canonical is the flat URL. No DB schema change to the data
+// tables; url_index is an additive lookup table.
+export const prerender = false;
+
+const raw = Astro.params.slug ?? '';
+const slug = decodeURIComponent(raw).replace(/^\/+|\/+$/g, '');
+const DB = Astro.locals.runtime.env.DB;
+
+const NF = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>404 | Digipincode</title><meta name="robots" content="noindex, follow"></head><body><h1>404 — Not found</h1><p>This page is not in our directory. <a href="/">Home</a> · <a href="/states">All India states</a></p></body></html>`;
+const notFound = () => new Response(NF, { status: 404, headers: { 'Content-Type': 'text/html; charset=utf-8' } });
+
+const row = await DB.prepare(
+  'SELECT kind, state_slug, district_slug, sub_slug, village_slug, pincode FROM url_index WHERE url_path = ?'
+).bind(slug).first();
+
+if (!row) return notFound();
+
+let path = `/${row.state_slug}`;
+if (row.kind === 'district') path += `/district-${row.district_slug}`;
+else if (row.kind === 'subdistrict') path += `/district-${row.district_slug}/${row.sub_word || 'tehsil'}-${row.sub_slug}`;
+else if (row.kind === 'village') path += `/district-${row.district_slug}/${row.sub_word || 'tehsil'}-${row.sub_slug}/village-${row.village_slug}/pincode-${row.pincode}`;
+else if (row.kind === 'pincode') path += `/district-${row.district_slug}/pincode-${row.pincode}`;
+
+return Astro.rewrite(path);
+---

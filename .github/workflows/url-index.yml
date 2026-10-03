@@ -1,0 +1,29 @@
+name: Build url_index (flat URL lookup)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dump D1 lookup tables
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          npx --yes wrangler d1 execute pincode-india-db --remote --json --command "SELECT slug,name FROM states ORDER BY name;" > states.json
+          npx --yes wrangler d1 execute pincode-india-db --remote --json --command "SELECT d.slug AS slug,d.name AS name,s.slug AS state_slug,s.name AS state_name FROM districts d JOIN states s ON s.id=d.state_id;" > districts.json
+          npx --yes wrangler d1 execute pincode-india-db --remote --json --command "SELECT sd.slug AS slug,sd.name AS name,d.slug AS district_slug,d.name AS district_name,s.slug AS state_slug,s.name AS state_name FROM sub_districts sd JOIN districts d ON d.id=sd.district_id JOIN states s ON s.id=d.state_id;" > subdistricts.json
+          npx --yes wrangler d1 execute pincode-india-db --remote --json --command "SELECT p.pincode AS pincode,p.taluk AS taluk,p.office_name AS office_name,d.slug AS district_slug,d.name AS district_name,s.slug AS state_slug,s.name AS state_name FROM pincodes p JOIN districts d ON d.id=p.district_id JOIN states s ON s.id=p.state_id;" > pincodes.json
+      - name: Build url-index.sql
+        run: node scripts/backfill-url-index.mjs
+      - name: Apply to D1
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx --yes wrangler d1 execute pincode-india-db --remote --file=./url-index.sql
