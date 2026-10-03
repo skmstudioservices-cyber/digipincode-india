@@ -8,24 +8,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Dump2
+      - name: Dump3
         run: |
-          echo "=== wrangler config files ==="
-          find . -maxdepth 2 -iname "wrangler*" -not -path "./node_modules/*" | sort
-          echo "=== workflows ==="
-          ls -1 .github/workflows
-          echo "=== sitemap-pages.xml.ts ==="
-          cat src/pages/sitemap-pages.xml.ts
-          echo "=== LIVE sitemap-pages.xml ==="
-          curl -s --max-time 30 https://digipincode.pages.dev/sitemap-pages.xml -o /tmp/sp.xml -w "http=%{http_code} size=%{size_download}\n"
-          echo "loc count: $(grep -c '<loc>' /tmp/sp.xml || true)"
-          echo "digipin url present: $(grep -c '/digipin/' /tmp/sp.xml || true)"
-          echo "--- locs (first 40) ---"
-          grep -o '<loc>[^<]*' /tmp/sp.xml | head -40
-          echo "=== homepage status retry ==="
-          curl -s --max-time 30 -o /tmp/h.html -w "pages http=%{http_code} size=%{size_download}\n" https://digipincode.pages.dev/
-          curl -s --max-time 30 -o /tmp/hw.html -w "workers http=%{http_code} size=%{size_download}\n" https://digipincode.india-in.workers.dev/
-          echo "home nav links:"; grep -o 'href="/[a-z-]*"' /tmp/h.html | sort -u | head -40
-          echo "=== index.astro head ==="
-          wc -l src/pages/index.astro
-          head -c 5000 src/pages/index.astro
+          echo "=== index.astro FULL ==="
+          cat -A /dev/null; cat src/pages/index.astro
+          echo "=== d1-refresh.yml FULL ==="
+          cat .github/workflows/d1-refresh.yml
+          echo "=== wrangler.jsonc (first 70 lines) ==="
+          head -70 wrangler.jsonc
