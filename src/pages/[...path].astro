@@ -11,7 +11,8 @@ import {
   getSubDistrictBySlug, getVillages, getVillageBySlug, getSiblingVillages, getSubdistrictVillageStats,
   getPincode, getVillagesByPincode, getPanchayatsByPincode, getPanchayatByVillage,
 } from '../lib/db';
-import { BASE, stateUrl, districtUrl, subUrl, villageUrl, pincodeUrl, parseSubSegment } from '../lib/urls';
+import { BASE, parseSubSegment } from '../lib/urls';
+import { stateUrl, districtUrl, subUrl, villageUrl, pincodeUrl } from '../lib/flaturls';
 import { flatState, flatDistrict, flatSub, flatVillage, flatPincode } from '../lib/slug';
 import { FRESHNESS, fmtDate } from '../config/site';
 

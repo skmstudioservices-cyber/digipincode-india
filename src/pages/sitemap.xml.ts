@@ -36,7 +36,6 @@ export async function GET({ request, locals }) {
     `${base}/disclaimer`,
     `${base}/sitemap-pages.xml`,
     `${base}/sitemap-flat.xml`,
-    ...states.results.map(s => `${base}/sitemap-${s.slug}.xml`),
     `${base}/sitemap-chhath.xml`,
   ];
 
