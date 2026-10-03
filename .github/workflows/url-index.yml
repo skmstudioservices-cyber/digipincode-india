@@ -3,7 +3,9 @@ name: Build url_index (flat URL lookup)
 on:
   workflow_dispatch:
   schedule:
-    - cron: "10 0 * * *"
+    # Run ~30 min BEFORE the daily D1 quota reset (00:00 UTC) so the
+    # LEFTOVER budget of the day is used — the fresh quota stays for the site.
+    - cron: "30 23 * * *"
 
 permissions:
   contents: write
