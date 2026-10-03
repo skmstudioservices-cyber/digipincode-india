@@ -6,50 +6,18 @@ permissions:
 jobs:
   retest:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 20
     steps:
-      - name: Per-item live retest
+      - name: Source triage — root cause of double-slash + canonical + GA
         run: |
           set +e
-          probe() {
-            name="$1"; base="$2"
-            echo "===== $name : $base ====="
-            h=$(curl -s -m 25 -o /tmp/h -w '%{http_code}' "$base/"); b=$(wc -c </tmp/h)
-            echo "home http=$h bytes=$b"
-            echo "  title: $(sed -n 's/.*<title>\([^<]*\)<\/title>.*/\1/p' /tmp/h | head -1 | cut -c1-75)"
-            echo "  canonical: $(grep -o 'rel=\"canonical\" href=\"[^\"]*\"' /tmp/h | head -1)"
-            echo "  gsc_tag=$(grep -c 'google-site-verification' /tmp/h) ga=$(grep -c 'googletagmanager' /tmp/h) monetag=$(grep -ci 'monetag\|quge5\|5gvci' /tmp/h) sw_reg=$(grep -c 'serviceWorker' /tmp/h)"
-            echo "  placeholder_hits=$(grep -ciE 'coming soon|setup ho rahi|lorem ipsum|TODO' /tmp/h)"
-            echo "  robots: $(curl -s -m 15 "$base/robots.txt" | grep -iE 'sitemap|crawl-delay' | head -3 | tr '\n' '|')"
-            sm=$(curl -s -m 25 -o /tmp/sm -w '%{http_code}' "$base/sitemap.xml")
-            echo "  sitemap.xml http=$sm urls=$(grep -c '<loc>' /tmp/sm) doubleslash=$(grep -c '://[^/]*//' /tmp/sm) index=$(grep -c '<sitemapindex' /tmp/sm)"
-            echo "  /sitemap/ page http=$(curl -s -m 20 -o /dev/null -w '%{http_code}' "$base/sitemap/")"
-          }
-          probe "digipincode-WORKERS" "https://digipincode.india-in.workers.dev"
-          probe "digipincode-PAGES"   "https://digipincode.pages.dev"
-          probe "EV"                  "https://evchargersnearme.pages.dev"
-          probe "TOILETS"             "https://toiletsnearme.pages.dev"
-          probe "EXAMSTATUS"          "https://examstatus.india-in.workers.dev"
-          probe "MAPSNEARME"          "https://mapsnearme.pages.dev"
-          probe "KARVACHAUTH"         "https://karvachauth.pages.dev"
-          probe "ASIANGAMES"          "https://asiangamesmedaltally2026.pages.dev"
-          probe "FLOODSNEARME"        "https://floodsnearme.pages.dev"
-          probe "AIRQUALITY"          "https://airqualitynearme.pages.dev"
-          probe "EARTHQUAKE"          "https://earthquakenearme.pages.dev"
-          probe "BLOODBANKS"          "https://bloodbanksnearme.pages.dev"
-          probe "SKMTOOLS"            "https://skmtools.pages.dev"
-          echo "===== DIGIPINCODE deep + flat URL checks (workers) ====="
-          W=https://digipincode.india-in.workers.dev
-          for u in "/states" "/digipin/" "/search" "/sitemap/" "/india-IN-state-maharashtra/" "/india-IN-state-maharashtra-district-pune/" "/india-IN-state-maharashtra-district-pune-subdistrict-mulshi-tehsil-mulshi-city-mulshi-pincode-411057/" "/maharashtra/" "/this-page-should-404-xyz-999/"; do
-            o=$(curl -s -m 30 -o /tmp/t -w '%{http_code}' "$W$u")
-            echo "  $u -> $o | title=$(sed -n 's/.*<title>\([^<]*\)<\/title>.*/\1/p' /tmp/t | head -1 | cut -c1-55) | canon=$(grep -o 'rel=\"canonical\" href=\"[^\"]*\"' /tmp/t | head -1 | cut -c1-70)"
-          done
-          echo "===== flat sitemap ====="
-          curl -s -m 45 "$W/sitemap-flat.xml" -o /tmp/sf
-          echo "sitemap-flat bytes=$(wc -c </tmp/sf) urls=$(grep -c '<loc>' /tmp/sf) doubleslash=$(grep -c '://[^/]*//' /tmp/sf)"
-          grep -o '<loc>[^<]*' /tmp/sf | head -3
-          echo "===== sitemap-pages ====="
-          curl -s -m 25 "$W/sitemap-pages.xml" -o /tmp/sp
-          echo "urls=$(grep -c '<loc>' /tmp/sp)"; grep -o '<loc>[^<]*' /tmp/sp
-          echo "===== indexnow key file ====="
-          echo "indexnow workflows present: see repo"
+          echo "=== files referencing india-IN-state ==="
+          grep -rln "india-IN-state" src | head -20
+          echo "=== flat url builder(s) ==="
+          for f in $(grep -rln "india-IN-state" src); do echo "----- $f -----"; sed -n '1,90p' "$f"; done
+          echo "=== sitemap-flat source ==="
+          sed -n '1,140p' src/pages/sitemap-flat.xml.ts
+          echo "=== Base.astro head (canonical + GA) ==="
+          sed -n '1,110p' src/layouts/Base.astro
+          echo "=== grep double-slash patterns ==="
+          grep -rn '//' src/lib 2>/dev/null | grep -iE 'slug|url|path' | head -30
