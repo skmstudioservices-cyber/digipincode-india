@@ -8,16 +8,15 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - name: Source triage — root cause of double-slash + canonical + GA
+      - uses: actions/checkout@v4
+      - name: Source triage
         run: |
           set +e
           echo "=== files referencing india-IN-state ==="
           grep -rln "india-IN-state" src | head -20
-          echo "=== flat url builder(s) ==="
-          for f in $(grep -rln "india-IN-state" src); do echo "----- $f -----"; sed -n '1,90p' "$f"; done
+          echo "=== builders ==="
+          for f in $(grep -rln "india-IN-state" src); do echo "----- $f -----"; sed -n '1,80p' "$f"; done
           echo "=== sitemap-flat source ==="
-          sed -n '1,140p' src/pages/sitemap-flat.xml.ts
-          echo "=== Base.astro head (canonical + GA) ==="
-          sed -n '1,110p' src/layouts/Base.astro
-          echo "=== grep double-slash patterns ==="
-          grep -rn '//' src/lib 2>/dev/null | grep -iE 'slug|url|path' | head -30
+          sed -n '1,120p' src/pages/sitemap-flat.xml.ts
+          echo "=== Base.astro (canonical + GA) ==="
+          sed -n '1,100p' src/layouts/Base.astro
