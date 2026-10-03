@@ -1,6 +1,8 @@
 name: Build url_index (flat URL lookup)
 
 on:
+  # Do NOT manually re-dispatch: each run writes rows; the 100k/day write
+  # limit is shared with the live site. Daily schedule is enough.
   workflow_dispatch:
   schedule:
     # Run ~30 min BEFORE the daily D1 quota reset (00:00 UTC) so the
@@ -32,11 +34,11 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: npx --yes wrangler d1 execute pincode-india-db --remote --file=./url-index.sql
-      - name: Villages batched (D1 write-safe 90k rows per run)
+      - name: Villages batched (D1 write-safe 20k rows per run (never manual re-dispatch))
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           npx --yes wrangler d1 execute pincode-india-db --remote --command "CREATE TABLE IF NOT EXISTS meta (k TEXT PRIMARY KEY, v TEXT);"
-          npx --yes wrangler d1 execute pincode-india-db --remote --command "INSERT OR IGNORE INTO url_index (url_path,kind,state_slug,district_slug,sub_slug,village_slug,pincode) SELECT 'india-IN-state-'||s.slug||'-district-'||d.slug||'-subdistrict-'||sd.slug||'-tehsil-'||sd.slug||'-village-'||v.slug||'-pincode-'||v.pincode, 'village', s.slug, d.slug, sd.slug, v.slug, v.pincode FROM villages v JOIN sub_districts sd ON sd.id=v.sub_district_id JOIN districts d ON d.id=sd.district_id JOIN states s ON s.id=d.state_id WHERE v.pincode IS NOT NULL AND v.id > CAST(COALESCE((SELECT v FROM meta WHERE k='village_cursor'),'0') AS INTEGER) ORDER BY v.id LIMIT 90000;"
-          npx --yes wrangler d1 execute pincode-india-db --remote --command "INSERT INTO meta(k,v) SELECT 'village_cursor', CAST(MAX(id) AS TEXT) FROM (SELECT v.id AS id FROM villages v WHERE v.pincode IS NOT NULL AND v.id > CAST(COALESCE((SELECT v FROM meta WHERE k='village_cursor'),'0') AS INTEGER) ORDER BY v.id LIMIT 90000);"
+          npx --yes wrangler d1 execute pincode-india-db --remote --command "INSERT OR IGNORE INTO url_index (url_path,kind,state_slug,district_slug,sub_slug,village_slug,pincode) SELECT 'india-IN-state-'||s.slug||'-district-'||d.slug||'-subdistrict-'||sd.slug||'-tehsil-'||sd.slug||'-village-'||v.slug||'-pincode-'||v.pincode, 'village', s.slug, d.slug, sd.slug, v.slug, v.pincode FROM villages v JOIN sub_districts sd ON sd.id=v.sub_district_id JOIN districts d ON d.id=sd.district_id JOIN states s ON s.id=d.state_id WHERE v.pincode IS NOT NULL AND v.id > CAST(COALESCE((SELECT v FROM meta WHERE k='village_cursor'),'0') AS INTEGER) ORDER BY v.id LIMIT 20000;"
+          npx --yes wrangler d1 execute pincode-india-db --remote --command "INSERT INTO meta(k,v) SELECT 'village_cursor', CAST(MAX(id) AS TEXT) FROM (SELECT v.id AS id FROM villages v WHERE v.pincode IS NOT NULL AND v.id > CAST(COALESCE((SELECT v FROM meta WHERE k='village_cursor'),'0') AS INTEGER) ORDER BY v.id LIMIT 20000);"
