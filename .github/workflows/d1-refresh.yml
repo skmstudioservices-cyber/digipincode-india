@@ -16,9 +16,9 @@ jobs:
           CI: "true"
         run: |
           set -x
-          echo "=== wrangler.toml ==="
-          cat wrangler.toml
-          DB=$(grep -o 'database_name *= *"[^"]*"' wrangler.toml | head -1 | sed 's/.*"\(.*\)"/\1/')
+          echo "=== wrangler.jsonc ==="
+          cat wrangler.jsonc
+          DB=$(grep -o '"database_name" *: *"[^"]*"' wrangler.jsonc | head -1 | sed 's/.*"\(.*\)"/\1/')
           echo "PARSED_DB=$DB"
           if [ -z "$DB" ]; then echo "NO_DB_FOUND"; exit 1; fi
           npx --yes wrangler@latest d1 execute "$DB" --remote --file ops/trending-queries.sql 2>&1 | tail -10
