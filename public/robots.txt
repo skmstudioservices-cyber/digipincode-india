@@ -166,5 +166,23 @@ Disallow: /
 
 User-agent: Scrapy
 Disallow: /
+
+# --- Extra heavy crawlers (D1 read protection) ---
+User-agent: Bytespider
+Disallow: /
+
+User-agent: SemrushBot
+Disallow: /
+
+User-agent: AhrefsBot
+Disallow: /
+
+User-agent: DotBot
+Disallow: /
+
+# Politeness delay for the rest
+User-agent: *
+Crawl-delay: 5
+
 Sitemap: https://digipincode.india-in.workers.dev/sitemap.xml
 

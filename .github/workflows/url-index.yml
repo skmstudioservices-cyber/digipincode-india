@@ -4,10 +4,6 @@ on:
   # Do NOT manually re-dispatch: each run writes rows; the 100k/day write
   # limit is shared with the live site. Daily schedule is enough.
   workflow_dispatch:
-  schedule:
-    # Run ~30 min BEFORE the daily D1 quota reset (00:00 UTC) so the
-    # LEFTOVER budget of the day is used — the fresh quota stays for the site.
-    - cron: "30 23 * * *"
 
 permissions:
   contents: write
