@@ -1,0 +1,27 @@
+name: Repo Dump (temp)
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  dump:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dump
+        run: |
+          echo "=== sitemap / robots files in repo ==="
+          find src public -iname "*sitemap*" -o -iname "*robots*" | sort
+          echo "=== src/pages (top) ==="
+          ls -1 src/pages | head -80
+          echo "=== LIVE sitemap check ==="
+          curl -s --max-time 30 https://digipincode.pages.dev/sitemap.xml -o /tmp/sm.xml -w "http=%{http_code} size=%{size_download}\n"
+          echo "digipin in sitemap: $(grep -c digipin /tmp/sm.xml || true)"
+          echo "total loc: $(grep -c '<loc>' /tmp/sm.xml || true)"
+          echo "=== sitemap source ==="
+          for f in $(find src -iname "*sitemap*"); do echo "----- $f -----"; head -c 3500 "$f"; echo; done
+          echo "=== public/robots.txt ==="
+          cat public/robots.txt 2>/dev/null || echo "(no public/robots.txt)"
+          echo "=== homepage internal-link check ==="
+          curl -s --max-time 30 https://digipincode.pages.dev/ -o /tmp/home.html -w "http=%{http_code}\n"
+          echo "digipin link on homepage: $(grep -c 'href="/digipin' /tmp/home.html || true)"
