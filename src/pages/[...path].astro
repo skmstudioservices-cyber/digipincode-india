@@ -12,10 +12,12 @@ import {
   getPincode, getVillagesByPincode, getPanchayatsByPincode, getPanchayatByVillage,
 } from '../lib/db';
 import { BASE, stateUrl, districtUrl, subUrl, villageUrl, pincodeUrl, parseSubSegment } from '../lib/urls';
+import { flatState, flatDistrict, flatSub, flatVillage, flatPincode } from '../lib/slug';
 import { FRESHNESS, fmtDate } from '../config/site';
 
 const raw = Astro.params.path ?? '';
-const segs = (Array.isArray(raw) ? raw.join('/') : String(raw)).split('/').filter(Boolean).map(s => decodeURIComponent(s));
+let segs = (Array.isArray(raw) ? raw.join('/') : String(raw)).split('/').filter(Boolean).map(s => decodeURIComponent(s));
+const wasFlat = segs.length === 1 && segs[0].startsWith('india-IN-');
 const DB = Astro.locals.runtime.env.DB;
 
 const faqLd = (faq) => ({ '@context': 'https://schema.org', '@type': 'FAQPage', mainEntity: faq.map(([q, a]) => ({ '@type': 'Question', name: q, acceptedAnswer: { '@type': 'Answer', text: a } })) });
@@ -72,8 +74,8 @@ if (segs.length === 1 && segs[0].startsWith('india-IN-')) {
       if (!p) { const sm = s.match(/^state-([a-z0-9-]+)$/); if (sm) { const st = await getStateBySlug(DB, sm[1]); if (st) p = `/${sm[1]}`; } }
     }
   }
-  if (p) return Astro.rewrite(p);
-  return notFound();
+  if (!p) return notFound();
+  segs = p.split('/').filter(Boolean);   // fall through to the hierarchy renderer (no rewrite -> no loop)
 }
 
 
@@ -168,6 +170,18 @@ if (!dist) {
   if (!data.pin) return notFound();
   data.villages = await getVillagesByPincode(DB, pin);
   data.panchayats = await getPanchayatsByPincode(DB, pin);
+}
+
+// ===== BLOCK:CANONICAL-301 ===== hierarchy URL -> flat canonical (no loop:
+// the flat request sets wasFlat and falls through, so it is never re-redirected)
+if (!wasFlat) {
+  let fp = '';
+  if (state && !dist) fp = flatState(state.name);
+  else if (dist && !sd && !vil && !pin) fp = flatDistrict(dist.name, state.name);
+  else if (sd && !vil && !pin) fp = flatSub(sd.name, dist.name, state.name);
+  else if (vil) fp = flatVillage(vil.name, vil.pincode, sd?.name || vil.sub_district_name || '', dist.name, state.name);
+  else if (pin && data.pin) fp = flatPincode(pin, data.pin.taluk || data.pin.office_name || '', dist.name, state.name);
+  if (fp && Astro.url.pathname.replace(/\/$/, '') !== fp.replace(/\/$/, '')) return Astro.redirect(fp, 301);
 }
 
 // ---------------- level render pieces ----------------
