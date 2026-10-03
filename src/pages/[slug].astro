@@ -1,10 +1,12 @@
 ---
 // src/pages/[slug].astro — BLOCK:FLAT-ROUTE
-// Flat single-segment URL resolver. Looks the slug up in url_index (one indexed
-// query) and renders the existing hierarchy page via Astro.rewrite — the URL
-// stays flat, so the canonical is the flat URL. No DB schema change to the data
-// tables; url_index is an additive lookup table.
+// Resolves a flat single-segment slug to the hierarchy page via Astro.rewrite
+// (URL stays flat -> canonical is the flat URL).
+//  1) url_index fast path (one indexed query) — populated by the batch job.
+//  2) PARSE FALLBACK (read-only, ZERO writes) — works immediately, even before
+//     url_index is built, so flat URLs resolve on day one.
 export const prerender = false;
+import { getPincode, getVillagesByPincode, getStateBySlug, getDistrictBySlug } from '../lib/db';
 
 const raw = Astro.params.slug ?? '';
 const slug = decodeURIComponent(raw).replace(/^\/+|\/+$/g, '');
@@ -13,17 +15,48 @@ const DB = Astro.locals.runtime.env.DB;
 const NF = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>404 | Digipincode</title><meta name="robots" content="noindex, follow"></head><body><h1>404 — Not found</h1><p>This page is not in our directory. <a href="/">Home</a> · <a href="/states">All India states</a></p></body></html>`;
 const notFound = () => new Response(NF, { status: 404, headers: { 'Content-Type': 'text/html; charset=utf-8' } });
 
-const row = await DB.prepare(
-  'SELECT kind, state_slug, district_slug, sub_slug, village_slug, pincode FROM url_index WHERE url_path = ?'
-).bind(slug).first();
+let path = '';
 
-if (!row) return notFound();
+// 1) url_index fast path
+try {
+  const row = await DB.prepare('SELECT kind,state_slug,district_slug,sub_slug,village_slug,pincode FROM url_index WHERE url_path = ?').bind(slug).first();
+  if (row) {
+    path = `/${row.state_slug}`;
+    if (row.kind === 'district') path += `/district-${row.district_slug}`;
+    else if (row.kind === 'subdistrict') path += `/district-${row.district_slug}/tehsil-${row.sub_slug}`;
+    else if (row.kind === 'village') path += `/district-${row.district_slug}/tehsil-${row.sub_slug}/village-${row.village_slug}/pincode-${row.pincode}`;
+    else if (row.kind === 'pincode') path += `/district-${row.district_slug}/pincode-${row.pincode}`;
+  }
+} catch {}
 
-let path = `/${row.state_slug}`;
-if (row.kind === 'district') path += `/district-${row.district_slug}`;
-else if (row.kind === 'subdistrict') path += `/district-${row.district_slug}/${row.sub_word || 'tehsil'}-${row.sub_slug}`;
-else if (row.kind === 'village') path += `/district-${row.district_slug}/${row.sub_word || 'tehsil'}-${row.sub_slug}/village-${row.village_slug}/pincode-${row.pincode}`;
-else if (row.kind === 'pincode') path += `/district-${row.district_slug}/pincode-${row.pincode}`;
+// 2) parse fallback (no writes)
+if (!path) {
+  const s = slug.replace(/^india-in-/, '');
+  const pm = s.match(/pincode-(\d{6})/);
+  if (pm) {
+    const pin = await getPincode(DB, pm[1]);
+    if (pin && pin.state_slug && pin.district_slug) {
+      const vm = s.match(/village-([a-z0-9-]+?)-pincode-/);
+      if (vm) {
+        try {
+          const vs = await getVillagesByPincode(DB, pm[1]);
+          const hit = vs.find((v) => v.slug === vm[1]);
+          if (hit && hit.sub_district_slug) path = `/${pin.state_slug}/district-${pin.district_slug}/tehsil-${hit.sub_district_slug}/village-${hit.slug}/pincode-${pm[1]}`;
+        } catch {}
+      }
+      if (!path) path = `/${pin.state_slug}/district-${pin.district_slug}/pincode-${pm[1]}`;
+    }
+  }
+  if (!path) {
+    const dm = s.match(/^state-([a-z0-9-]+?)-district-([a-z0-9-]+)/);
+    if (dm) {
+      const st = await getStateBySlug(DB, dm[1]);
+      if (st) { const d = await getDistrictBySlug(DB, st.id, dm[2]); if (d) path = `/${dm[1]}/district-${dm[2]}`; }
+    }
+    if (!path) { const sm = s.match(/^state-([a-z0-9-]+)$/); if (sm) { const st = await getStateBySlug(DB, sm[1]); if (st) path = `/${sm[1]}`; } }
+  }
+}
 
+if (!path) return notFound();
 return Astro.rewrite(path);
 ---
