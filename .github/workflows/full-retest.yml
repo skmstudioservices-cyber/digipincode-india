@@ -6,17 +6,36 @@ permissions:
 jobs:
   retest:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
+      - name: Per-item live probe
+        run: |
+          set +e
+          probe() {
+            name="$1"; base="$2"
+            echo "===== $name : $base ====="
+            h=$(curl -s -m 25 -o /tmp/h -w '%{http_code}' "$base/"); b=$(wc -c </tmp/h)
+            echo "home http=$h bytes=$b"
+            echo "  title: $(sed -n 's/.*<title>\([^<]*\)<\/title>.*/\1/p' /tmp/h | head -1 | cut -c1-70)"
+            echo "  canonical: $(grep -o 'rel="canonical" href="[^"]*"' /tmp/h | head -1)"
+            echo "  gsc=$(grep -c 'google-site-verification' /tmp/h) ga=$(grep -c 'googletagmanager' /tmp/h) monetag=$(grep -ci 'monetag\|quge5\|5gvci' /tmp/h)"
+            sm=$(curl -s -m 25 -o /tmp/sm -w '%{http_code}' "$base/sitemap.xml")
+            echo "  sitemap.xml http=$sm urls=$(grep -c '<loc>' /tmp/sm) doubleslash=$(grep -c '://[^/]*//' /tmp/sm)"
+            echo "  /sitemap/ page http=$(curl -s -m 20 -o /dev/null -w '%{http_code}' "$base/sitemap/")"
+          }
+          probe "digipincode-WORKERS" "https://digipincode.india-in.workers.dev"
+          probe "digipincode-PAGES"   "https://digipincode.pages.dev"
+          probe "EV"                  "https://evchargersnearme.pages.dev"
+          probe "TOILETS"             "https://toiletsnearme.pages.dev"
+          probe "EXAMSTATUS"          "https://examstatus.india-in.workers.dev"
+          echo "===== flat sitemap (workers) ====="
+          W=https://digipincode.india-in.workers.dev
+          curl -s -m 45 "$W/sitemap-flat.xml" -o /tmp/sf
+          echo "sitemap-flat urls=$(grep -c '<loc>' /tmp/sf) doubleslash=$(grep -c '://[^/]*//' /tmp/sf)"
       - name: Source triage
         run: |
           set +e
-          echo "=== files referencing india-IN-state ==="
-          grep -rln "india-IN-state" src | head -20
-          echo "=== builders ==="
-          for f in $(grep -rln "india-IN-state" src); do echo "----- $f -----"; sed -n '1,80p' "$f"; done
-          echo "=== sitemap-flat source ==="
-          sed -n '1,120p' src/pages/sitemap-flat.xml.ts
-          echo "=== Base.astro (canonical + GA) ==="
-          sed -n '1,100p' src/layouts/Base.astro
+          echo "=== flat sitemap source ==="; sed -n '1,40p' src/pages/sitemap-flat.xml.ts
+          echo "=== sitemap index source ==="; sed -n '1,40p' src/pages/sitemap.xml.ts
+          echo "=== sitemap-pages source ==="; sed -n '1,30p' src/pages/sitemap-pages.xml.ts
