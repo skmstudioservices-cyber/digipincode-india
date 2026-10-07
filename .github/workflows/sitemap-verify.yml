@@ -1,0 +1,30 @@
+name: Sitemap Verify (open URLs)
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Open sitemap URLs and read real content
+        run: |
+          set +e
+          for base in "https://digipincode.india-in.workers.dev" "https://digipincode.pages.dev"; do
+            echo "########## $base ##########"
+            echo "--- /sitemap.xml (index) ---"
+            curl -s -m 30 "$base/sitemap.xml" -o /tmp/i.xml -w "http=%{http_code} bytes=%{size_download}\n"
+            grep -o '<loc>[^<]*' /tmp/i.xml | sed 's/<loc>//' | head -20
+            first=$(grep -o '<loc>[^<]*' /tmp/i.xml | sed 's/<loc>//' | grep 'part-' | head -1)
+            echo "--- first child: $first ---"
+            curl -s -m 40 "$first" -o /tmp/c.xml -w "http=%{http_code} bytes=%{size_download}\n"
+            echo "child urls=$(grep -c '<loc>' /tmp/c.xml) doubleslash=$(grep -c '://[^/]*//' /tmp/c.xml)"
+            echo "sample:"; grep -o '<loc>[^<]*' /tmp/c.xml | sed 's/<loc>//' | head -3
+            echo "--- /sitemap/pages.xml ---"
+            curl -s -m 30 "$base/sitemap/pages.xml" -o /tmp/p.xml -w "http=%{http_code}\n"
+            grep -o '<loc>[^<]*' /tmp/p.xml | sed 's/<loc>//' | head -12
+            echo "--- old /sitemap-flat.xml (expect 404) ---"
+            curl -s -o /dev/null -w "http=%{http_code}\n" -m 20 "$base/sitemap-flat.xml"
+            echo "--- robots sitemap line ---"
+            curl -s -m 20 "$base/robots.txt" | grep -i sitemap
+          done
