@@ -30,7 +30,7 @@ jobs:
             | curl -s -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H "Content-Type: application/json" --data @- \
             https://api.cloudflare.com/client/v4/graphql \
             | jq '[.data.viewer.accounts[0].workersInvocationsAdaptive[]?]' > /tmp/cf_today.json
-          jq -n --arg q "query { viewer { accounts(filter: {accountTag: \"$CLOUDFLARE_ACCOUNT_ID\"}) { workersInvocationsAdaptive(limit: 100, filter: {datetime_geq: \"${YDAY}T00:00:00Z\", datetime_lt: \"${TODAY}T00:00:00Z\"}, orderBy: [scriptName_ASC]) { sum { requests } dimensions { scriptName } } } }" '{query: $q}' \
+          jq -n --arg q "query { viewer { accounts(filter: {accountTag: \"$CLOUDFLARE_ACCOUNT_ID\"}) { workersInvocationsAdaptive(limit: 100, filter: {datetime_geq: \"${YDAY}T00:00:00Z\", datetime_lt: \"${TODAY}T00:00:00Z\"}, orderBy: [scriptName_ASC]) { sum { requests } dimensions { scriptName } } } } }" '{query: $q}' \
             | curl -s -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H "Content-Type: application/json" --data @- \
             https://api.cloudflare.com/client/v4/graphql \
             | jq '[.data.viewer.accounts[0].workersInvocationsAdaptive[]?]' > /tmp/cf_yesterday.json
@@ -60,7 +60,7 @@ jobs:
           curl -s -X POST "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/d1/database/74274a3f-9fca-42ec-9fbf-c707ffbc56a4/query" \
             -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H "Content-Type: application/json" \
             --data '{"sql": "SELECT name FROM sqlite_master WHERE type = '\''table'\'' AND name NOT LIKE '\''sqlite_%'\'' LIMIT 15"}' > /tmp/d1.json
-          jq '[.result[0].results[].name] // empty' /tmp/d1.json
+          jq '[(.result[0].results // [])[].name]' /tmp/d1.json 2>/dev/null || { echo "D1 read failed — raw response:"; head -c 400 /tmp/d1.json; echo; echo "[]"; }
 
       - name: Collect workflow run statuses
         env:

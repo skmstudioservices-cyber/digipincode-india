@@ -22,20 +22,16 @@ jobs:
             echo "  gsc=$(grep -c 'google-site-verification' /tmp/h) ga=$(grep -c 'googletagmanager' /tmp/h) monetag=$(grep -ci 'monetag\|quge5\|5gvci' /tmp/h)"
             sm=$(curl -s -m 25 -o /tmp/sm -w '%{http_code}' "$base/sitemap.xml")
             echo "  sitemap.xml http=$sm urls=$(grep -c '<loc>' /tmp/sm) doubleslash=$(grep -c '://[^/]*//' /tmp/sm)"
-            echo "  /sitemap/ page http=$(curl -s -m 20 -o /dev/null -w '%{http_code}' "$base/sitemap/")"
+            echo "  sitemap/pages.xml http=$(curl -s -m 20 -o /dev/null -w '%{http_code}' "$base/sitemap/pages.xml")"
           }
           probe "digipincode-WORKERS" "https://digipincode.india-in.workers.dev"
           probe "digipincode-PAGES"   "https://digipincode.pages.dev"
           probe "EV"                  "https://evchargersnearme.pages.dev"
           probe "TOILETS"             "https://toiletsnearme.pages.dev"
           probe "EXAMSTATUS"          "https://examstatus.india-in.workers.dev"
-          echo "===== flat sitemap (workers) ====="
-          W=https://digipincode.india-in.workers.dev
-          curl -s -m 45 "$W/sitemap-flat.xml" -o /tmp/sf
-          echo "sitemap-flat urls=$(grep -c '<loc>' /tmp/sf) doubleslash=$(grep -c '://[^/]*//' /tmp/sf)"
       - name: Source triage
         run: |
           set +e
-          echo "=== flat sitemap source ==="; sed -n '1,40p' src/pages/sitemap-flat.xml.ts
           echo "=== sitemap index source ==="; sed -n '1,40p' src/pages/sitemap.xml.ts
-          echo "=== sitemap-pages source ==="; sed -n '1,30p' src/pages/sitemap-pages.xml.ts
+          echo "=== sitemap chunk source ==="; sed -n '1,40p' 'src/pages/sitemap/[part].xml.ts'
+          echo "=== pages sitemap source ==="; sed -n '1,30p' src/pages/sitemap/pages.xml.ts
