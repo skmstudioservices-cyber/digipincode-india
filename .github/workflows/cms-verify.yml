@@ -1,6 +1,6 @@
 name: Nexus CMS Verify
 
-# Opens both views of the CMS and confirms the top mode bar renders.
+# Opens both views + hits every read API to confirm real data flows.
 on:
   workflow_dispatch:
 
@@ -8,12 +8,17 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     steps:
-      - name: Check both views render the mode bar
+      - name: Views + APIs
         run: |
           for v in actual demo; do
             code=$(curl -s -o /tmp/p.html -w '%{http_code}' -m 30 "https://my-cms-dashboard.india-in.workers.dev/?view=$v")
             pill=$(grep -o 'ACTUAL DASHBOARD\|DEMO DASHBOARD' /tmp/p.html | head -1)
-            sw=$(grep -o 'Switch to [A-Za-z]* Dashboard' /tmp/p.html | head -1)
-            note=$(grep -o 'Public sandbox view\|Live view' /tmp/p.html | head -1)
-            echo "view=$v http=$code pill='$pill' switch='$sw' note='$note'"
+            tabs=$(grep -o 'data-tab=' /tmp/p.html | wc -l | tr -d ' ')
+            echo "view=$v http=$code pill='$pill' tabs=$tabs"
+          done
+          echo "--- API checks ---"
+          for ep in "/api/overview" "/api/sites" "/api/recommendations" "/api/crons" "/api/d1_tables?db=CMS_DB" "/api/config" "/api/comments" "/api/domain_check?domain=cloudflare.com"; do
+            code=$(curl -s -o /tmp/a.json -w '%{http_code}' -m 30 "https://my-cms-dashboard.india-in.workers.dev$ep")
+            head=$(head -c 140 /tmp/a.json | tr -d '\n')
+            echo "$ep -> http=$code body=${head}"
           done
