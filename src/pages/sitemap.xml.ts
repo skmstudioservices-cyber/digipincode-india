@@ -9,8 +9,19 @@ export async function GET({ request, locals }) {
   const key = new Request(request.url, { method: 'GET' });
   if (cache) { try { const hit = await cache.match(key); if (hit) return hit; } catch {} }
 
-  const row = await db.prepare('SELECT COUNT(*) AS total FROM url_index').first();
-  const total = Number((row as any)?.total || 0);
+  // Count from the tiny meta table (1 row read). The old COUNT(*) scanned
+  // ~163,893 rows on EVERY cache-miss per colo and was a top D1 read burner.
+  let total = 0;
+  try {
+    const m = await db.prepare("SELECT v FROM meta WHERE k = 'url_index_count'").first();
+    total = Number((m as any)?.v || 0);
+  } catch {}
+  if (!total) {
+    // one-time fallback: compute once, then persist so future hits are 1 row
+    const row = await db.prepare('SELECT COUNT(*) AS total FROM url_index').first();
+    total = Number((row as any)?.total || 0);
+    try { await db.prepare("INSERT OR REPLACE INTO meta(k,v) VALUES('url_index_count', ?)").bind(String(total)).run(); } catch {}
+  }
   const parts = Math.max(1, Math.ceil(total / CHUNK));
 
   let xml = '<?xml version="1.0" encoding="UTF-8"?>\n<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n';
