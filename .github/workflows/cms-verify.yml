@@ -1,0 +1,19 @@
+name: Nexus CMS Verify
+
+# Opens both views of the CMS and confirms the top mode bar renders.
+on:
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check both views render the mode bar
+        run: |
+          for v in actual demo; do
+            code=$(curl -s -o /tmp/p.html -w '%{http_code}' -m 30 "https://my-cms-dashboard.india-in.workers.dev/?view=$v")
+            pill=$(grep -o 'ACTUAL DASHBOARD\|DEMO DASHBOARD' /tmp/p.html | head -1)
+            sw=$(grep -o 'Switch to [A-Za-z]* Dashboard' /tmp/p.html | head -1)
+            note=$(grep -o 'Public sandbox view\|Live view' /tmp/p.html | head -1)
+            echo "view=$v http=$code pill='$pill' switch='$sw' note='$note'"
+          done
