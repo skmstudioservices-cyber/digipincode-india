@@ -1,0 +1,41 @@
+name: Tmp Arunachal Diag (one-off)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  diag:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Probe arunachal-pradesh with header/query matrix
+        run: |
+          set +e
+          B=https://digipincode.india-in.workers.dev
+          probe() {
+            UA="$1"; U="$2"; FOLLOW="$3"
+            if [ "$FOLLOW" = "L" ]; then
+              code=$(curl -sL -o /tmp/b -D /tmp/h -w "%{http_code}" --max-time 30 -A "$UA" "$U")
+            else
+              code=$(curl -s -o /tmp/b -D /tmp/h -w "%{http_code}" --max-time 30 -A "$UA" "$U")
+            fi
+            echo "UA='$UA' follow=$FOLLOW $U -> HTTP $code bytes=$(wc -c </tmp/b)"
+            grep -iE '^(location|cf-cache-status|age|cache-control|cf-ray|content-type):' /tmp/h | tr -d '\r' | sed 's/^/    /'
+            if [ "$code" != "200" ]; then echo "    body: $(head -c 200 /tmp/b | tr '\n' ' ')"; fi
+          }
+          for UA in "SKM-site-monitor/1.0" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36" "curl/8.0"; do
+            probe "$UA" "$B/arunachal-pradesh" ""
+            probe "$UA" "$B/arunachal-pradesh" "L"
+            probe "$UA" "$B/india-IN-state-arunachal-pradesh/" "L"
+            probe "$UA" "$B/goa" "L"
+          done
+          echo "=== repeat arunachal (monitor UA, no follow) 6x ==="
+          for i in 1 2 3 4 5 6; do
+            code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 25 -A "SKM-site-monitor/1.0" "$B/arunachal-pradesh")
+            echo "try$i -> $code"
+          done
+          echo "=== same but follow (-L) 6x ==="
+          for i in 1 2 3 4 5 6; do
+            code=$(curl -sL -o /dev/null -w "%{http_code}" --max-time 25 -A "SKM-site-monitor/1.0" "$B/arunachal-pradesh")
+            echo "Ltry$i -> $code"
+          done
