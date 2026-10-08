@@ -204,9 +204,11 @@ export async function searchAll(db: DB, q: string) {
   // Hierarchy URLs (URL structure v2):
   //   /{state}/district-{d}/{tehsil|taluk}-{t}/village-{v}/pincode-{p}
   //   /{state}/district-{d}/pincode-{p}
+  // Titles are RICH (name + district + state) so results never render as a
+  // bare 1-word row (e.g. just the 6-digit pincode).
   const villages = await withRetry(() =>
     db.prepare(`
-    SELECT v.name AS title,
+    SELECT (v.name || ', ' || COALESCE(d.name,'') || ', ' || COALESCE(s.name,'')) AS title,
            CASE WHEN sd.slug IS NULL OR d.slug IS NULL OR s.slug IS NULL
                 THEN '/village/' || v.slug
                 ELSE '/' || s.slug || '/district-' || d.slug || '/' ||
@@ -225,7 +227,7 @@ export async function searchAll(db: DB, q: string) {
 
   const pincodes = await withRetry(() =>
     db.prepare(`
-    SELECT p.pincode AS title,
+    SELECT (p.pincode || CASE WHEN COALESCE(p.office_name,'') = '' THEN '' ELSE ' — ' || p.office_name END || ', ' || COALESCE(d.name,'') || ', ' || COALESCE(s.name,'')) AS title,
            '/' || s.slug || '/district-' || d.slug || '/pincode-' || p.pincode AS url
     FROM pincodes p
     JOIN states s ON s.id = p.state_id
@@ -236,7 +238,7 @@ export async function searchAll(db: DB, q: string) {
 
   const panchayats = await withRetry(() =>
     db.prepare(`
-    SELECT local_body_name AS title, '/panchayat/' || lgd_code AS url FROM lgd_panchayats
+    SELECT (local_body_name || ' panchayat') AS title, '/panchayat/' || lgd_code AS url FROM lgd_panchayats
     WHERE local_body_name LIKE ? LIMIT 20
   `).bind(like).all()
   );
