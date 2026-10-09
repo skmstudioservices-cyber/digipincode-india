@@ -11,33 +11,31 @@ jobs:
           node-version: 22
       - name: Install Playwright
         run: npm i -D playwright@latest && npx playwright install --with-deps chromium
-      - name: Load + test controls
+      - name: Load + check design tokens
         run: |
           cat > check.mjs <<'EOF'
           import { chromium } from 'playwright';
           const b = await chromium.launch();
-          const p = await b.newPage();
+          const p = await b.newPage({ viewport: { width: 1440, height: 1000 } });
           const errs = [];
           p.on('pageerror', (e) => errs.push('PAGEERROR: ' + e.message));
           p.on('console', (m) => { if (m.type() === 'error') errs.push('CONSOLE: ' + m.text()); });
           await p.goto('https://my-cms-dashboard.india-in.workers.dev/', { waitUntil: 'networkidle', timeout: 60000 });
           await p.waitForTimeout(5000);
-          console.log('THEMES=' + await p.locator('#themeSel option').count());
-          console.log('BLEVEL=' + await p.evaluate(() => document.documentElement.getAttribute('data-blevel')));
-          console.log('CMT_CHIPS=' + await p.locator('.blk-cmt, .blk-cmt-i').count());
-          console.log('SEND_BTNS=' + await p.locator('[data-send]').count() + ' COPY_PER_EL=' + await p.locator('[data-copy]').count() + ' COLOR_PER_EL=' + await p.locator('[data-color]').count());
-          await p.locator('#btnColors').click();
-          await p.waitForTimeout(600);
-          console.log('COLOR_PANEL_OPEN=' + await p.evaluate(() => !!document.querySelector('#dlgColors')?.open) + ' PICKERS=' + await p.locator('#colorGrid input[type=color]').count());
-          await p.keyboard.press('Escape');
-          await p.locator('#themeSel').selectOption('nord');
-          await p.waitForTimeout(400);
-          console.log('THEME_AFTER_SELECT=' + await p.evaluate(() => document.documentElement.getAttribute('data-theme')));
-          await p.locator('.blk-cmt').first().click();
-          await p.waitForTimeout(500);
-          console.log('COMMENT_DIALOG=' + await p.evaluate(() => !!document.querySelector('#dlgComment')?.open));
-          console.log('COPY_ALL_BTN=' + await p.locator('#btnCopyAll').count());
+          const cs = (sel, prop) => p.evaluate(([s, pr]) => { const e = document.querySelector(s); return e ? getComputedStyle(e)[pr] : 'none'; }, [sel, prop]);
+          console.log('BODY_BG=' + await cs('body', 'backgroundColor'));
+          console.log('CARD_BG=' + await cs('.card', 'backgroundColor') + ' CARD_RADIUS=' + await cs('.card', 'borderRadius'));
+          console.log('SIDE_BG=' + await cs('.drawer-side', 'backgroundColor') + ' SIDE_TEXT=' + await cs('.drawer-side', 'color'));
+          console.log('PRIMARY=' + await cs('.btn-primary', 'backgroundColor') + ' NAVBAR_BG=' + await cs('header.navbar', 'backgroundColor'));
+          console.log('BREADCRUMB=' + await p.locator('.breadcrumbs').count() + ' SEARCH=' + await p.locator('#gsearch').count() + ' AVATAR=' + await p.locator('.avatar').count());
+          console.log('CMT_CHIPS=' + await p.locator('.blk-cmt, .blk-cmt-i').count() + ' COPY_ALL=' + await p.locator('#btnCopyAll').count());
           console.log('ERRORS=' + JSON.stringify(errs.slice(0, 12)));
+          await p.screenshot({ path: 'cms.png', fullPage: true });
           await b.close();
           EOF
           node check.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cms-shot
+          path: cms.png
