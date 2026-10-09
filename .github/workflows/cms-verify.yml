@@ -5,14 +5,20 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     steps:
-      - name: Raw HTML probe
+      - name: Probe shell + PWA + noindex
         run: |
-          html=$(curl -s -m 30 "https://my-cms-dashboard.india-in.workers.dev/?cb=$RANDOM")
-          echo "bytes=$(printf '%s' "$html" | wc -c)"
-          echo "title=$(printf '%s' "$html" | grep -o '<title>[^<]*' | head -1)"
-          echo "has_view=$(printf '%s' "$html" | grep -c 'id="view"')"
-          echo "has_skmdark=$(printf '%s' "$html" | grep -c 'skmdark')"
-          echo "has_datablock=$(printf '%s' "$html" | grep -c 'data-block')"
-          echo "has_daisyui=$(printf '%s' "$html" | grep -c 'daisy')"
-          echo "--- first 300 chars ---"
-          printf '%s' "$html" | head -c 300
+          B=https://my-cms-dashboard.india-in.workers.dev
+          html=$(curl -s -m 30 "$B/?cb=$RANDOM")
+          echo "title=$(printf '%s' "$html" | grep -o '<title>[^<]*')"
+          echo "noindex=$(printf '%s' "$html" | grep -c 'noindex')"
+          echo "manifest_link=$(printf '%s' "$html" | grep -c 'manifest.webmanifest')"
+          echo "theme_color=$(printf '%s' "$html" | grep -c 'theme-color')"
+          echo "--- PWA files ---"
+          for p in /manifest.webmanifest /sw.js /robots.txt /icon.svg /vault.html /blockmap.json; do
+            echo "$p -> $(curl -s -o /dev/null -w '%{http_code}' -m 20 $B$p)"
+          done
+          echo "robots.txt body: $(curl -s -m 20 $B/robots.txt)"
+          echo "--- APIs ---"
+          for e in /api/overview /api/sites /api/comments /api/recommendations /api/crons; do
+            echo "$e -> $(curl -s -o /dev/null -w '%{http_code}' -m 20 $B$e)"
+          done
