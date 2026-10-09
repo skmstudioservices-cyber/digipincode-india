@@ -1,0 +1,26 @@
+name: CF Traffic
+on:
+  workflow_dispatch:
+jobs:
+  t:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Traffic breakdown
+        env:
+          CF: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          H="Authorization: Bearer $CF"
+          ACCT=$(curl -s -H "$H" https://api.cloudflare.com/client/v4/accounts | jq -r '.result[0].id')
+          Q() { curl -s -H "$H" -H "Content-Type: application/json" https://api.cloudflare.com/client/v4/graphql --data "$1"; }
+          F='"datetime_geq":"2026-10-02T00:00:00Z"'
+          echo "=== BY HOST ==="
+          Q "{\"query\":\"{ viewer { accounts(filter:{accountTag:\\\"$ACCT\\\"}) { httpRequestsAdaptiveGroups(limit:25, filter:{$F}) { count dimensions { clientRequestHTTPHost } } } } }\"}" | jq -r '.data.viewer.accounts[0].httpRequestsAdaptiveGroups[]? | "\(.count)  \(.dimensions.clientRequestHTTPHost)"' | sort -rn
+          echo "=== BY STATUS ==="
+          Q "{\"query\":\"{ viewer { accounts(filter:{accountTag:\\\"$ACCT\\\"}) { httpRequestsAdaptiveGroups(limit:10, filter:{$F}) { count dimensions { edgeResponseStatus } } } } }\"}" | jq -r '.data.viewer.accounts[0].httpRequestsAdaptiveGroups[]? | "\(.count)  \(.dimensions.edgeResponseStatus)"' | sort -rn
+          echo "=== BY COUNTRY ==="
+          Q "{\"query\":\"{ viewer { accounts(filter:{accountTag:\\\"$ACCT\\\"}) { httpRequestsAdaptiveGroups(limit:12, filter:{$F}) { count dimensions { clientCountryName } } } } }\"}" | jq -r '.data.viewer.accounts[0].httpRequestsAdaptiveGroups[]? | "\(.count)  \(.dimensions.clientCountryName)"' | sort -rn
+          echo "=== BY USER AGENT ==="
+          Q "{\"query\":\"{ viewer { accounts(filter:{accountTag:\\\"$ACCT\\\"}) { httpRequestsAdaptiveGroups(limit:25, filter:{$F}) { count dimensions { userAgent } } } } }\"}" | jq -r '.data.viewer.accounts[0].httpRequestsAdaptiveGroups[]? | "\(.count)  \(.dimensions.userAgent[0:70])"' | sort -rn
+          echo "=== TOP PATHS ==="
+          Q "{\"query\":\"{ viewer { accounts(filter:{accountTag:\\\"$ACCT\\\"}) { httpRequestsAdaptiveGroups(limit:25, filter:{$F}) { count dimensions { clientRequestPath } } } } }\"}" | jq -r '.data.viewer.accounts[0].httpRequestsAdaptiveGroups[]? | "\(.count)  \(.dimensions.clientRequestPath[0:80])"' | sort -rn
