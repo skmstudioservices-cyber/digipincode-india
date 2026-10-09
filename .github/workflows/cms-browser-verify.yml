@@ -11,7 +11,7 @@ jobs:
           node-version: 22
       - name: Install Playwright
         run: npm i -D playwright@latest && npx playwright install --with-deps chromium
-      - name: Test drag-drop nesting
+      - name: Test pointer drag-drop nesting
         run: |
           cat > check.mjs <<'EOF'
           import { chromium } from 'playwright';
@@ -27,15 +27,19 @@ jobs:
           await p.locator('[data-add="card"]').click();
           await p.waitForTimeout(400);
           console.log('TOP_BLOCKS=' + await p.locator('#canvas > .wf-node').count());
-          await p.dragAndDrop('.wf-node[data-id^="card-"] .wf-handle', '.wf-children .drop-slot');
+          const hb = await p.locator('.wf-node[data-id^="card-"] .wf-handle').first().boundingBox();
+          const sb = await p.locator('.wf-children .drop-slot').first().boundingBox();
+          await p.mouse.move(hb.x + hb.width / 2, hb.y + hb.height / 2);
+          await p.mouse.down();
+          await p.mouse.move(sb.x + sb.width / 2, sb.y + sb.height / 2, { steps: 12 });
+          await p.mouse.up();
           await p.waitForTimeout(700);
           const nested = await p.evaluate(() => { const z = document.querySelector('.wf-children'); return z ? !!z.querySelector('.wf-node[data-id^="card-"]') : false; });
-          console.log('DRAGGED_INTO_CONTAINER=' + nested);
-          console.log('TOP_AFTER=' + await p.locator('#canvas > .wf-node').count());
+          console.log('DRAGGED_INTO_CONTAINER=' + nested + ' TOP_AFTER=' + await p.locator('#canvas > .wf-node').count());
           await p.locator('#btnCode').click();
           await p.waitForTimeout(500);
           const code = await p.locator('#codeOut').innerText();
-          console.log('CODE_HAS_COMMENT=' + code.includes('<!-- BLOCK:') + ' CODE_LEN=' + code.length);
+          console.log('CODE_NESTED=' + code.includes('<!-- BLOCK:container-') + ' CODE_LEN=' + code.length);
           console.log('ERRORS=' + JSON.stringify(errs.slice(0, 12)));
           await b.close();
           EOF
