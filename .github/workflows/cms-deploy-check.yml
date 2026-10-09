@@ -1,0 +1,23 @@
+name: CMS Deploy Check
+on:
+  workflow_dispatch:
+jobs:
+  c:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Check
+        env:
+          CF: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          H="Authorization: Bearer $CF"
+          ACCT=$(curl -s -H "$H" https://api.cloudflare.com/client/v4/accounts | jq -r '.result[0].id')
+          echo "=== WORKER MODIFIED ==="
+          curl -s -H "$H" "https://api.cloudflare.com/client/v4/accounts/$ACCT/workers/scripts/my-cms-dashboard" | jq -r '.result | "modified=\(.modified_on)  created=\(.created_on)"'
+          echo "=== LIVE URL ==="
+          code=$(curl -s -o /tmp/body -w '%{http_code}' -L "https://my-cms-dashboard.india-in.workers.dev/?cb=$(date +%s)")
+          echo "HTTP=$code"
+          echo "--- body (first 400 chars) ---"
+          head -c 400 /tmp/body; echo
+          echo "=== CONTENT-TYPE ==="
+          curl -sI -L "https://my-cms-dashboard.india-in.workers.dev/?cb=$(date +%s)" | grep -i 'content-type\|server\|cf-ray' | head
