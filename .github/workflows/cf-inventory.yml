@@ -1,0 +1,38 @@
+name: CF Inventory
+on:
+  workflow_dispatch:
+jobs:
+  inv:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Query Cloudflare
+        env:
+          CF: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -e
+          H="Authorization: Bearer $CF"
+          ACCT=$(curl -s -H "$H" https://api.cloudflare.com/client/v4/accounts | jq -r '.result[0].id')
+          echo "ACCOUNT=$ACCT"
+          echo "=== WORKERS ==="
+          curl -s -H "$H" "https://api.cloudflare.com/client/v4/accounts/$ACCT/workers/scripts" | jq -r '.result[]? | "\(.id) | mod=\(.modified_on)"'
+          echo "=== WORKERS SUBDOMAIN ==="
+          curl -s -H "$H" "https://api.cloudflare.com/client/v4/accounts/$ACCT/workers/subdomain" | jq -r '.result.subdomain'
+          echo "=== PAGES ==="
+          curl -s -H "$H" "https://api.cloudflare.com/client/v4/accounts/$ACCT/pages/projects" | jq -r '.result[]? | "\(.name) | prod=\(.production_branch) | sub=\(.subdomain) | domains=\(.domains|join(",")) | build=\(.build_config.build_command)"'
+          echo "=== D1 ==="
+          curl -s -H "$H" "https://api.cloudflare.com/client/v4/accounts/$ACCT/d1/database" | jq -r '.result[]? | "\(.name) | \(.uuid) | tables=\(.num_tables) | bytes=\(.file_size)"'
+          echo "=== KV ==="
+          curl -s -H "$H" "https://api.cloudflare.com/client/v4/accounts/$ACCT/storage/kv/namespaces" | jq -r '.result[]? | "\(.title) | \(.id)"'
+          echo "=== R2 ==="
+          curl -s -H "$H" "https://api.cloudflare.com/client/v4/accounts/$ACCT/r2/buckets" | jq -r '.result.buckets[]?.name' 2>/dev/null || echo none
+          echo "=== D1 ANALYTICS (7d) ==="
+          FROM=$(date -u -d '7 days ago' +%Y-%m-%d)
+          curl -s -H "$H" -H "Content-Type: application/json" https://api.cloudflare.com/client/v4/graphql \
+            --data "{\"query\":\"{ viewer { accounts(filter:{accountTag:\\\"$ACCT\\\"}) { d1AnalyticsAdaptiveGroups(limit:50, filter:{date_geq:\\\"$FROM\\\"}) { count sum { rowsRead rowsWritten } dimensions { databaseId } } } } }\"}" \
+            | jq -c '.data.viewer.accounts[0].d1AnalyticsAdaptiveGroups[]? | {db:.dimensions.databaseId, q:.count, read:.sum.rowsRead, write:.sum.rowsWritten}'
+          echo "=== TRAFFIC (24h by UA/bot) ==="
+          D1=$(date -u -d '1 day ago' +%Y-%m-%dT%H:%M:%SZ); D2=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          curl -s -H "$H" -H "Content-Type: application/json" https://api.cloudflare.com/client/v4/graphql \
+            --data "{\"query\":\"{ viewer { accounts(filter:{accountTag:\\\"$ACCT\\\"}) { httpRequestsAdaptiveGroups(limit:20, filter:{datetime_geq:\\\"$D1\\\", datetime_leq:\\\"$D2\\\"}) { count dimensions { botManagement { verifiedBot } clientCountryName } } } } }\"}" \
+            | jq -c '.data.viewer.accounts[0].httpRequestsAdaptiveGroups[]? | {n:.count, bot:.dimensions.botManagement.verifiedBot, cc:.dimensions.clientCountryName}'
