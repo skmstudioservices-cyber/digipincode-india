@@ -1,24 +1,18 @@
 name: Nexus CMS Verify
-
-# Opens both views + hits every read API to confirm real data flows.
 on:
   workflow_dispatch:
-
 jobs:
   verify:
     runs-on: ubuntu-latest
     steps:
-      - name: Views + APIs
+      - name: Raw HTML probe
         run: |
-          for v in actual demo; do
-            code=$(curl -s -o /tmp/p.html -w '%{http_code}' -m 30 "https://my-cms-dashboard.india-in.workers.dev/?view=$v")
-            pill=$(grep -o 'ACTUAL DASHBOARD\|DEMO DASHBOARD' /tmp/p.html | head -1)
-            tabs=$(grep -o 'data-tab=' /tmp/p.html | wc -l | tr -d ' ')
-            echo "view=$v http=$code pill='$pill' tabs=$tabs"
-          done
-          echo "--- API checks ---"
-          for ep in "/api/overview" "/api/sites" "/api/recommendations" "/api/crons" "/api/d1_tables?db=CMS_DB" "/api/config" "/api/comments" "/api/domain_check?domain=cloudflare.com"; do
-            code=$(curl -s -o /tmp/a.json -w '%{http_code}' -m 30 "https://my-cms-dashboard.india-in.workers.dev$ep")
-            head=$(head -c 140 /tmp/a.json | tr -d '\n')
-            echo "$ep -> http=$code body=${head}"
-          done
+          html=$(curl -s -m 30 "https://my-cms-dashboard.india-in.workers.dev/?cb=$RANDOM")
+          echo "bytes=$(printf '%s' "$html" | wc -c)"
+          echo "title=$(printf '%s' "$html" | grep -o '<title>[^<]*' | head -1)"
+          echo "has_view=$(printf '%s' "$html" | grep -c 'id="view"')"
+          echo "has_skmdark=$(printf '%s' "$html" | grep -c 'skmdark')"
+          echo "has_datablock=$(printf '%s' "$html" | grep -c 'data-block')"
+          echo "has_daisyui=$(printf '%s' "$html" | grep -c 'daisy')"
+          echo "--- first 300 chars ---"
+          printf '%s' "$html" | head -c 300
