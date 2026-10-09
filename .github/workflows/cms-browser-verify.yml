@@ -11,7 +11,7 @@ jobs:
           node-version: 22
       - name: Install Playwright
         run: npm i -D playwright@latest && npx playwright install --with-deps chromium
-      - name: Test the wireframe playground
+      - name: Test drag-drop nesting
         run: |
           cat > check.mjs <<'EOF'
           import { chromium } from 'playwright';
@@ -24,14 +24,18 @@ jobs:
           await p.waitForTimeout(3000);
           console.log('PALETTE=' + await p.locator('#palette [data-add]').count());
           await p.locator('[data-add="container"]').click();
-          await p.locator('[data-add="grid3"]').click();
           await p.locator('[data-add="card"]').click();
           await p.waitForTimeout(400);
-          console.log('CANVAS_BLOCKS=' + await p.locator('#canvas [data-block]').count());
+          console.log('TOP_BLOCKS=' + await p.locator('#canvas > .wf-node').count());
+          await p.dragAndDrop('.wf-node[data-id^="card-"] .wf-handle', '.wf-children .drop-slot');
+          await p.waitForTimeout(700);
+          const nested = await p.evaluate(() => { const z = document.querySelector('.wf-children'); return z ? !!z.querySelector('.wf-node[data-id^="card-"]') : false; });
+          console.log('DRAGGED_INTO_CONTAINER=' + nested);
+          console.log('TOP_AFTER=' + await p.locator('#canvas > .wf-node').count());
           await p.locator('#btnCode').click();
           await p.waitForTimeout(500);
           const code = await p.locator('#codeOut').innerText();
-          console.log('CODE_LEN=' + code.length + ' HAS_COMMENT=' + code.includes('<!-- BLOCK:') + ' HAS_RESPONSIVE=' + code.includes('lg:grid-cols-3'));
+          console.log('CODE_HAS_COMMENT=' + code.includes('<!-- BLOCK:') + ' CODE_LEN=' + code.length);
           console.log('ERRORS=' + JSON.stringify(errs.slice(0, 12)));
           await b.close();
           EOF
