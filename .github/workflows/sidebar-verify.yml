@@ -1,0 +1,17 @@
+name: Sidebar Verify
+on:
+  workflow_dispatch:
+jobs:
+  v:
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          CF: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          H="Authorization: Bearer $CF"
+          ACCT=$(curl -s -H "$H" https://api.cloudflare.com/client/v4/accounts | jq -r '.result[0].id')
+          echo "modified=$(curl -s -H "$H" "https://api.cloudflare.com/client/v4/accounts/$ACCT/workers/scripts" | jq -r '.result[]?|select(.id=="my-cms-dashboard")|.modified_on')"
+          html=$(curl -s -m 30 "https://my-cms-dashboard.india-in.workers.dev/?cb=$RANDOM")
+          echo "sidebar_hex=$(printf '%s' "$html" | grep -c '0f172a')"
+          echo "nav_cbd5e1=$(printf '%s' "$html" | grep -c 'cbd5e1')"
+          echo "title=$(printf '%s' "$html" | grep -o '<title>[^<]*')"
