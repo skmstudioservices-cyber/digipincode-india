@@ -1,0 +1,28 @@
+name: CF Inventory 2
+on:
+  workflow_dispatch:
+jobs:
+  inv:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Deep query
+        env:
+          CF: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          H="Authorization: Bearer $CF"
+          ACCT=$(curl -s -H "$H" https://api.cloudflare.com/client/v4/accounts | jq -r '.result[0].id')
+          FROM=$(date -u -d '7 days ago' +%Y-%m-%d)
+          echo "=== D1 DAILY (per db per day) ==="
+          curl -s -H "$H" -H "Content-Type: application/json" https://api.cloudflare.com/client/v4/graphql \
+            --data "{\"query\":\"{ viewer { accounts(filter:{accountTag:\\\"$ACCT\\\"}) { d1AnalyticsAdaptiveGroups(limit:100, filter:{date_geq:\\\"$FROM\\\"}, orderBy:[date_ASC]) { count sum { rowsRead rowsWritten } dimensions { date databaseId } } } } }\"}" \
+            | jq -r '.data.viewer.accounts[0].d1AnalyticsAdaptiveGroups[]? | "\(.dimensions.date) \(.dimensions.databaseId[0:8]) q=\(.count) read=\(.sum.rowsRead) write=\(.sum.rowsWritten)"' | sort
+          echo "=== ZONES ==="
+          curl -s -H "$H" "https://api.cloudflare.com/client/v4/zones?per_page=50" | jq -r '.result[]? | "\(.name) | \(.id) | plan=\(.plan.name)"'
+          echo "=== HTTP ANALYTICS probe ==="
+          curl -s -H "$H" -H "Content-Type: application/json" https://api.cloudflare.com/client/v4/graphql \
+            --data "{\"query\":\"{ viewer { accounts(filter:{accountTag:\\\"$ACCT\\\"}) { httpRequestsAdaptiveGroups(limit:3, filter:{datetime_geq:\\\"2026-10-08T00:00:00Z\\\"}) { count } } } }\"}" | jq -c '.data.viewer.accounts[0].httpRequestsAdaptiveGroups'
+          echo "=== WORKER DOMAINS ==="
+          curl -s -H "$H" "https://api.cloudflare.com/client/v4/accounts/$ACCT/workers/domains" | jq -r '.result[]? | "\(.service) <- \(.hostname)"'
+          echo "=== PAGES DEPLOY (digipincode) ==="
+          curl -s -H "$H" "https://api.cloudflare.com/client/v4/accounts/$ACCT/pages/projects/digipincode/deployments?per_page=3" | jq -r '.result[]? | "\(.environment) | \(.created_on) | \(.deployment_trigger.metadata.commit_hash[0:8])"'
