@@ -12,13 +12,16 @@ jobs:
         run: |
           H="Authorization: Bearer $CF"
           ACCT=$(curl -s -H "$H" https://api.cloudflare.com/client/v4/accounts | jq -r '.result[0].id')
-          Q() { curl -s -H "$H" -H "Content-Type: application/json" https://api.cloudflare.com/client/v4/graphql --data "$1"; }
-          FILT='datetime_geq:"2026-10-02T00:00:00Z"'
-          run() { echo "=== $1 ==="; Q "{\"query\":\"{ viewer { accounts(filter:{accountTag:\\\"$ACCT\\\"}) { httpRequestsAdaptiveGroups(limit:$2, filter:{$FILT}) { count dimensions { $1 } } } } }\"}" | jq -r ".data.viewer.accounts[0].httpRequestsAdaptiveGroups[]? | \"\(.count)  \(.dimensions.$1)\"" | sort -rn; }
-          run clientRequestHTTPHost 20
+          run() {
+            local dim="$1" lim="$2"
+            local q="{ viewer { accounts(filter:{accountTag:\"$ACCT\"}) { httpRequestsAdaptiveGroups(limit:$lim, filter:{datetime_geq:\"2026-10-02T00:00:00Z\"}) { count dimensions { $dim } } } } }"
+            local body; body=$(jq -n --arg q "$q" '{query:$q}')
+            echo "=== $dim ==="
+            curl -s -H "$H" -H "Content-Type: application/json" https://api.cloudflare.com/client/v4/graphql --data "$body" \
+              | jq -r ".data.viewer.accounts[0].httpRequestsAdaptiveGroups[]? | \"\(.count)  \(.dimensions.$dim)\"" | sort -rn | head -20
+          }
+          run clientRequestHTTPHost 25
           run edgeResponseStatus 10
           run clientCountryName 12
-          run userAgent 20
-          run clientRequestPath 20
-          echo "=== ERRORS ==="
-          Q "{\"query\":\"{ viewer { accounts(filter:{accountTag:\\\"$ACCT\\\"}) { httpRequestsAdaptiveGroups(limit:3, filter:{$FILT}) { count dimensions { clientCountryName } } } } }\"}" | jq -c '.errors'
+          run userAgent 25
+          run clientRequestPath 25
