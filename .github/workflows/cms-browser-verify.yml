@@ -11,36 +11,34 @@ jobs:
           node-version: 22
       - name: Install Playwright
         run: npm i -D playwright@latest && npx playwright install --with-deps chromium
-      - name: Load dashboard in a real browser
+      - name: Load + test element tools + colour wheel
         run: |
           cat > check.mjs <<'EOF'
           import { chromium } from 'playwright';
-          const url = process.env.CMS_URL || 'https://my-cms-dashboard.india-in.workers.dev/?view=actual';
           const b = await chromium.launch();
           const p = await b.newPage();
           const errs = [];
-          p.on('pageerror', e => errs.push('PAGEERROR: ' + e.message));
-          p.on('console', m => { if (m.type() === 'error') errs.push('CONSOLE: ' + m.text()); });
-          await p.goto(url, { waitUntil: 'networkidle', timeout: 60000 });
+          p.on('pageerror', (e) => errs.push('PAGEERROR: ' + e.message));
+          p.on('console', (m) => { if (m.type() === 'error') errs.push('CONSOLE: ' + m.text()); });
+          await p.goto('https://my-cms-dashboard.india-in.workers.dev/', { waitUntil: 'networkidle', timeout: 60000 });
           await p.waitForTimeout(5000);
-          const tabs = await p.locator('.nav-item').count();
-          const stats = await p.locator('.stat').count();
-          const vt = await p.locator('#view').innerText();
-          const fs = await p.evaluate(() => getComputedStyle(document.body).fontSize);
-          const fg = await p.evaluate(() => getComputedStyle(document.body).color);
-          const bg = await p.evaluate(() => getComputedStyle(document.body).backgroundColor);
-          console.log('TABS=' + tabs + ' STATS=' + stats + ' VIEWLEN=' + vt.length);
-          console.log('A11Y_FONTSIZE=' + fs + ' FG=' + fg + ' BG=' + bg);
-          await p.click('button[aria-label="Switch light or dark theme"]');
-          await p.waitForTimeout(600);
-          console.log('THEME_AFTER_TOGGLE=' + await p.evaluate(() => document.documentElement.getAttribute('data-theme')));
-          for (const t of ['sites','comments','vault']) {
-            if (t === 'vault') { await p.goto('https://my-cms-dashboard.india-in.workers.dev/vault', { waitUntil: 'domcontentloaded' }); console.log('VAULT len=' + (await p.locator('body').innerText()).length); continue; }
-            await p.click('.nav-item[data-tab="' + t + '"]');
-            await p.waitForTimeout(2000);
-            console.log('TAB ' + t + ' len=' + (await p.locator('#view').innerText()).length);
-          }
-          console.log('ERRORS=' + JSON.stringify(errs.slice(0, 20)));
+          console.log('TABS=' + await p.locator('.nav-item').count() + ' STATS=' + await p.locator('.stat').count());
+          console.log('BLK_TOOLS=' + await p.locator('.blk-tools').count() + ' CMT_BTNS=' + await p.locator('[data-cmt]').count() + ' COLOR_BTNS=' + await p.locator('[data-color]').count());
+          await p.locator('[data-cmt]').first().click();
+          await p.waitForTimeout(700);
+          console.log('COMMENT_DIALOG_OPEN=' + await p.evaluate(() => !!document.querySelector('#dlgComment')?.open));
+          await p.keyboard.press('Escape');
+          await p.locator('[data-color]').first().click();
+          await p.waitForTimeout(700);
+          console.log('COLOR_DIALOG_OPEN=' + await p.evaluate(() => !!document.querySelector('#dlgColor')?.open) + ' COLOR_WHEEL=' + await p.locator('#colPick').count());
+          console.log('THEME_TOGGLE=' + await p.evaluate(async () => { document.getElementById('btnTheme').click(); return document.documentElement.getAttribute('data-theme'); }));
+          console.log('ERRORS=' + JSON.stringify(errs.slice(0, 15)));
+          await p.screenshot({ path: 'cms.png', fullPage: true });
           await b.close();
           EOF
           node check.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cms-shot
+          path: cms.png
