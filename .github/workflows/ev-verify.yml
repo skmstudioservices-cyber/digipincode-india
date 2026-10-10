@@ -1,0 +1,16 @@
+name: EV Verify
+on:
+  workflow_dispatch:
+jobs:
+  v:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          B=https://evchargersnearme.pages.dev
+          for p in /icon.svg /icon-192.png /icon-512.png /favicon.ico /og/home.png; do
+            echo "$p -> $(curl -s -o /dev/null -w '%{http_code}' -m 20 $B$p)"
+          done
+          echo "--- ghost links (expect 301) ---"
+          for p in /ccs2/ /type2/ /chademo/ /tata-power-ez-charge/ /statiq/ /battery-swapping-stations-near-me/ /admin/; do
+            echo "$p -> $(curl -s -o /dev/null -w '%{http_code}' -m 20 $B$p)"
+          done
