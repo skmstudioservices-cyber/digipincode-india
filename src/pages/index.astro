@@ -75,13 +75,13 @@ const states = await getStates(Astro.locals.runtime.env.DB);
     margin: 0 0 2rem;
     text-align: center;
   }
-  .fest-banner h2 { margin: 0 0 .8rem; font-size: 1.25rem; }
+  .fest-banner h2 { margin: 0 0 .8rem; font-size: var(--fs-h2); }
   .fest-grid { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
   .fest-card { flex: 1 1 240px; max-width: 320px; border-radius: 10px; padding: .9rem 1.1rem; text-align: left; }
   .fest-card.kc { background: #f3f0fa; border: 1px solid #d9d0ee; }
   .fest-card.diwali { background: #fdf1e3; border: 1px solid #f0dcb4; }
   .fest-card.chhath { background: #e9f4f9; border: 1px solid #c9e2ee; }
-  .fest-card h3 { margin: 0 0 .4rem; font-size: 1rem; }
+  .fest-card h3 { margin: 0 0 .4rem; font-size: var(--fs-h3); }
   .fest-card p { margin: .3rem 0; font-size: .88rem; }
   .digipin-banner {
     background: #eef4ff;
@@ -91,7 +91,7 @@ const states = await getStates(Astro.locals.runtime.env.DB);
     margin: 0 0 2rem;
     text-align: center;
   }
-  .digipin-banner h2 { margin: 0 0 .5rem; font-size: 1.25rem; }
+  .digipin-banner h2 { margin: 0 0 .5rem; font-size: var(--fs-h2); }
   .digipin-banner p { margin: .35rem 0; font-size: .92rem; }
   .digipin-banner a { font-weight: 700; }
 </style>

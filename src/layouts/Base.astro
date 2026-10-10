@@ -164,6 +164,14 @@ const COLLECTING = 'Coming soon — we are collecting this from government recor
   :root {
     --navy: #12263f; --blue: #1a5fb4; --accent: #e85d04;
     --bg: #f6f8fb; --line: #e3e8f0; --text: #1c2430; --muted: #5b6b7f;
+    /* ---- Locked type scale (one scale for the whole site) ---- */
+    --fs-h1: clamp(1.5rem, 4.6vw, 2.1rem);
+    --fs-h2: clamp(1.2rem, 3.6vw, 1.5rem);
+    --fs-h3: clamp(1.02rem, 2.8vw, 1.15rem);
+    --fs-body: clamp(.95rem, 2.6vw, 1.05rem);
+    --fs-small: .85rem;
+    --fw-h1: 700; --fw-h2: 700; --fw-h3: 600; --fw-body: 400;
+    --lh-h: 1.25; --lh-body: 1.65;
   }
   * { box-sizing: border-box; }
   body { font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; max-width: 1020px; margin: 0 auto; padding: 0 .9rem 2rem; color: var(--text); background: var(--bg); line-height: 1.6; }
@@ -203,14 +211,17 @@ const COLLECTING = 'Coming soon — we are collecting this from government recor
   .facilities .v.collecting { color: #8a6d3b; font-weight: 500; font-size: .82rem; line-height: 1.45; }
 
   .hero { background: linear-gradient(135deg, var(--navy), var(--blue)); color: #fff; border-radius: 16px; padding: clamp(1.2rem, 4vw, 2.2rem); margin: 1rem 0; }
-  .hero h1 { color: #fff; font-size: clamp(1.35rem, 4.5vw, 2.1rem); line-height: 1.25; margin: 0 0 .4rem; }
+  .hero h1 { color: #fff; font-size: var(--fs-h1); font-weight: var(--fw-h1); line-height: var(--lh-h); margin: 0 0 .4rem; }
   .hero .sub { color: #dbe6f5; font-size: clamp(.9rem, 2.6vw, 1.05rem); margin: 0; }
   .chips { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .8rem; }
   .chip { background: rgba(255,255,255,.14); border: 1px solid rgba(255,255,255,.28); color: #fff; padding: .22rem .75rem; border-radius: 999px; font-size: .8rem; }
 
   .breadcrumb { font-size: .85rem; color: var(--muted); margin: .9rem 0; }
   .breadcrumb a { color: var(--blue); }
-  h2 { color: var(--navy); font-size: clamp(1.15rem, 3.5vw, 1.5rem); margin: 2rem 0 .6rem; }
+  h1 { color: var(--navy); font-size: var(--fs-h1); font-weight: var(--fw-h1); line-height: var(--lh-h); margin: 0 0 .5rem; }
+  h2 { color: var(--navy); font-size: var(--fs-h2); font-weight: var(--fw-h2); line-height: var(--lh-h); margin: 2rem 0 .6rem; }
+  h3 { color: var(--navy); font-size: var(--fs-h3); font-weight: var(--fw-h3); line-height: var(--lh-h); margin: 1.4rem 0 .5rem; }
+  p { line-height: var(--lh-body); }
   .intro { font-size: clamp(.95rem, 2.6vw, 1.05rem); line-height: 1.7; }
 
   .factgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: .7rem; margin: 1rem 0; }
