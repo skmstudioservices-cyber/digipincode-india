@@ -7,10 +7,9 @@ jobs:
     steps:
       - run: |
           B=https://evchargersnearme.pages.dev
-          for p in /icon.svg /icon-192.png /icon-512.png /favicon.ico /og/home.png; do
-            echo "$p -> $(curl -s -o /dev/null -w '%{http_code}' -m 20 $B$p)"
-          done
-          echo "--- ghost links (expect 301) ---"
-          for p in /ccs2/ /type2/ /chademo/ /tata-power-ez-charge/ /statiq/ /battery-swapping-stations-near-me/ /admin/; do
-            echo "$p -> $(curl -s -o /dev/null -w '%{http_code}' -m 20 $B$p)"
-          done
+          js=$(curl -s -m 30 "$B/_astro/app.jmDQV-_S.js")
+          echo "carto_in_bundle=$(printf '%s' "$js" | grep -c cartocdn)"
+          echo "esri_in_bundle=$(printf '%s' "$js" | grep -c arcgisonline)"
+          echo "topo_in_bundle=$(printf '%s' "$js" | grep -c opentopomap)"
+          echo "osm_in_bundle=$(printf '%s' "$js" | grep -c tile.openstreetmap.org)"
+          echo "ccs2_redirect -> $(curl -s -o /dev/null -w '%{http_code}' -m 20 $B/ccs2/)"
