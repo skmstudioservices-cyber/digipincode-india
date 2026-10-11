@@ -10,7 +10,7 @@
 //    appears in the HTML that AI crawlers fetch (no JS needed to see it).
 import { defineMiddleware } from 'astro:middleware';
 
-const CACHE_VERSION = 'v3' // bumped 11 Oct 2026: cache query-string URLs + null/typography/title changes; refresh cached HTML
+const CACHE_VERSION = 'v4' // bumped 11 Oct 2026: collapsible nested TOC; refresh cached HTML
 const PAGE_TTL = 60 * 60 * 24 * 7; // 7 days
 const SKIP = ['/api/', '/search', '/saved', '/sitemap', '/404'];
 
@@ -19,17 +19,36 @@ const SKIP = ['/api/', '/search', '/saved', '/sitemap', '/404'];
 // clickable TOC box right after the update banner (or before the first h2).
 // Only pages with 3+ sections get a TOC (search/saved pages auto-skip).
 function withToc(html: string): string {
-  const heads = [...html.matchAll(/<h2>([^<]+)<\/h2>/g)];
-  if (heads.length < 3) return html;
-  const entries = heads.map((m, i) => ({ id: `toc-${i}`, title: m[1].trim() }));
-  let i = 0;
-  const out = html.replace(/<h2>([^<]+)<\/h2>/g, (_full, t) => `<h2 id="toc-${i++}">${t}</h2>`);
+  const re = /<h([23])>([^<]+)<\/h\1>/g;
+  const items: { id: string; lvl: number; title: string }[] = [];
+  let n = 0;
+  const out = html.replace(re, (_full, lvl, txt) => {
+    const id = `toc-${n++}`;
+    items.push({ id, lvl: Number(lvl), title: String(txt).trim() });
+    return `<h${lvl} id="${id}">${txt}</h${lvl}>`;
+  });
+  if (items.filter((x) => x.lvl === 2).length < 3) return out;
+
+  let list = '';
+  let openSub = false;
+  for (const it of items) {
+    if (it.lvl === 2) {
+      if (openSub) { list += '</ul></li>'; openSub = false; }
+      else if (list) { list += '</li>'; }
+      list += `<li><a href="#${it.id}">${it.title}</a>`;
+    } else {
+      if (!openSub) { list += '<ul>'; openSub = true; }
+      list += `<li><a href="#${it.id}">${it.title}</a></li>`;
+    }
+  }
+  if (openSub) list += '</ul></li>'; else if (list) list += '</li>';
+  const inner = `<ol>${list}</ol>`;
+
   const style =
-    '<style>.toc{background:#fff;border:1px solid #e3e8f0;border-radius:12px;padding:.8rem 1.1rem;margin:1rem 0}.toc strong{color:#12263f;font-size:1rem}.toc ol{margin:.5rem 0 0;padding-left:1.3rem}.toc li{margin:.25rem 0}.toc a{font-size:.92rem}html{scroll-behavior:smooth}@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}h2[id]{scroll-margin-top:84px}</style>';
+    '<style>.toc{background:#fff;border:1px solid #e3e8f0;border-radius:12px;padding:.5rem 1.1rem;margin:1rem 0}.toc summary{cursor:pointer;font-weight:700;color:#12263f;font-size:1rem;padding:.3rem 0;list-style:none}.toc summary::-webkit-details-marker{display:none}.toc summary::after{content:" ▾";color:#1a5fb4}.toc[open] summary::after{content:" ▴"}.toc ol{margin:.5rem 0 .6rem;padding-left:1.3rem}.toc ul{margin:.2rem 0;padding-left:1rem}.toc li{margin:.25rem 0}.toc a{font-size:.92rem}html{scroll-behavior:smooth}@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}h2[id],h3[id]{scroll-margin-top:84px}</style>';
   const nav =
-    `<nav class="toc" aria-label="Table of contents">${style}<strong>📑 On this page</strong><ol>` +
-    entries.map((e) => `<li><a href="#${e.id}">${e.title}</a></li>`).join('') +
-    '</ol></nav>';
+    `<details class="toc" aria-label="Table of contents">${style}` +
+    '<summary>📑 On this page</summary>' + inner + '</details>';
   if (out.includes('class="update-banner"')) {
     return out.replace(/(<div class="update-banner"[\s\S]*?<\/div>)/, (m) => m + nav);
   }
