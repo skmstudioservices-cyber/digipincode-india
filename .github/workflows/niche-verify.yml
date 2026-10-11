@@ -1,0 +1,11 @@
+name: Niche Spot Verify
+on:
+  workflow_dispatch:
+jobs:
+  v:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          for u in protestsnearme atmsnearme restaurantsnearme hospitalsnearme-9cp tollplazanearme rationcardofficernearme templesnearme petrolpumpsnearme; do
+            echo "https://$u.pages.dev/ -> $(curl -s -o /dev/null -w '%{http_code}' -m 25 https://$u.pages.dev/)  $(curl -s -m 25 https://$u.pages.dev/ | grep -o '<title>[^<]*' | head -1)"
+          done
