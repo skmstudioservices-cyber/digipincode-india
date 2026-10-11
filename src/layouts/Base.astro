@@ -1,5 +1,5 @@
 ---
-import { SITE, NAV_LINKS, FOOTER_LINKS, FRESHNESS, fmtDate } from '../config/site';
+import { SITE, NAV_LINKS, FOOTER_LINKS, FRESHNESS, fmtDate, SHOW_FACILITIES } from '../config/site';
 interface Props {
   title?: string;
   description?: string;
@@ -94,6 +94,7 @@ const COLLECTING = 'Coming soon — we are collecting this from government recor
       <span><strong>Regularly updated & verified:</strong> we're continuously expanding this directory towards <strong>10 lakh+ (1 million+) unique, individually verified records</strong> — pincodes, villages, panchayats, LGD codes and post offices. Data is checked and validated on an ongoing basis, so keep visiting for the freshest information.</span>
     </div>
     <slot />
+    {SHOW_FACILITIES && (
     <section class="facilities" aria-label="Facilities and basic details">
       <h2>Facilities & basic details</h2>
       <p class="intro">We are adding these details for every place in India, one by one. The information below is being collected from government records (Census 2011 and District Census Handbooks). Where a value is not collected yet, we clearly say so — we never fill guessed or wrong data. If you know a place well and something is missing or wrong, please tap the <strong>⚠️ Report an Issue</strong> button and tell us.</p>
@@ -103,6 +104,7 @@ const COLLECTING = 'Coming soon — we are collecting this from government recor
         ))}
       </div>
     </section>
+    )}
   </main>
   <section class="linkfarm" aria-label="Popular pages">
     <h3>Popular right now</h3>

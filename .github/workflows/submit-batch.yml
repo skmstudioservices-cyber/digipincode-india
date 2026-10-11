@@ -1,0 +1,17 @@
+name: Submit batch (IndexNow)
+
+on:
+  schedule:
+    - cron: '0 6 */3 * *' # every 3 days, 06:00 UTC — rotating 80-URL batch
+  workflow_dispatch:
+
+jobs:
+  submit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Submit rotating 80-URL batch to IndexNow
+        run: node scripts/submit-batch.mjs

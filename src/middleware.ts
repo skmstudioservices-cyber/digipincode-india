@@ -10,7 +10,7 @@
 //    appears in the HTML that AI crawlers fetch (no JS needed to see it).
 import { defineMiddleware } from 'astro:middleware';
 
-const CACHE_VERSION = 'v4' // bumped 11 Oct 2026: collapsible nested TOC; refresh cached HTML
+const CACHE_VERSION = 'v5' // bumped 11 Oct 2026: facilities gating + pages.dev canonical 301; refresh cached HTML
 const PAGE_TTL = 60 * 60 * 24 * 7; // 7 days
 const SKIP = ['/api/', '/search', '/saved', '/sitemap', '/404'];
 
@@ -56,6 +56,11 @@ function withToc(html: string): string {
 }
 
 export const onRequest = defineMiddleware(async (context, next) => {
+  // --- Canonical host (B11): pages.dev 301 -> workers.dev so Google indexes ONE host ---
+  const _cu = new URL(context.request.url);
+  if (_cu.hostname.endsWith('.pages.dev') && context.request.method === 'GET') {
+    return Response.redirect(`https://digipincode.india-in.workers.dev${_cu.pathname}${_cu.search}`, 301);
+  }
   // --- D1 read-replication session ---
   const rt = (context.locals as any).runtime;
   const db = rt?.env?.DB;

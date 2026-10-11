@@ -9,6 +9,11 @@ export const SITE = {
   sitemapPath: '/sitemap.xml',
 };
 
+// Facilities block gating (B10): the "Facilities & basic details" block is empty
+// ("Coming soon") until facility data lands — thin content hurts indexing, so it
+// stays HIDDEN by default. Flip to true once pages carry real facility data.
+export const SHOW_FACILITIES = false;
+
 export const NAV_LINKS = [
   { href: '/', label: 'Home' },
   { href: '/search', label: 'Search' },
