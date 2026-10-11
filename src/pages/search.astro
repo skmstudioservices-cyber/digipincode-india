@@ -36,11 +36,27 @@ if (q.length >= 3) {
   </form>
 
   {q && (
-    <ul>
-      {results.map(r => (
-        <li><a href={r.url}>{r.title}</a></li>
-      ))}
-      {results.length === 0 && <li>No results for “{q}”</li>}
-    </ul>
+    <>
+      {results.length > 0 && (
+        <ul>
+          {results.map(r => (
+            <li><a href={r.url}>{r.title}</a></li>
+          ))}
+        </ul>
+      )}
+      {results.length === 0 && (
+        <div>
+          <p>No exact match for “{q}”. Here are nearby and popular pages to explore:</p>
+          <ul>
+            <li><a href="/states">All states of India</a></li>
+            <li><a href="/pincode/110001">Pincode 110001 — Delhi</a></li>
+            <li><a href="/pincode/400001">Pincode 400001 — Mumbai</a></li>
+            <li><a href="/pincode/560001">Pincode 560001 — Bengaluru</a></li>
+            <li><a href="/pincode/700001">Pincode 700001 — Kolkata</a></li>
+            <li><a href="/digipin/">DIGIPIN — India Post digital address</a></li>
+          </ul>
+        </div>
+      )}
+    </>
   )}
 </Layout>

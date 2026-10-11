@@ -211,11 +211,10 @@ export async function searchAll(db: DB, q: string) {
     SELECT (v.name || ', ' || COALESCE(d.name,'') || ', ' || COALESCE(s.name,'')) AS title,
            CASE WHEN sd.slug IS NULL OR d.slug IS NULL OR s.slug IS NULL
                 THEN '/village/' || v.slug
-                ELSE '/' || s.slug || '/district-' || d.slug || '/' ||
-                     (CASE WHEN s.slug IN ('andhra-pradesh','telangana','karnataka','kerala','tamil-nadu','puducherry','maharashtra','gujarat','goa','lakshadweep','andaman-and-nicobar-islands','dadra-and-nagar-haveli','dadra-and-nagar-haveli-and-daman-and-diu','daman-and-diu')
-                       THEN 'taluk' ELSE 'tehsil' END) || '-' || sd.slug ||
-                     '/village-' || v.slug ||
-                     (CASE WHEN v.pincode IS NULL THEN '' ELSE '/pincode-' || v.pincode END)
+                ELSE '/india-IN-state-' || s.slug || '-district-' || d.slug ||
+                     '-subdistrict-' || sd.slug || '-tehsil-' || sd.slug ||
+                     '-village-' || v.slug ||
+                     (CASE WHEN v.pincode IS NULL THEN '' ELSE '-pincode-' || v.pincode END) || '/'
            END AS url
     FROM villages v
     LEFT JOIN sub_districts sd ON sd.id = v.sub_district_id
@@ -228,7 +227,7 @@ export async function searchAll(db: DB, q: string) {
   const pincodes = await withRetry(() =>
     db.prepare(`
     SELECT (p.pincode || CASE WHEN COALESCE(p.office_name,'') = '' THEN '' ELSE ' — ' || p.office_name END || ', ' || COALESCE(d.name,'') || ', ' || COALESCE(s.name,'')) AS title,
-           '/' || s.slug || '/district-' || d.slug || '/pincode-' || p.pincode AS url
+           '/india-IN-state-' || s.slug || '-district-' || d.slug || '-pincode-' || p.pincode || '/' AS url
     FROM pincodes p
     JOIN states s ON s.id = p.state_id
     JOIN districts d ON d.id = p.district_id

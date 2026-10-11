@@ -12,7 +12,7 @@ const BASE = 'https://digipincode.india-in.workers.dev';
 const orgLd = {
   '@context': 'https://schema.org',
   '@graph': [
-    { '@type': 'WebSite', '@id': `${BASE}/#website`, name: 'Digipincode', url: `${BASE}/`, inLanguage: 'en-IN',
+    { '@type': 'WebSite', '@id': `${BASE}/#website`, name: 'Digipincode', alternateName: 'Digipincode India', url: `${BASE}/`, inLanguage: 'en-IN',
       potentialAction: { '@type': 'SearchAction', target: { '@type': 'EntryPoint', urlTemplate: `${BASE}/search?q={search_term_string}` }, 'query-input': 'required name=search_term_string' } },
     { '@type': 'Organization', '@id': `${BASE}/#org`, name: 'Digipincode — SKM Studio Network', url: `${BASE}/` },
   ],
@@ -104,16 +104,17 @@ const COLLECTING = 'Coming soon — we are collecting this from government recor
       </div>
     </section>
   </main>
+  <section class="linkfarm" aria-label="Popular pages">
+    <h3>Popular right now</h3>
+    <div class="lf-links">
+      {POPULAR.map(([city, pin]) => <a href={`/pincode/${pin}`}>{city} {pin}</a>)}
+      <a href="/states">All States</a>
+      <a href="/search">Search</a>
+      <a href="/saved">🔖 Saved pages</a>
+    </div>
+  </section>
+
   <footer class="site-foot">
-    <nav class="linkfarm" aria-label="Popular pages">
-      <h3>Popular right now</h3>
-      <div class="lf-links">
-        {POPULAR.map(([city, pin]) => <a href={`/pincode/${pin}`}>{city} {pin}</a>)}
-        <a href="/states">All States</a>
-        <a href="/search">Search</a>
-        <a href="/saved">🔖 Saved pages</a>
-      </div>
-    </nav>
     <div class="footer-cols">
       <div>
         <p><strong>{SITE.name}</strong></p>
@@ -192,6 +193,10 @@ const COLLECTING = 'Coming soon — we are collecting this from government recor
   details.faq:nth-child(n+4) { animation-delay: .18s; }
   .card { transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease; }
   .card:hover { transform: translateY(-3px); box-shadow: 0 6px 18px rgba(18,38,63,.12); border-left-color: var(--accent); }
+  /* Whole card is clickable — the first link stretches over the card (stretched link). */
+  .card { position: relative; }
+  .card > a:first-of-type { position: static; }
+  .card > a:first-of-type::after { content: ""; position: absolute; inset: 0; z-index: 1; border-radius: inherit; }
   @media (prefers-reduced-motion: reduce) {
     .hero, .card, .fact, details.faq { animation: none; }
     .card { transition: none; }
