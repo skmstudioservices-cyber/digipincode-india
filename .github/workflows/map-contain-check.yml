@@ -1,0 +1,30 @@
+name: Map Contain Check
+on:
+  workflow_dispatch:
+jobs:
+  c:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v4
+        with: { node-version: "24" }
+      - run: npm i playwright@1.47.2 && npx playwright install --with-deps chromium
+      - run: |
+          cat > c.mjs <<'JS'
+          import { chromium } from 'playwright';
+          const B='https://evchargersnearme.pages.dev';
+          const b=await chromium.launch();
+          const p=await (await b.newContext({viewport:{width:1280,height:900}})).newPage();
+          await p.goto(B+'/?cb='+Date.now(),{waitUntil:'networkidle',timeout:60000}).catch(()=>{});
+          await p.waitForTimeout(6000);
+          const box=await p.$eval('.map-shell',e=>{const r=e.getBoundingClientRect();return {w:Math.round(r.width),h:Math.round(r.height)};}).catch(()=>null);
+          const t=await p.$$eval('img.leaflet-tile',e=>e.slice(0,1).map(x=>x.src));
+          const vw=await p.evaluate(()=>window.innerWidth);
+          console.log('home_map_box='+JSON.stringify(box)+' viewport='+vw+' tile='+JSON.stringify(t));
+          // city page button
+          const c=await (await b.newContext({viewport:{width:1280,height:900}})).newPage();
+          await c.goto(B+'/delhi/?cb='+Date.now(),{waitUntil:'domcontentloaded',timeout:60000}).catch(()=>{});
+          const cta=await c.$$eval('a.map-cta, .map-cta a',els=>els.map(e=>({t:e.textContent.trim().slice(0,40),h:e.getAttribute('href')})).slice(0,2)).catch(()=>[]);
+          console.log('delhi_cta='+JSON.stringify(cta));
+          await b.close();
+          JS
+          node c.mjs
