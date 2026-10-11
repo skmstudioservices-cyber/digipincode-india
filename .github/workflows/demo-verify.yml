@@ -1,0 +1,13 @@
+name: Demo Verify
+on:
+  workflow_dispatch:
+jobs:
+  v:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          B=https://demo-vmv.pages.dev
+          for p in / /atmsnearme /restaurantsnearme /hospitalsnearme /petrolpumpsnearme /templesnearme /parksnearme; do
+            echo "$p -> $(curl -s -o /dev/null -w '%{http_code}' -m 25 $B$p)"
+          done
+          echo "title_atms: $(curl -s -L -m 25 $B/atmsnearme | grep -o '<title>[^<]*')"
