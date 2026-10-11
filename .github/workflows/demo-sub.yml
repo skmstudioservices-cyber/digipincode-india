@@ -1,0 +1,19 @@
+name: Demo Subdomain
+on:
+  workflow_dispatch:
+jobs:
+  s:
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          CF: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          ACCT=$(curl -s -H "Authorization: Bearer $CF" https://api.cloudflare.com/client/v4/accounts | jq -r '.result[0].id')
+          curl -s -H "Authorization: Bearer $CF" "https://api.cloudflare.com/client/v4/accounts/$ACCT/pages/projects/demo" \
+            | jq -r '"name=\(.result.name) subdomain=\(.result.subdomain) domains=\(.result.domains|join(",")) latest=\(.result.canonical_deployment.url // "none")"'
+          echo "--- probe our page ---"
+          for u in $(curl -s -H "Authorization: Bearer $CF" "https://api.cloudflare.com/client/v4/accounts/$ACCT/pages/projects/demo" | jq -r '.result.subdomain'); do
+            echo "$u -> $(curl -s -o /dev/null -w '%{http_code}' -m 30 https://$u/)"
+            echo "title: $(curl -s -m 30 https://$u/ | grep -o '<title>[^<]*')"
+            echo "atms: $(curl -s -o /dev/null -w '%{http_code}' -m 30 https://$u/atmsnearme.html)"
+          done
