@@ -1,0 +1,17 @@
+name: Demo Final Verify
+on:
+  workflow_dispatch:
+jobs:
+  v:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          B=https://demo-vmv.pages.dev
+          echo "verification_tag: $(curl -s -m 25 $B/ | grep -c 'google-site-verification')"
+          echo "verification_file: $(curl -s -o /dev/null -w '%{http_code}' -m 25 $B/googleGlkDu5ZL-CyyKjwPSj9d9X3Y2qsHUj_qAwRwxiLr7nI.html)"
+          echo "sitemap: $(curl -s -o /dev/null -w '%{http_code}' -m 25 $B/sitemap.xml)"
+          echo "robots: $(curl -s -m 25 $B/robots.txt | head -1)"
+          echo "sitemap_urls: $(curl -s -m 25 $B/sitemap.xml | grep -c '<loc>')"
+          for p in /rationcardofficernearme /postofficenearme /courtnearme /gymnearme /tollplazanearme /carparkingnearme; do
+            echo "$p -> $(curl -s -o /dev/null -w '%{http_code}' -m 25 $B$p)"
+          done
