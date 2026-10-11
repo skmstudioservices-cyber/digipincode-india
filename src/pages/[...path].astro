@@ -24,6 +24,8 @@ const DB = Astro.locals.runtime.env.DB;
 const faqLd = (faq) => ({ '@context': 'https://schema.org', '@type': 'FAQPage', mainEntity: faq.map(([q, a]) => ({ '@type': 'Question', name: q, acceptedAnswer: { '@type': 'Answer', text: a } })) });
 const crumbLd = (items) => ({ '@context': 'https://schema.org', '@type': 'BreadcrumbList', itemListElement: items.map((it, i) => ({ '@type': 'ListItem', position: i + 1, name: it[0], ...(it[1] ? { item: it[1] } : {}) })) });
 const L = (n) => Number(n ?? 0).toLocaleString('en-IN');
+// Render nullable data fields as "Not available" (never a bare "null"/blank).
+const nv = (x) => { const s = x === null || x === undefined ? '' : String(x).trim(); return (!s || s.toLowerCase() === 'null') ? 'Not available' : s; };
 /* ===== BLOCK:404-REAL =====
    Returns a genuine HTTP 404 (not a 302 redirect). Fixes the GSC crawl-stats
    "Moved temporarily (302)" waste: missing hierarchy paths now answer with a
@@ -287,7 +289,7 @@ if (!dist) {
   if (vil.digipin) chips.push('🛰️ DIGIPIN');
   intro = `<strong>${vil.name}</strong> is a village in ${tehsilName ? `${tehsilName} ${wordLabel.toLowerCase()} of ` : ''}<strong>${districtName} district</strong>${tehsilVillages > 1 ? `, one of ${tehsilVillages} villages that make up ${tehsilName} ${wordLabel.toLowerCase()}` : ''}. ${vil.population ? `Around ${L(vil.population)} people live here in ${L(vil.households)} households.` : ''} Mail for the village is delivered under pincode <a href="${pincodeUrl(state.slug, dist.slug, vil.pincode)}">${vil.pincode}</a>.${tehsilName ? '' : ' Tehsil details for this village are being collected from public sources and will be updated soon.'}`;
   faq = [
-    [`What is the pincode of ${vil.name} village?`, `The pincode of ${vil.name} is ${vil.pincode}.${office ? ` It is served by the ${office.office_name} post office (${office.office_type}) in ${office.taluk}, ${districtName} district, ${stateName}.` : ''}`],
+    [`What is the pincode of ${vil.name} village?`, `The pincode of ${vil.name} is ${vil.pincode}.${office ? ` It is served by the ${office.office_name} post office (${office.office_type}) in ${nv(office.taluk)}, ${districtName} district, ${stateName}.` : ''}`],
     [`Which district and state does ${vil.name} belong to?`, `${vil.name} is a village in ${tehsilName ? `${tehsilName} ${wordLabel.toLowerCase()} of ` : ''}${districtName} district, ${stateName}${tehsilVillages ? ` — one of ${tehsilVillages} villages in ${tehsilName} ${wordLabel.toLowerCase()}` : ''}.`],
     [`Which panchayat does ${vil.name} belong to?`, p ? `${vil.name} is administered by ${p.local_body_name} (${p.local_body_type}, LGD code ${p.lgd_code}) in ${p.block_name} block.` : `Panchayat details for ${vil.name} are being verified.`],
     [`What is the population of ${vil.name}?`, vil.population ? `As per census data, ${vil.name} has a population of ${L(vil.population)} living in ${L(vil.households)} households.` : `Population data for ${vil.name} is not available in the current census extract.`],
@@ -317,33 +319,33 @@ if (!dist) {
   const villageNames = vs.slice(0, 5).map(v => v.name).join(', ');
   url = `${BASE}${pincodeUrl(state.slug, dist.slug, pin)}`;
   title = `Pincode ${pin}, ${data_.office_name} Post Office — ${data_.district_name}, ${data_.state_name} | Villages List, Panchayats, Delivery Status & Full Details`;
-  desc = `Pincode ${pin}: ${data_.office_name} (${data_.office_type}), ${data_.taluk}, ${data_.district_name} district, ${data_.state_name}. Complete list of villages, panchayats, delivery status and post office details for pincode ${pin}.`;
+  desc = `Pincode ${pin}: ${data_.office_name} (${nv(data_.office_type)}), ${nv(data_.taluk)}, ${data_.district_name} district, ${data_.state_name}. Complete list of villages, panchayats, delivery status and post office details for pincode ${pin}.`;
   crumbItems = [['Home', `${BASE}/`], [data_.state_name, `${BASE}${stateUrl(state.slug)}`], [data_.district_name, `${BASE}${districtUrl(state.slug, dist.slug)}`], [`Pincode ${pin}`, url]];
   placeLd = { '@context': 'https://schema.org', '@type': 'Place', '@id': url, name: `${data_.office_name} Post Office — Pincode ${pin}`, url,
-    address: { '@type': 'PostalAddress', streetAddress: data_.office_name, addressLocality: data_.taluk, addressRegion: data_.state_name, addressCountry: 'IN', postalCode: String(pin) },
+    address: { '@type': 'PostalAddress', streetAddress: data_.office_name, addressLocality: nv(data_.taluk), addressRegion: data_.state_name, addressCountry: 'IN', postalCode: String(pin) },
     containedInPlace: { '@type': 'AdministrativeArea', name: `${data_.district_name} district`, containedInPlace: { '@type': 'AdministrativeArea', name: `${data_.state_name} state` } } };
   crumbNav = `<a href="/">Home</a> › <a href="${stateUrl(state.slug)}">${data_.state_name}</a> › <a href="${districtUrl(state.slug, dist.slug)}">${data_.district_name}</a> › Pincode ${pin}`;
   heroH1 = `📮 Pincode ${pin} — ${data_.office_name}`;
-  heroSub = `${data_.office_type} post office in ${data_.taluk}, ${data_.district_name} district, ${data_.state_name}. Delivery status: ${data_.delivery}.`;
-  chips = [`📮 ${data_.office_type}`, `🗺️ ${data_.district_name}`, `🚚 ${data_.delivery}`];
+  heroSub = `${nv(data_.office_type)} post office in ${nv(data_.taluk)}, ${data_.district_name} district, ${data_.state_name}. Delivery status: ${nv(data_.delivery)}.`;
+  chips = [`📮 ${nv(data_.office_type)}`, `🗺️ ${data_.district_name}`, `🚚 ${nv(data_.delivery)}`];
   if (vs.length) chips.push(`🏘️ ${vs.length} villages`);
   if (ps.length) chips.push(`🏛️ ${ps.length} panchayats`);
-  intro = `<strong>Pincode ${pin}</strong> is the postal index number for <strong>${data_.office_name}</strong> and the surrounding area in ${data_.taluk}, ${data_.district_name} district of ${data_.state_name}. It falls under the ${data_.division} division, ${data_.region} region and the ${data_.circle} postal circle.`;
+  intro = `<strong>Pincode ${pin}</strong> is the postal index number for <strong>${data_.office_name}</strong> and the surrounding area in ${nv(data_.taluk)}, ${data_.district_name} district of ${data_.state_name}. It falls under the ${nv(data_.division)} division, ${nv(data_.region)} region and the ${nv(data_.circle)} postal circle.`;
   faq = [
-    [`What is pincode ${pin}?`, `Pincode ${pin} is the postal code of the ${data_.office_name} post office (${data_.office_type}) in ${data_.district_name} district, ${data_.state_name}.`],
-    [`Which district and state does pincode ${pin} belong to?`, `Pincode ${pin} belongs to ${data_.district_name} district in ${data_.state_name}. The taluk for this pincode is ${data_.taluk}.`],
+    [`What is pincode ${pin}?`, `Pincode ${pin} is the postal code of the ${data_.office_name} post office (${nv(data_.office_type)}) in ${data_.district_name} district, ${data_.state_name}.`],
+    [`Which district and state does pincode ${pin} belong to?`, `Pincode ${pin} belongs to ${data_.district_name} district in ${data_.state_name}. The taluk for this pincode is ${nv(data_.taluk)}.`],
     [`Which villages come under pincode ${pin}?`, vs.length ? `Pincode ${pin} covers ${vs.length} village${vs.length > 1 ? 's' : ''}, including ${villageNames}${vs.length > 5 ? ` and ${vs.length - 5} more` : ''}.` : `No villages are mapped to pincode ${pin} in our directory yet.`],
-    [`How do I write an address with pincode ${pin}?`, `Write it in the standard format: recipient name, ${data_.office_name}, ${data_.taluk}, ${data_.district_name}, ${data_.state_name} — PIN ${pin}.`],
+    [`How do I write an address with pincode ${pin}?`, `Write it in the standard format: recipient name, ${data_.office_name}, ${nv(data_.taluk)}, ${data_.district_name}, ${data_.state_name} — PIN ${pin}.`],
   ];
   extraSections = `<h2>Pincode ${pin} post office details</h2><div class="factgrid">
       <div class="fact"><div class="k">Post Office</div><div class="v">${data_.office_name}</div></div>
-      <div class="fact"><div class="k">Office Type</div><div class="v">${data_.office_type}</div></div>
+      <div class="fact"><div class="k">Office Type</div><div class="v">${nv(data_.office_type)}</div></div>
       <div class="fact"><div class="k">State</div><div class="v">${data_.state_name}</div></div>
       <div class="fact"><div class="k">District</div><div class="v">${data_.district_name}</div></div>
-      <div class="fact"><div class="k">Taluk</div><div class="v">${data_.taluk}</div></div>
-      <div class="fact"><div class="k">Division</div><div class="v">${data_.division}</div></div>
-      <div class="fact"><div class="k">Region</div><div class="v">${data_.region}</div></div>
-      <div class="fact"><div class="k">Delivery</div><div class="v">${data_.delivery}</div></div>
+      <div class="fact"><div class="k">Taluk</div><div class="v">${nv(data_.taluk)}</div></div>
+      <div class="fact"><div class="k">Division</div><div class="v">${nv(data_.division)}</div></div>
+      <div class="fact"><div class="k">Region</div><div class="v">${nv(data_.region)}</div></div>
+      <div class="fact"><div class="k">Delivery</div><div class="v">${nv(data_.delivery)}</div></div>
     </div>`
     + (vs.length ? `<h2>Villages under pincode ${pin}</h2><div class="cards">${vs.map(v => `<div class="card"><a href="${villageUrl(v.state_slug || state.slug, v.district_slug || dist.slug, v.sub_district_slug || '', v.slug, v.pincode)}">${v.name}</a>${v.ai_description ? `<p class="d">${v.ai_description}</p>` : ''}</div>`).join('')}</div>` : '')
     + (ps.length ? `<h2>Panchayats under pincode ${pin}</h2><div class="cards">${ps.map(p => `<div class="card"><a href="/panchayat/${p.lgd_code}">${p.local_body_name}</a></div>`).join('')}</div>` : '');

@@ -1,6 +1,6 @@
 // src/pages/sitemap.xml.ts — BLOCK:SITEMAP-INDEX (single entry point; auto add/remove)
 export const prerender = false;
-const CHUNK = 15000; // 15k per child sitemap (safe under Google's 50k limit)
+const CHUNK = 5000; // 5k per child sitemap (smaller chunks crawl more reliably)
 
 export async function GET({ request, locals }) {
   const db = locals.runtime.env.DB;

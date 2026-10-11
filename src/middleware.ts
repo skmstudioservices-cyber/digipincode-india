@@ -52,9 +52,11 @@ export const onRequest = defineMiddleware(async (context, next) => {
   // --- edge cache for cacheable HTML pages ---
   const req = context.request;
   const url = new URL(req.url);
+  // Query strings are intentionally NOT excluded: the cache key below already
+  // ignores them, so ?utm=/?fbclid= bot hits share the cached entry instead of
+  // bypassing the cache and burning a D1 read on every request.
   const cacheable =
     req.method === 'GET' &&
-    !url.search &&
     !url.pathname.includes('.') &&
     !SKIP.some((p) => url.pathname === p || url.pathname.startsWith(p));
   const cache = (globalThis as any).caches?.default;
