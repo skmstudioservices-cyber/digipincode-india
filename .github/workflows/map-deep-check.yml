@@ -1,0 +1,32 @@
+name: Map Deep Check
+on:
+  workflow_dispatch:
+jobs:
+  m:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v4
+        with: { node-version: "24" }
+      - run: npm i playwright@1.47.2 && npx playwright install --with-deps chromium
+      - run: |
+          cat > m.mjs <<'JS'
+          import { chromium } from 'playwright';
+          const B='https://evchargersnearme.pages.dev';
+          const b=await chromium.launch();
+          const p=await (await b.newContext({viewport:{width:1280,height:800}})).newPage();
+          const tiles=[], errs=[], reqs=[];
+          p.on('request',r=>{ const u=r.url(); if(/tile|basemap|arcgis|openstreetmap|cartocdn|topo/i.test(u)) reqs.push(u.slice(0,90)); });
+          p.on('pageerror',e=>errs.push(String(e).slice(0,120)));
+          await p.goto(B+'/?cb='+Date.now(),{waitUntil:'networkidle',timeout:60000}).catch(()=>{});
+          await p.waitForTimeout(7000);
+          const srcs=await p.$$eval('img.leaflet-tile',els=>els.slice(0,4).map(e=>e.src));
+          const leaflet=await p.evaluate(()=>typeof window.L!=='undefined' || !!document.querySelector('.leaflet-container'));
+          const apiText=await p.evaluate(()=>{const t=document.body.innerText||'';return (t.match(/.{0,40}(api key|api_key|access token|mapbox|maptiler|please sign|upgrade).{0,40}/ig)||[]).slice(0,3);});
+          console.log('leaflet_present:'+leaflet);
+          console.log('tile_srcs:'+JSON.stringify(srcs));
+          console.log('net_tile_reqs:'+JSON.stringify([...new Set(reqs)].slice(0,8)));
+          console.log('api_text:'+JSON.stringify(apiText));
+          console.log('pageerrors:'+JSON.stringify(errs.slice(0,4)));
+          await b.close();
+          JS
+          node m.mjs
