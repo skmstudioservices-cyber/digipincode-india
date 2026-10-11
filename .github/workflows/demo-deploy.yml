@@ -1,0 +1,37 @@
+name: Demo Deploy (bridge)
+on:
+  workflow_dispatch:
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: skmstudioservices-cyber/Demo
+          ref: main
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: Ensure Pages project exists
+        env:
+          CF: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          ACCT=$(curl -s -H "Authorization: Bearer $CF" https://api.cloudflare.com/client/v4/accounts | jq -r '.result[0].id')
+          code=$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $CF" "https://api.cloudflare.com/client/v4/accounts/$ACCT/pages/projects/demo")
+          echo "project check: $code"
+          if [ "$code" != "200" ]; then
+            curl -s -H "Authorization: Bearer $CF" -H "Content-Type: application/json" \
+              -X POST "https://api.cloudflare.com/client/v4/accounts/$ACCT/pages/projects" \
+              --data '{"name":"demo","production_branch":"main"}' | jq -c '.success,.errors'
+          fi
+      - name: Deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx --yes wrangler@latest pages deploy . --project-name=demo --branch=main --commit-dirty=true
+      - name: Verify
+        run: |
+          sleep 20
+          echo "home -> $(curl -s -o /dev/null -w '%{http_code}' -m 30 https://demo.pages.dev/)"
+          echo "atmsnearme -> $(curl -s -o /dev/null -w '%{http_code}' -m 30 https://demo.pages.dev/atmsnearme.html)"
+          echo "title -> $(curl -s -m 30 https://demo.pages.dev/ | grep -o '<title>[^<]*')"
