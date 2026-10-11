@@ -1,0 +1,28 @@
+name: City Map Check
+on:
+  workflow_dispatch:
+jobs:
+  c:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v4
+        with: { node-version: "24" }
+      - run: npm i playwright@1.47.2 && npx playwright install --with-deps chromium
+      - run: |
+          cat > c.mjs <<'JS'
+          import { chromium } from 'playwright';
+          const B='https://evchargersnearme.pages.dev';
+          const b=await chromium.launch();
+          for (const path of ['/delhi/','/pune/']) {
+            const p=await (await b.newContext({viewport:{width:1280,height:800}})).newPage();
+            const reqs=[];
+            p.on('request',r=>{const u=r.url(); if(/tile|basemap|arcgis|cartocdn|topo/i.test(u)) reqs.push(u);});
+            await p.goto(B+path+'?cb='+Date.now(),{waitUntil:'networkidle',timeout:60000}).catch(()=>{});
+            await p.waitForTimeout(6000);
+            const srcs=await p.$$eval('img.leaflet-tile',e=>e.slice(0,2).map(x=>x.src));
+            const nonOsm=[...new Set(reqs)].filter(u=>!u.includes('openstreetmap.org'));
+            console.log(path+' tiles='+JSON.stringify(srcs)+' nonOsm='+JSON.stringify(nonOsm.slice(0,4)));
+          }
+          await b.close();
+          JS
+          node c.mjs
