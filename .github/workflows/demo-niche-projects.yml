@@ -1,0 +1,39 @@
+name: Demo Niche Projects
+on:
+  workflow_dispatch:
+jobs:
+  create:
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: skmstudioservices-cyber/Demo
+          ref: main
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: Create + deploy each niche project
+        env:
+          CF: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          ACCT=$(curl -s -H "Authorization: Bearer $CF" https://api.cloudflare.com/client/v4/accounts | jq -r '.result[0].id')
+          SLUGS="aadhaarcenternearme atmsnearme autostandnearme bakerynearme banksnearme bicyclestandnearme bikerepairsnearme bikestandnearme busstationnearme busstopnearme cafenearme carparkingnearme carrepairsnearme churchesnearme courtnearme dentistsnearme dhabanearme electricityofficenearme erickshawstandnearme gymnearme hardwareshopnearme hospitalsnearme hotelnearme laundrynearme lodgenearme mechanicnearme medicalshopnearme mobilerepairnearme mosquesnearme paintshopnearme parksnearme petrolpumpsnearme policestationsnearme postofficenearme protestsnearme railwaystationnearme rationcardofficernearme restaurantsnearme rtoofficenearme salonnearme sweetsshopnearme tailorshopnearme templesnearme thananearme tirenearme tollplazanearme"
+          ok=0; fail=0
+          for slug in $SLUGS; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $CF" "https://api.cloudflare.com/client/v4/accounts/$ACCT/pages/projects/$slug")
+            if [ "$code" != "200" ]; then
+              curl -s -H "Authorization: Bearer $CF" -H "Content-Type: application/json" -X POST \
+                "https://api.cloudflare.com/client/v4/accounts/$ACCT/pages/projects" \
+                --data "{\"name\":\"$slug\",\"production_branch\":\"main\"}" >/dev/null
+            fi
+            rm -rf /tmp/d && mkdir -p /tmp/d && cp "$slug.html" /tmp/d/index.html && cp -r css js /tmp/d/ 2>/dev/null
+            if npx --yes wrangler@latest pages deploy /tmp/d --project-name="$slug" --branch=main --commit-dirty=true >/dev/null 2>&1; then
+              sub=$(curl -s -H "Authorization: Bearer $CF" "https://api.cloudflare.com/client/v4/accounts/$ACCT/pages/projects/$slug" | jq -r '.result.subdomain')
+              echo "OK   $slug -> $sub"; ok=$((ok+1))
+            else
+              echo "FAIL $slug"; fail=$((fail+1))
+            fi
+          done
+          echo "=== done: ok=$ok fail=$fail ==="
