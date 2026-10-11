@@ -276,10 +276,15 @@ if (!dist) {
   title = `${vil.name} Village, ${tehsilName ? `${tehsilName} ${wordLabel}, ` : ''}${where} — Pincode ${vil.pincode} | Population, Panchayat, Post Office & Village Details`;
   desc = `${vil.name} village pincode ${vil.pincode} in ${tehsilName ? `${tehsilName}, ` : ''}${where}: population, households, panchayat, post office, LGD/census codes, DIGIPIN and the complete administrative profile of ${vil.name}.`;
   crumbItems = [['Home', `${BASE}/`], [stateName, `${BASE}${stateUrl(state.slug)}`], [districtName, `${BASE}${districtUrl(state.slug, dist.slug)}`], ...(tehsilSlug ? [[tehsilName, `${BASE}${subUrl(state.slug, dist.slug, tehsilSlug)}`]] : []), [vil.name, url]];
-  placeLd = { '@context': 'https://schema.org', '@type': 'Place', '@id': url, name: `${vil.name} Village`, url,
-    address: { '@type': 'PostalAddress', addressLocality: vil.name, addressRegion: stateName, addressCountry: 'IN', ...(vil.pincode ? { postalCode: String(vil.pincode) } : {}) },
-    containedInPlace: { '@type': 'Place', name: tehsilName || districtName, ...(tehsilName ? { containedInPlace: { '@type': 'AdministrativeArea', name: `${districtName} district`, containedInPlace: { '@type': 'AdministrativeArea', name: `${stateName} state` } } } : {}) },
-    ...(vil.population ? { additionalProperty: { '@type': 'PropertyValue', name: 'Population', value: Number(vil.population) } } : {}) };
+  placeLd = { '@context': 'https://schema.org', '@graph': [
+    { '@type': 'Place', '@id': url, name: `${vil.name} Village`, url,
+      address: { '@type': 'PostalAddress', addressLocality: vil.name, addressRegion: stateName, addressCountry: 'IN', ...(vil.pincode ? { postalCode: String(vil.pincode) } : {}) },
+      containedInPlace: { '@type': 'Place', name: tehsilName || districtName, ...(tehsilName ? { containedInPlace: { '@type': 'AdministrativeArea', name: `${districtName} district`, containedInPlace: { '@type': 'AdministrativeArea', name: `${stateName} state` } } } : {}) },
+      ...(vil.population ? { additionalProperty: { '@type': 'PropertyValue', name: 'Population', value: Number(vil.population) } } : {}) },
+    { '@type': 'AdministrativeArea', '@id': `${url}#village`, name: vil.name,
+      address: { '@type': 'PostalAddress', addressRegion: stateName, addressCountry: 'IN', ...(vil.pincode ? { postalCode: String(vil.pincode) } : {}) },
+      containedInPlace: { '@type': 'AdministrativeArea', name: `${districtName} district`, containedInPlace: { '@type': 'AdministrativeArea', name: `${stateName} state` } } }
+  ] };
   crumbNav = `<a href="/">Home</a> › <a href="${stateUrl(state.slug)}">${stateName}</a> › <a href="${districtUrl(state.slug, dist.slug)}">${districtName}</a>${tehsilSlug ? ` › <a href="${subUrl(state.slug, dist.slug, tehsilSlug)}">${tehsilName}</a>` : ''} › ${vil.name}`;
   heroH1 = `🏘️ ${vil.name} Village — Pincode ${vil.pincode}`;
   heroSub = `Village in ${tehsilName ? `${tehsilName} ${wordLabel.toLowerCase()}, ` : ''}${where} · Post office ${office ? office.office_name : `PIN ${vil.pincode}`}`;
@@ -321,9 +326,14 @@ if (!dist) {
   title = `Pincode ${pin}, ${data_.office_name} Post Office — ${data_.district_name}, ${data_.state_name} | Villages List, Panchayats, Delivery Status & Full Details`;
   desc = `Pincode ${pin}: ${data_.office_name} (${nv(data_.office_type)}), ${nv(data_.taluk)}, ${data_.district_name} district, ${data_.state_name}. Complete list of villages, panchayats, delivery status and post office details for pincode ${pin}.`;
   crumbItems = [['Home', `${BASE}/`], [data_.state_name, `${BASE}${stateUrl(state.slug)}`], [data_.district_name, `${BASE}${districtUrl(state.slug, dist.slug)}`], [`Pincode ${pin}`, url]];
-  placeLd = { '@context': 'https://schema.org', '@type': 'Place', '@id': url, name: `${data_.office_name} Post Office — Pincode ${pin}`, url,
-    address: { '@type': 'PostalAddress', streetAddress: data_.office_name, addressLocality: nv(data_.taluk), addressRegion: data_.state_name, addressCountry: 'IN', postalCode: String(pin) },
-    containedInPlace: { '@type': 'AdministrativeArea', name: `${data_.district_name} district`, containedInPlace: { '@type': 'AdministrativeArea', name: `${data_.state_name} state` } } };
+  placeLd = { '@context': 'https://schema.org', '@graph': [
+    { '@type': 'Place', '@id': url, name: `${data_.office_name} Post Office — Pincode ${pin}`, url,
+      address: { '@type': 'PostalAddress', streetAddress: data_.office_name, addressLocality: nv(data_.taluk), addressRegion: data_.state_name, addressCountry: 'IN', postalCode: String(pin) },
+      containedInPlace: { '@type': 'AdministrativeArea', name: `${data_.district_name} district`, containedInPlace: { '@type': 'AdministrativeArea', name: `${data_.state_name} state` } } },
+    { '@type': 'GovernmentOffice', '@id': `${url}#postoffice`, name: `${data_.office_name} Post Office`,
+      address: { '@type': 'PostalAddress', addressLocality: nv(data_.taluk), addressRegion: data_.state_name, addressCountry: 'IN', postalCode: String(pin) },
+      parentOrganization: { '@type': 'GovernmentOrganization', name: 'India Post' } }
+  ] };
   crumbNav = `<a href="/">Home</a> › <a href="${stateUrl(state.slug)}">${data_.state_name}</a> › <a href="${districtUrl(state.slug, dist.slug)}">${data_.district_name}</a> › Pincode ${pin}`;
   heroH1 = `📮 Pincode ${pin} — ${data_.office_name}`;
   heroSub = `${nv(data_.office_type)} post office in ${nv(data_.taluk)}, ${data_.district_name} district, ${data_.state_name}. Delivery status: ${nv(data_.delivery)}.`;

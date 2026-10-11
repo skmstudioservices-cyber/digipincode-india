@@ -1,0 +1,56 @@
+---
+import Layout from '../layouts/Base.astro';
+// /admin — first-party analytics dashboard (B8). Password-gated via env ADMIN_KEY.
+export const prerender = false;
+
+const rt: any = (Astro.locals as any).runtime;
+const db = rt?.env?.DB;
+const ADMIN_KEY = rt?.env?.ADMIN_KEY;
+const pw = Astro.url.searchParams.get('pw') || '';
+const authed = !!ADMIN_KEY && pw === ADMIN_KEY;
+
+Astro.response.headers.set('X-Robots-Tag', 'noindex, nofollow');
+
+let total = 0;
+let topPaths: any[] = [];
+let recent: any[] = [];
+let err404: any[] = [];
+if (authed && db?.prepare) {
+  try { total = Number((await db.prepare('SELECT COUNT(*) AS n FROM events').first())?.n || 0); } catch {}
+  try { topPaths = (await db.prepare('SELECT path, COUNT(*) AS n FROM events GROUP BY path ORDER BY n DESC LIMIT 40').all()).results || []; } catch {}
+  try { err404 = (await db.prepare("SELECT path, COUNT(*) AS n FROM events WHERE event='404' GROUP BY path ORDER BY n DESC LIMIT 20").all()).results || []; } catch {}
+  try { recent = (await db.prepare('SELECT ts, path, ref, event, dwell FROM events ORDER BY id DESC LIMIT 40').all()).results || []; } catch {}
+}
+---
+<Layout title="Admin — Digipincode" description="Private analytics dashboard.">
+  <h1>📊 Admin — first-party analytics</h1>
+  {!authed ? (
+    <>
+      <p class="intro">Private dashboard. Enter the admin password to view traffic.</p>
+      <form method="get" action="/admin">
+        <input type="password" name="pw" placeholder="Admin password" style="padding:.6rem .8rem;border:1px solid var(--line);border-radius:8px" />
+        <button type="submit" style="padding:.6rem 1.1rem;border:none;border-radius:8px;background:var(--blue);color:#fff;font-weight:700;cursor:pointer">View</button>
+      </form>
+      {!ADMIN_KEY && <p class="note">ADMIN_KEY is not set on this Worker. Add it as a secret (wrangler secret put ADMIN_KEY) to enable the dashboard.</p>}
+    </>
+  ) : (
+    <>
+      <p class="intro">Total events recorded: <strong>{total.toLocaleString('en-IN')}</strong></p>
+      <h2>Top pages</h2>
+      <div class="tablewrap"><table class="details">
+        <tr><th>Path</th><th>Views</th></tr>
+        {topPaths.map((r) => <tr><td>{r.path}</td><td>{r.n}</td></tr>)}
+      </table></div>
+      <h2>404s (top)</h2>
+      <div class="tablewrap"><table class="details">
+        <tr><th>Path</th><th>Count</th></tr>
+        {err404.map((r) => <tr><td>{r.path}</td><td>{r.n}</td></tr>)}
+      </table></div>
+      <h2>Recent events</h2>
+      <div class="tablewrap"><table class="details">
+        <tr><th>When</th><th>Path</th><th>Event</th><th>Dwell (s)</th><th>Referrer</th></tr>
+        {recent.map((r) => <tr><td>{r.ts}</td><td>{r.path}</td><td>{r.event}</td><td>{r.dwell}</td><td>{(r.ref || '').slice(0, 40)}</td></tr>)}
+      </table></div>
+    </>
+  )}
+</Layout>

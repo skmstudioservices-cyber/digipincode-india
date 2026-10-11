@@ -135,7 +135,7 @@ const COLLECTING = 'Coming soon — we are collecting this from government recor
       India Post & LGD data verified <time datetime={FRESHNESS.dataVerified}>{fmtDate(FRESHNESS.dataVerified)}</time> ·
       directory online since <time datetime={FRESHNESS.firstPublished}>{fmtDate(FRESHNESS.firstPublished)}</time>
     </p>
-    <p class="muted">© {new Date().getFullYear()} {SITE.name} · SKM Studio Network · Data: India Post & LGD Directory</p>
+    <p class="muted">© {new Date().getFullYear()} {SITE.name} · SKM Studio Network · Data: India Post & LGD Directory <a href="/admin" title="Admin" style="color:#8fa8c7;text-decoration:none;padding:0 .3rem">·</a></p>
   </footer>
   <button id="save-page-btn" class="save-btn" type="button" title="Save this page to your favourites">🔖 Save</button>
   <script is:inline>
@@ -156,6 +156,22 @@ const COLLECTING = 'Coming soon — we are collecting this from government recor
         render();
       });
       render();
+    })();
+  </script>
+  <script is:inline>
+    /* First-party, anonymous analytics beacon (B8) — one event per pageview, no cookies, no PII. */
+    (function () {
+      try {
+        var t0 = Date.now();
+        function send() {
+          try {
+            if (!navigator.sendBeacon) return;
+            navigator.sendBeacon('/api/collect', new Blob([JSON.stringify({ path: location.pathname, ref: document.referrer, event: 'view', dwell: Math.round((Date.now() - t0) / 1000) })], { type: 'application/json' }));
+          } catch (e) {}
+        }
+        window.addEventListener('pagehide', send, { once: true });
+        document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden') send(); });
+      } catch (e) {}
     })();
   </script>
 </body>
@@ -282,4 +298,18 @@ const COLLECTING = 'Coming soon — we are collecting this from government recor
   .footer-cols { display: flex; flex-wrap: wrap; gap: 1.5rem 2.5rem; justify-content: space-between; }
   .footer-cols p { margin: .3rem 0; font-size: .9rem; }
   .site-foot .muted { color: #8fa8c7; font-size: .8rem; }
+
+  /* ---- Responsive hardening (B7): no bleed-off-device, tidy header/footer ---- */
+  img, svg, video { max-width: 100%; height: auto; }
+  html, body { overflow-x: hidden; }
+  .linkfarm { padding: .2rem 0 1rem; }
+  @media (max-width: 640px) {
+    .hero { padding: 1rem; border-radius: 12px; }
+    .site-head { padding: .55rem .8rem; }
+    .site-head nav a { padding: .3rem .5rem; }
+    .footer-cols { gap: 1rem 1.5rem; }
+    .factgrid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
+    .cards { grid-template-columns: 1fr; }
+    table.details { min-width: 0; font-size: .88rem; }
+  }
 </style>

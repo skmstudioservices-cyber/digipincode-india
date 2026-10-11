@@ -30,6 +30,14 @@ const breadcrumb = {
 };
 const shareUrl = encodeURIComponent(url);
 const shareText = encodeURIComponent(`${panchayat.local_body_name} — ${panchayat.district_name}, ${panchayat.state_name}`);
+const panchayatLd = {
+  '@context': 'https://schema.org', '@type': 'GovernmentOrganization', '@id': `${url}#panchayat`,
+  name: panchayat.local_body_name,
+  description: `${panchayat.local_body_name} (${panchayat.local_body_type}) — local government body in ${panchayat.block_name} block, ${panchayat.district_name}, ${panchayat.state_name}.`,
+  identifier: String(panchayat.lgd_code),
+  address: { '@type': 'PostalAddress', addressLocality: panchayat.block_name, addressRegion: panchayat.state_name, addressCountry: 'IN' },
+  containedInPlace: { '@type': 'AdministrativeArea', name: `${panchayat.district_name} district`, containedInPlace: { '@type': 'AdministrativeArea', name: `${panchayat.state_name} state` } }
+};
 ---
 <Layout
   title={`${panchayat.local_body_name}, ${panchayat.district_name} — Villages, Population & LGD Code`}
@@ -38,6 +46,7 @@ const shareText = encodeURIComponent(`${panchayat.local_body_name} — ${panchay
   <Fragment slot="head">
     <script type="application/ld+json" set:html={JSON.stringify(breadcrumb)} />
     <script type="application/ld+json" set:html={JSON.stringify(faqLd)} />
+    <script type="application/ld+json" set:html={JSON.stringify(panchayatLd)} />
   </Fragment>
 
   <nav class="breadcrumb" aria-label="Breadcrumb">

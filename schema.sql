@@ -108,3 +108,14 @@ CREATE INDEX IF NOT EXISTS idx_subdistricts_district ON sub_districts(district_i
 CREATE INDEX IF NOT EXISTS idx_pincodes_state ON pincodes(state_id);
 CREATE INDEX IF NOT EXISTS idx_lgd_state ON lgd_panchayats(state_name);
 CREATE INDEX IF NOT EXISTS idx_lgd_district ON lgd_panchayats(district_name);
+
+-- First-party analytics events (B8). Anonymous, no PII.
+CREATE TABLE IF NOT EXISTS events (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  ts TEXT NOT NULL,
+  path TEXT,
+  ref TEXT,
+  event TEXT,
+  dwell INTEGER
+);
+CREATE INDEX IF NOT EXISTS idx_events_path ON events(path);
