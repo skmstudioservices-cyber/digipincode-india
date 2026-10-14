@@ -37,6 +37,9 @@ jobs:
             grep -q 'content.js' /tmp/d/index.html || sed -i 's#</body>#<script src="/js/content.js"></script>\n</body>#' /tmp/d/index.html
             # first-party analytics beacon
             grep -q 'analytics.js' /tmp/d/index.html || sed -i 's#</body>#<script src="/js/analytics.js"></script>\n</body>#' /tmp/d/index.html
+            # cache-bust the JS includes so a new deploy is never served stale
+            V="v$(date +%s)"
+            sed -i "s#\(/js/[a-z]*\.js\)\"#\1?$V\"#g" /tmp/d/index.html
             # per-site sitemap.xml + robots.txt (own domain)
             printf '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n  <url><loc>https://%s/</loc><changefreq>weekly</changefreq><priority>1.0</priority></url>\n</urlset>\n' "$sub" > /tmp/d/sitemap.xml
             printf 'User-agent: *\nAllow: /\n\nSitemap: https://%s/sitemap.xml\n' "$sub" > /tmp/d/robots.txt
