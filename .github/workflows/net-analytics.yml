@@ -1,0 +1,68 @@
+name: Network Analytics Inject (any site repo)
+
+# Injects the first-party analytics beacon into every .html of a site repo and
+# deploys it to its Cloudflare Pages project, using THIS repo's CF creds.
+# Idempotent: skips files that already carry the beacon.
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_repo:
+        description: 'Repo to inject + deploy (e.g. restareanearme)'
+        required: true
+      project_name:
+        description: 'Cloudflare Pages project name'
+        required: true
+      branch:
+        description: 'Branch'
+        required: false
+        default: 'main'
+
+jobs:
+  inject:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: skmstudioservices-cyber/${{ inputs.target_repo }}
+          ref: ${{ inputs.branch }}
+          path: site
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: Inject beacon into every HTML file
+        run: |
+          cd site
+          python3 - <<'PY'
+          import os
+          SNIP = ('<script>(function(){try{if(!navigator.sendBeacon)return;var t=Date.now(),s=false;'
+                  'function g(){if(s)return;s=true;try{navigator.sendBeacon('
+                  "'https://digipincode.india-in.workers.dev/api/collect',"
+                  "JSON.stringify({host:location.hostname,path:location.pathname,ref:document.referrer||'',event:'view',dwell:Math.round((Date.now()-t)/1000)}))"
+                  "}catch(e){}}window.addEventListener('pagehide',g,{once:true});"
+                  "document.addEventListener('visibilitychange',function(){if(document.visibilityState==='hidden')g()})}catch(e){}})();</script>")
+          n=0
+          for root,_,files in os.walk('.'):
+              if '/.git' in root: continue
+              for f in files:
+                  if f.endswith('.html'):
+                      p=os.path.join(root,f)
+                      try: s=open(p,encoding='utf-8',errors='ignore').read()
+                      except: continue
+                      if 'api/collect' in s: continue
+                      if '</body>' in s:
+                          s=s.replace('</body>', SNIP+'</body>', 1)
+                          open(p,'w',encoding='utf-8').write(s); n+=1
+          print('injected into', n, 'html files')
+          PY
+      - name: Deploy to Cloudflare Pages
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          cd site
+          npx --yes wrangler@latest pages deploy . --project-name="${{ inputs.project_name }}" --branch="${{ inputs.branch }}" --commit-dirty=true
+      - name: Verify
+        run: |
+          sleep 15
+          echo "${{ inputs.project_name }} -> $(curl -s -o /dev/null -w '%{http_code}' -m 30 https://${{ inputs.project_name }}.pages.dev/)"
+          echo "beacon present: $(curl -s -m 30 https://${{ inputs.project_name }}.pages.dev/ | grep -c 'api/collect')"
