@@ -1,0 +1,25 @@
+name: Bot Guard Verify
+
+# Verifies the middleware bot guard (D1 read protection):
+# real search engines -> 200, blocked AI/heavy crawlers -> 403.
+# Dispatch after any middleware change; also safe to run in the daily cron.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check UA responses
+        run: |
+          U="https://digipincode.india-in.workers.dev/"
+          code() { curl -s -o /dev/null -w '%{http_code}' --max-time 25 "$@" "$U"; }
+          echo "normal       : $(code)"
+          echo "googlebot    : $(code -A 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)')"
+          echo "bingbot      : $(code -A 'Mozilla/5.0 (compatible; bingbot/2.0; +http://www.bing.com/bingbot.htm)')"
+          echo "amzn-search  : $(code -A 'Mozilla/5.0 (compatible; Amzn-SearchBot/0.1)')"
+          echo "reflectionbot: $(code -A 'Mozilla/5.0 (compatible; Reflectionbot/1.0; +https://reflection.ai/bot)')"
+          echo "exasearchbot : $(code -A 'Mozilla/5.0 (compatible; ExaSearchBot/1.0; +https://crawler.exa.ai/)')"
+          echo "ahrefsbot    : $(code -A 'Mozilla/5.0 (compatible; AhrefsBot/7.0; +http://ahrefs.com/robot/)')"
+          echo "EXPECTED: normal/googlebot/bingbot=200, amzn/reflection/exa/ahrefs=403"
