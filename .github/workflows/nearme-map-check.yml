@@ -1,0 +1,44 @@
+name: Near-Me Map Check
+on:
+  workflow_dispatch:
+jobs:
+  m:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v4
+        with: { node-version: "24" }
+      - run: npm i playwright@1.47.2 && npx playwright install --with-deps chromium
+      - run: |
+          cat > m.mjs <<'JS'
+          import { chromium } from 'playwright';
+          const SITES=['https://atmsnearme.pages.dev','https://banksnearme.pages.dev','https://cafenearme.pages.dev'];
+          const b=await chromium.launch();
+          for(const B of SITES){
+            const ctx=await b.newContext({viewport:{width:1280,height:900}});
+            const p=await ctx.newPage();
+            const errs=[], cons=[];
+            p.on('pageerror',e=>errs.push(String(e).slice(0,140)));
+            p.on('console',m=>{ if(m.type()==='error') cons.push(m.text().slice(0,140)); });
+            await p.goto(B+'/?cb='+Date.now(),{waitUntil:'networkidle',timeout:60000}).catch(()=>{});
+            await p.waitForTimeout(3000);
+            const L=(await p.evaluate(()=>typeof window.L!=='undefined'))?1:0;
+            const container=await p.evaluate(()=>!!document.querySelector('.leaflet-container'));
+            const mapBox=await p.$eval('#map',e=>{const r=e.getBoundingClientRect();return {w:Math.round(r.width),h:Math.round(r.height)};}).catch(()=>null);
+            // search a city
+            await p.fill('#city','Delhi').catch(()=>{});
+            await p.click('#go').catch(()=>{});
+            await p.waitForTimeout(9000);
+            const status=await p.$eval('#status',e=>e.textContent.trim()).catch(()=>'(no status)');
+            const cards=await p.$$eval('#out .card',e=>e.length).catch(()=>-1);
+            const markers=await p.$$eval('.leaflet-marker-icon',e=>e.length).catch(()=>-1);
+            const tiles=await p.$$eval('img.leaflet-tile',e=>e.length).catch(()=>-1);
+            console.log('SITE '+B);
+            console.log('  window.L='+L+' container='+container+' mapBox='+JSON.stringify(mapBox));
+            console.log('  status='+JSON.stringify(status)+' cards='+cards+' markers='+markers+' tiles='+tiles);
+            console.log('  pageerrors='+JSON.stringify(errs.slice(0,4)));
+            console.log('  consoleerrors='+JSON.stringify(cons.slice(0,4)));
+            await ctx.close();
+          }
+          await b.close();
+          JS
+          node m.mjs
