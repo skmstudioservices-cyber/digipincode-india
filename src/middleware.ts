@@ -10,7 +10,7 @@
 //    appears in the HTML that AI crawlers fetch (no JS needed to see it).
 import { defineMiddleware } from 'astro:middleware';
 
-const CACHE_VERSION = 'v5' // bumped 11 Oct 2026: facilities gating + pages.dev canonical 301; refresh cached HTML
+const CACHE_VERSION = 'v6' // bumped 15 Oct 2026: purge stale edge-cached HTML (stale _astro/*.css 404s) + serve fresh after latest deploy
 const PAGE_TTL = 60 * 60 * 24 * 7; // 7 days
 const SKIP = ['/api/', '/search', '/saved', '/sitemap', '/404'];
 
@@ -68,6 +68,17 @@ export const onRequest = defineMiddleware(async (context, next) => {
   const _ua = (context.request.headers.get('user-agent') || '').toLowerCase();
   const BOT_BLOCK = ['amzn-searchbot','reflectionbot','exasearchbot','exauser','ccbot','bytespider','petalbot','mj12bot','dotbot','dataforseobot','semrushbot','ahrefsbot','baiduspider','yandexbot','sogou','scrapy','diffbot','omgili','timpibot'];
   if (_ua && BOT_BLOCK.some((b) => _ua.includes(b))) {
+    return new Response('Forbidden', { status: 403, headers: { 'cache-control': 'no-store' } });
+  }
+
+  // --- Empty-UA guard (D1 read protection, 15 Oct 2026) ---
+  // CF analytics show the single biggest D1 read drain is UA-less traffic:
+  // ~13.7k req/day to this worker (more than every named bot combined), hitting
+  // the hierarchy catch-all and timing out (504). Every real browser and every
+  // legitimate crawler sends a User-Agent, so we refuse UA-less requests.
+  // /api/* is exempt so the first-party /api/collect beacon keeps working.
+  const _path0 = new URL(context.request.url).pathname;
+  if (!_ua && !_path0.startsWith('/api/')) {
     return new Response('Forbidden', { status: 403, headers: { 'cache-control': 'no-store' } });
   }
 
