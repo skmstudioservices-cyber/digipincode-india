@@ -7,14 +7,15 @@ jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-      - name: Grep live pages for freshness line
+      - name: Grep live pages for freshness + network footer
         run: |
           for u in "" "kerala" "states" "pincode/110001"; do
             url="https://digipincode.india-in.workers.dev/$u?cb=$RANDOM"
             code=$(curl -s -o /tmp/f.html -w "%{http_code}" --max-time 30 "$url")
             echo "=== /$u -> $code"
-            echo "  last-updated line: $(grep -c 'Page last updated' /tmp/f.html || true)"
-            echo "  data-verified 22 Sep: $(grep -c '22 September 2026' /tmp/f.html || true)"
-            echo "  online-since 14 Sep: $(grep -c '14 September 2026' /tmp/f.html || true)"
-            grep -o 'Page last updated[^<]*' /tmp/f.html | head -1
+            echo "  net-more block : $(grep -c 'net-more' /tmp/f.html || true)"
+            echo "  More near me   : $(grep -c 'More near me' /tmp/f.html || true)"
+            echo "  mapsnearme lnk : $(grep -c 'mapsnearme.pages.dev' /tmp/f.html || true)"
+            echo "  demo-vmv lnk   : $(grep -c 'demo-vmv.pages.dev' /tmp/f.html || true)"
+            echo "  Page last upd  : $(grep -c 'Page last updated' /tmp/f.html || true)"
           done
