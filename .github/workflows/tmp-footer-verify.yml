@@ -7,15 +7,10 @@ jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-      - name: Grep live pages for freshness + network footer
+      - name: Probe URL variants (status codes)
         run: |
-          for u in "" "kerala" "states" "pincode/110001"; do
+          for u in "" "states" "states/" "search" "search/" "saved" "saved/" "pincode/110001" "pincode/110001/" "pin-code/110001" "pin-code/110001/" "kerala" "kerala/" "state/kerala" "state/kerala/" "chhath/" "about" "about/" "privacy-policy" "privacy-policy/" "sitemap.xml" "robots.txt"; do
             url="https://digipincode.india-in.workers.dev/$u?cb=$RANDOM"
-            code=$(curl -s -o /tmp/f.html -w "%{http_code}" --max-time 30 "$url")
-            echo "=== /$u -> $code"
-            echo "  net-more block : $(grep -c 'net-more' /tmp/f.html || true)"
-            echo "  More near me   : $(grep -c 'More near me' /tmp/f.html || true)"
-            echo "  mapsnearme lnk : $(grep -c 'mapsnearme.pages.dev' /tmp/f.html || true)"
-            echo "  demo-vmv lnk   : $(grep -c 'demo-vmv.pages.dev' /tmp/f.html || true)"
-            echo "  Page last upd  : $(grep -c 'Page last updated' /tmp/f.html || true)"
+            code=$(curl -s -o /tmp/f.html -w "%{http_code}" --max-time 25 "$url")
+            echo "/$u -> $code"
           done
