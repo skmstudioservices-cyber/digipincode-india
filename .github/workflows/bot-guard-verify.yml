@@ -22,4 +22,6 @@ jobs:
           echo "reflectionbot: $(code -A 'Mozilla/5.0 (compatible; Reflectionbot/1.0; +https://reflection.ai/bot)')"
           echo "exasearchbot : $(code -A 'Mozilla/5.0 (compatible; ExaSearchBot/1.0; +https://crawler.exa.ai/)')"
           echo "ahrefsbot    : $(code -A 'Mozilla/5.0 (compatible; AhrefsBot/7.0; +http://ahrefs.com/robot/)')"
-          echo "EXPECTED: normal/googlebot/bingbot=200, amzn/reflection/exa/ahrefs=403"
+          echo "empty-ua     : $(code -H 'User-Agent:')"
+          echo "empty-ua-deep: $(curl -s -o /dev/null -w '%{http_code}' --max-time 25 -H 'User-Agent:' "$U"kerala)"
+          echo "EXPECTED: normal/googlebot/bingbot=200, amzn/reflection/exa/ahrefs/empty-ua=403"
