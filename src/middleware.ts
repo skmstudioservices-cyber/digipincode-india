@@ -61,6 +61,16 @@ export const onRequest = defineMiddleware(async (context, next) => {
   if (_cu.hostname.endsWith('.pages.dev') && context.request.method === 'GET') {
     return Response.redirect(`https://digipincode.india-in.workers.dev${_cu.pathname}${_cu.search}`, 301);
   }
+  // --- Bot guard (D1 read protection, 14 Oct 2026) ---
+  // Known AI / heavy crawlers that ignore robots.txt and burn D1 reads on
+  // cold (uncached) unique URLs. Googlebot/Bingbot and real search engines
+  // are never matched here. Mirrors the robots.txt AI-block list.
+  const _ua = (context.request.headers.get('user-agent') || '').toLowerCase();
+  const BOT_BLOCK = ['amzn-searchbot','reflectionbot','exasearchbot','ccbot','bytespider','petalbot','mj12bot','dotbot','dataforseobot','semrushbot','ahrefsbot','baiduspider','yandexbot','sogou','scrapy','diffbot','omgili','timpibot'];
+  if (_ua && BOT_BLOCK.some((b) => _ua.includes(b))) {
+    return new Response('Forbidden', { status: 403, headers: { 'cache-control': 'no-store' } });
+  }
+
   // --- D1 read-replication session ---
   const rt = (context.locals as any).runtime;
   const db = rt?.env?.DB;
