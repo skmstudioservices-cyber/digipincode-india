@@ -131,6 +131,58 @@ const COLLECTING = 'Coming soon — we are collecting this from government recor
       <div>
         {FOOTER_LINKS.map((l) => <p><a href={l.href}>{l.label}</a></p>)}
       </div>
+      <div class="net-more">
+        <details>
+          <summary>More near me &amp; our network</summary>
+          <p><a href="https://mapsnearme.pages.dev/" rel="noopener">Businesses near me — MapsNearMe</a></p>
+          <p><a href="https://evchargersnearme.pages.dev/" rel="noopener">EV chargers near me</a></p>
+          <p><a href="https://toiletsnearme.pages.dev/" rel="noopener">Public toilets near me</a></p>
+          <p><a href="https://restareanearme.pages.dev/" rel="noopener">Highway rest areas near me</a></p>
+          <p><a href="https://cngpumpsnearme.pages.dev/" rel="noopener">CNG pumps near me</a></p>
+          <p><a href="https://bloodbanksnearme.pages.dev/" rel="noopener">Blood banks near me</a></p>
+          <p><a href="https://atmsnearme.pages.dev/" rel="noopener">ATMs near me</a></p>
+          <p><a href="https://banksnearme.pages.dev/" rel="noopener">Banks near me</a></p>
+          <p><a href="https://hospitalsnearme-9cp.pages.dev/" rel="noopener">Hospitals near me</a></p>
+          <p><a href="https://medicalshopnearme.pages.dev/" rel="noopener">Medical shops near me</a></p>
+          <p><a href="https://dentistsnearme.pages.dev/" rel="noopener">Dentists near me</a></p>
+          <p><a href="https://hotelnearme.pages.dev/" rel="noopener">Hotels near me</a></p>
+          <p><a href="https://lodgenearme.pages.dev/" rel="noopener">Lodges near me</a></p>
+          <p><a href="https://dhabanearme.pages.dev/" rel="noopener">Dhabas near me</a></p>
+          <p><a href="https://cafenearme.pages.dev/" rel="noopener">Cafes near me</a></p>
+          <p><a href="https://bakerynearme.pages.dev/" rel="noopener">Bakeries near me</a></p>
+          <p><a href="https://busstopnearme.pages.dev/" rel="noopener">Bus stops near me</a></p>
+          <p><a href="https://busstationnearme.pages.dev/" rel="noopener">Bus stations near me</a></p>
+          <p><a href="https://autostandnearme.pages.dev/" rel="noopener">Auto stands near me</a></p>
+          <p><a href="https://erickshawstandnearme.pages.dev/" rel="noopener">E-rickshaw stands near me</a></p>
+          <p><a href="https://bikestandnearme.pages.dev/" rel="noopener">Bike stands near me</a></p>
+          <p><a href="https://bikerepairsnearme.pages.dev/" rel="noopener">Bike repairs near me</a></p>
+          <p><a href="https://carrepairsnearme.pages.dev/" rel="noopener">Car repairs near me</a></p>
+          <p><a href="https://tirenearme.pages.dev/" rel="noopener">Tyre shops near me</a></p>
+          <p><a href="https://carparkingnearme.pages.dev/" rel="noopener">Car parking near me</a></p>
+          <p><a href="https://hardwareshopnearme.pages.dev/" rel="noopener">Hardware shops near me</a></p>
+          <p><a href="https://tailorshopnearme.pages.dev/" rel="noopener">Tailor shops near me</a></p>
+          <p><a href="https://salonnearme.pages.dev/" rel="noopener">Salons near me</a></p>
+          <p><a href="https://laundrynearme.pages.dev/" rel="noopener">Laundry near me</a></p>
+          <p><a href="https://gymnearme.pages.dev/" rel="noopener">Gyms near me</a></p>
+          <p><a href="https://churchesnearme.pages.dev/" rel="noopener">Churches near me</a></p>
+          <p><a href="https://courtnearme.pages.dev/" rel="noopener">Courts near me</a></p>
+          <p><a href="https://electricityofficenearme.pages.dev/" rel="noopener">Electricity offices near me</a></p>
+          <p><a href="https://aadhaarcenternearme.pages.dev/" rel="noopener">Aadhaar centres near me</a></p>
+          <p><a href="https://aadhaar-seva-kendra-near-me.pages.dev/" rel="noopener">Aadhaar Seva Kendra</a></p>
+          <p><a href="https://airqualitynearme.pages.dev/" rel="noopener">Air quality near me</a></p>
+          <p><a href="https://earthquakenearme.pages.dev/" rel="noopener">Earthquakes near me</a></p>
+          <p><a href="https://floodsnearme.pages.dev/" rel="noopener">Floods near me</a></p>
+          <p><a href="https://isrotracker.pages.dev/" rel="noopener">ISRO launches & tracker</a></p>
+          <p><a href="https://issspotter.pages.dev/" rel="noopener">ISS spotter</a></p>
+          <p><a href="https://bharatlive.pages.dev/" rel="noopener">Bharat live</a></p>
+          <p><a href="https://safealleys.pages.dev/" rel="noopener">Safe alleys</a></p>
+          <p><a href="https://examstatus.india-in.workers.dev/" rel="noopener">Exam results — ExamStatus</a></p>
+          <p><a href="https://karvachauth.pages.dev/" rel="noopener">Karva Chauth 2026</a></p>
+          <p><a href="https://asiangamesmedaltally2026.pages.dev/" rel="noopener">Asian Games medal tally</a></p>
+          <p><a href="https://skmtools.pages.dev/" rel="noopener">SKM tools</a></p>
+          <p><a href="https://demo-vmv.pages.dev/" rel="noopener">Near Me directory — all finders</a></p>
+        </details>
+      </div>
     </div>
     <p class="muted">
       Page last updated <time datetime={FRESHNESS.codeUpdated}>{fmtDate(FRESHNESS.codeUpdated)}</time> ·
@@ -299,6 +351,9 @@ const COLLECTING = 'Coming soon — we are collecting this from government recor
   .site-foot a { color: #fff; }
   .footer-cols { display: flex; flex-wrap: wrap; gap: 1.5rem 2.5rem; justify-content: space-between; }
   .footer-cols p { margin: .3rem 0; font-size: .9rem; }
+  .net-more details { max-width: 22rem; }
+  .net-more summary { cursor: pointer; font-weight: 600; font-size: .9rem; }
+  .net-more p { margin: .25rem 0; font-size: .85rem; line-height: 1.35; }
   .site-foot .muted { color: #8fa8c7; font-size: .8rem; }
 
   /* ---- Responsive hardening (B7): no bleed-off-device, tidy header/footer ---- */
