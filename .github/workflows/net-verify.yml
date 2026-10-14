@@ -1,0 +1,35 @@
+name: Network Verify (generic live grep)
+
+# Generic live checker: curl a site and grep for marker strings.
+# Use after any deploy to confirm content-level presence (200 is not verification).
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: 'Base URL (e.g. https://demo-vmv.pages.dev)'
+        required: true
+      paths:
+        description: 'Comma-separated paths (default /)'
+        required: false
+        default: '/'
+      markers:
+        description: 'Comma-separated marker strings to grep for'
+        required: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Grep live pages
+        run: |
+          IFS=',' read -ra PS <<< "${{ inputs.paths }}"
+          IFS=',' read -ra MS <<< "${{ inputs.markers }}"
+          for p in "${PS[@]}"; do
+            url="${{ inputs.base_url }}$p?cb=$RANDOM"
+            code=$(curl -s -o /tmp/f.html -w "%{http_code}" -m 30 "$url")
+            echo "=== $p -> $code"
+            for m in "${MS[@]}"; do
+              echo "   '$m' : $(grep -c -- "$m" /tmp/f.html || true)"
+            done
+          done
