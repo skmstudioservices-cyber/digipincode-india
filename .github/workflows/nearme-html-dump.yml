@@ -9,10 +9,16 @@ jobs:
         with: { node-version: "22" }
       - run: |
           U="https://atmsnearme.pages.dev"
-          for f in app blocks content analytics; do
-            curl -s -m 30 "$U/js/$f.js" -o /tmp/$f.js
-            echo "== $f.js size=$(wc -c </tmp/$f.js)"
-            node --check /tmp/$f.js && echo "   $f OK" || echo "   $f FAIL"
+          echo "=== js includes in HTML ==="
+          curl -s -m 30 "$U/?cb=$RANDOM" | grep -o '/js/[a-z]*\.js[^"]*'
+          echo "=== app.js fresh ==="
+          curl -s -m 30 "$U/js/app.js?cb=$RANDOM" -o /tmp/a.js
+          echo "size=$(wc -c </tmp/a.js)"
+          node --check /tmp/a.js && echo APP_OK || echo APP_FAIL
+          echo "=== app.js lines 39-46 ==="
+          sed -n '39,46p' /tmp/a.js
+          echo "=== other js fresh ==="
+          for f in blocks content analytics; do
+            curl -s -m 30 "$U/js/$f.js?cb=$RANDOM" -o /tmp/$f.js
+            node --check /tmp/$f.js && echo "$f OK" || echo "$f FAIL"
           done
-          echo "=== inline CAT script ==="
-          curl -s -m 30 "$U/?cb=$RANDOM" | grep -o '<script>window.CAT[^<]*</script>'
