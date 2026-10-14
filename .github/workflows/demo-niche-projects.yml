@@ -31,6 +31,8 @@ jobs:
             rm -rf /tmp/d && mkdir -p /tmp/d && cp "$slug.html" /tmp/d/index.html && cp -r css js /tmp/d/ 2>/dev/null
             # Inject the expandable near-me blocks (SKM pattern) if not already present
             grep -q nblocks /tmp/d/index.html || sed -i 's#</body>#<div id="nblocks"></div>\n<script src="/js/blocks.js"></script>\n</body>#' /tmp/d/index.html
+            # Inject the first-party analytics beacon on every site
+            grep -q 'analytics.js' /tmp/d/index.html || sed -i 's#</body>#<script src="/js/analytics.js"></script>\n</body>#' /tmp/d/index.html
             if npx --yes wrangler@latest pages deploy /tmp/d --project-name="$slug" --branch=main --commit-dirty=true >/dev/null 2>&1; then
               sub=$(curl -s -H "Authorization: Bearer $CF" "https://api.cloudflare.com/client/v4/accounts/$ACCT/pages/projects/$slug" | jq -r '.result.subdomain')
               echo "OK   $slug -> $sub"; ok=$((ok+1))
