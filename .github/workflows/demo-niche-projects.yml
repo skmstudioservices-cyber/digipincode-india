@@ -28,13 +28,16 @@ jobs:
                 "https://api.cloudflare.com/client/v4/accounts/$ACCT/pages/projects" \
                 --data "{\"name\":\"$slug\",\"production_branch\":\"main\"}" >/dev/null
             fi
+            sub=$(curl -s -H "Authorization: Bearer $CF" "https://api.cloudflare.com/client/v4/accounts/$ACCT/pages/projects/$slug" | jq -r '.result.subdomain')
             rm -rf /tmp/d && mkdir -p /tmp/d && cp "$slug.html" /tmp/d/index.html && cp -r css js /tmp/d/ 2>/dev/null
-            # Inject the expandable near-me blocks (SKM pattern) if not already present
+            # expandable near-me blocks (SKM pattern)
             grep -q nblocks /tmp/d/index.html || sed -i 's#</body>#<div id="nblocks"></div>\n<script src="/js/blocks.js"></script>\n</body>#' /tmp/d/index.html
-            # Inject the first-party analytics beacon on every site
+            # first-party analytics beacon
             grep -q 'analytics.js' /tmp/d/index.html || sed -i 's#</body>#<script src="/js/analytics.js"></script>\n</body>#' /tmp/d/index.html
+            # per-site sitemap.xml + robots.txt (own domain)
+            printf '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n  <url><loc>https://%s/</loc><changefreq>weekly</changefreq><priority>1.0</priority></url>\n</urlset>\n' "$sub" > /tmp/d/sitemap.xml
+            printf 'User-agent: *\nAllow: /\n\nSitemap: https://%s/sitemap.xml\n' "$sub" > /tmp/d/robots.txt
             if npx --yes wrangler@latest pages deploy /tmp/d --project-name="$slug" --branch=main --commit-dirty=true >/dev/null 2>&1; then
-              sub=$(curl -s -H "Authorization: Bearer $CF" "https://api.cloudflare.com/client/v4/accounts/$ACCT/pages/projects/$slug" | jq -r '.result.subdomain')
               echo "OK   $slug -> $sub"; ok=$((ok+1))
             else
               echo "FAIL $slug"; fail=$((fail+1))
