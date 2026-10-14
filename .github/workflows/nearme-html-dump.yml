@@ -1,0 +1,23 @@
+name: Near-Me HTML Dump
+on:
+  workflow_dispatch:
+jobs:
+  d:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          curl -s -m 30 "https://atmsnearme.pages.dev/?cb=$RANDOM" -o /tmp/p.html
+          echo "=== script tags ==="
+          grep -o '<script[^>]*>' /tmp/p.html
+          echo "=== inline script bodies (non-src) ==="
+          python3 - <<'PY'
+          import re
+          s=open('/tmp/p.html',encoding='utf-8',errors='ignore').read()
+          for m in re.finditer(r'<script(?![^>]*src=)[^>]*>(.*?)</script>', s, re.S):
+              body=m.group(1).strip()
+              print('--- inline script ('+str(len(body))+' chars) ---')
+              print(body[:400])
+          print('=== app.js served ===')
+          import urllib.request
+          print(urllib.request.urlopen('https://atmsnearme.pages.dev/js/app.js').read().decode()[:200])
+          PY
