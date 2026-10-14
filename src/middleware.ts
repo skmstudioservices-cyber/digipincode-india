@@ -66,8 +66,14 @@ export const onRequest = defineMiddleware(async (context, next) => {
   // cold (uncached) unique URLs. Googlebot/Bingbot and real search engines
   // are never matched here. Mirrors the robots.txt AI-block list.
   const _ua = (context.request.headers.get('user-agent') || '').toLowerCase();
-  const BOT_BLOCK = ['amzn-searchbot','reflectionbot','exasearchbot','ccbot','bytespider','petalbot','mj12bot','dotbot','dataforseobot','semrushbot','ahrefsbot','baiduspider','yandexbot','sogou','scrapy','diffbot','omgili','timpibot'];
+  const BOT_BLOCK = ['amzn-searchbot','reflectionbot','exasearchbot','exauser','ccbot','bytespider','petalbot','mj12bot','dotbot','dataforseobot','semrushbot','ahrefsbot','baiduspider','yandexbot','sogou','scrapy','diffbot','omgili','timpibot'];
   if (_ua && BOT_BLOCK.some((b) => _ua.includes(b))) {
+    return new Response('Forbidden', { status: 403, headers: { 'cache-control': 'no-store' } });
+  }
+
+  // Protect the expensive /search endpoint: crawlers and empty-UA agents hammering
+  // it burn D1 reads (the top read drain). Real browsers always send a user-agent.
+  if (new URL(context.request.url).pathname.startsWith('/search') && (!_ua || BOT_BLOCK.some((b) => _ua.includes(b)))) {
     return new Response('Forbidden', { status: 403, headers: { 'cache-control': 'no-store' } });
   }
 
