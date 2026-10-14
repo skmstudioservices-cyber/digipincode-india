@@ -180,9 +180,18 @@ Disallow: /
 User-agent: DotBot
 Disallow: /
 
+# --- AI crawlers added 14 Oct 2026 (D1 read protection; observed in CF analytics) ---
+User-agent: Amzn-SearchBot
+Disallow: /
+
+User-agent: Reflectionbot
+Disallow: /
+
+User-agent: ExaSearchBot
+Disallow: /
+
 # Politeness delay for the rest
 User-agent: *
 Crawl-delay: 5
 
 Sitemap: https://digipincode.india-in.workers.dev/sitemap.xml
-
