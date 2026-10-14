@@ -5,16 +5,14 @@ jobs:
   d:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/setup-node@v4
+        with: { node-version: "22" }
       - run: |
           U="https://atmsnearme.pages.dev"
-          curl -s -m 30 "$U/?cb=$RANDOM" -o /tmp/p.html
-          echo "=== script tags ==="
-          grep -o '<script[^>]*>' /tmp/p.html
-          echo "=== app.js first 260 ==="
-          curl -s -m 30 "$U/js/app.js" | head -c 260
-          echo
-          echo "=== app.js grep geo line ==="
-          curl -s -m 30 "$U/js/app.js" | grep -n "geo\|getCurrentPosition" | head
-          echo "=== blocks.js first 120 ==="
-          curl -s -m 30 "$U/js/blocks.js" | head -c 120
-          echo
+          for f in app blocks content analytics; do
+            curl -s -m 30 "$U/js/$f.js" -o /tmp/$f.js
+            echo "== $f.js size=$(wc -c </tmp/$f.js)"
+            node --check /tmp/$f.js && echo "   $f OK" || echo "   $f FAIL"
+          done
+          echo "=== inline CAT script ==="
+          curl -s -m 30 "$U/?cb=$RANDOM" | grep -o '<script>window.CAT[^<]*</script>'
