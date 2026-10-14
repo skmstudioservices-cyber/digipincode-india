@@ -6,18 +6,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - run: |
-          curl -s -m 30 "https://atmsnearme.pages.dev/?cb=$RANDOM" -o /tmp/p.html
+          U="https://atmsnearme.pages.dev"
+          curl -s -m 30 "$U/?cb=$RANDOM" -o /tmp/p.html
           echo "=== script tags ==="
           grep -o '<script[^>]*>' /tmp/p.html
-          echo "=== inline script bodies (non-src) ==="
-          python3 - <<'PY'
-          import re
-          s=open('/tmp/p.html',encoding='utf-8',errors='ignore').read()
-          for m in re.finditer(r'<script(?![^>]*src=)[^>]*>(.*?)</script>', s, re.S):
-              body=m.group(1).strip()
-              print('--- inline script ('+str(len(body))+' chars) ---')
-              print(body[:400])
-          print('=== app.js served ===')
-          import urllib.request
-          print(urllib.request.urlopen('https://atmsnearme.pages.dev/js/app.js').read().decode()[:200])
-          PY
+          echo "=== app.js first 260 ==="
+          curl -s -m 30 "$U/js/app.js" | head -c 260
+          echo
+          echo "=== app.js grep geo line ==="
+          curl -s -m 30 "$U/js/app.js" | grep -n "geo\|getCurrentPosition" | head
+          echo "=== blocks.js first 120 ==="
+          curl -s -m 30 "$U/js/blocks.js" | head -c 120
+          echo
