@@ -32,6 +32,9 @@ jobs:
             rm -rf /tmp/d && mkdir -p /tmp/d && cp "$slug.html" /tmp/d/index.html && cp -r css js /tmp/d/ 2>/dev/null
             # expandable near-me blocks (SKM pattern)
             grep -q nblocks /tmp/d/index.html || sed -i 's#</body>#<div id="nblocks"></div>\n<script src="/js/blocks.js"></script>\n</body>#' /tmp/d/index.html
+            # thick homepage content (intro + query headings + how-to + FAQ)
+            grep -q 'id="ncontent"' /tmp/d/index.html || sed -i 's#<div id="nblocks"></div>#<div id="ncontent"></div>\n<div id="nblocks"></div>#' /tmp/d/index.html
+            grep -q 'content.js' /tmp/d/index.html || sed -i 's#</body>#<script src="/js/content.js"></script>\n</body>#' /tmp/d/index.html
             # first-party analytics beacon
             grep -q 'analytics.js' /tmp/d/index.html || sed -i 's#</body>#<script src="/js/analytics.js"></script>\n</body>#' /tmp/d/index.html
             # per-site sitemap.xml + robots.txt (own domain)
