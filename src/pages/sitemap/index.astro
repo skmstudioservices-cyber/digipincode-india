@@ -1,0 +1,97 @@
+---
+// src/pages/sitemap/index.astro — HUMAN-READABLE HTML sitemap (not XML).
+// Lists every hub + all states + popular pincodes as real <a> links so crawlers
+// discover pages by following links (internal linking > sitemap for importance).
+// The full 104k-page catalogue stays in the XML sitemap (/sitemap.xml).
+import Layout from '../../layouts/Base.astro';
+import { getStates } from '../../lib/db';
+import { stateUrl } from '../../lib/urls';
+
+export const prerender = false;
+const db = Astro.locals.runtime.env.DB;
+const states = await getStates(db);
+
+const HUBS: [string, string][] = [
+  ['/', 'Home — India Pincode Directory'],
+  ['/states', 'All States of India'],
+  ['/digipin/', 'DIGIPIN — digital address code tool'],
+  ['/chhath/', 'Chhath Puja 2026 — ghats by city'],
+  ['/diwali/', 'Diwali 2026 — Lakshmi Puja muhurat'],
+  ['/karva-chauth/', 'Karva Chauth 2026 — moonrise by city'],
+  ['/search', 'Search pincode / village / panchayat'],
+  ['/saved', 'Saved pages'],
+  ['/about', 'About'],
+  ['/contact', 'Contact'],
+  ['/privacy-policy', 'Privacy Policy'],
+  ['/terms', 'Terms of Use'],
+  ['/disclaimer', 'Disclaimer'],
+];
+
+const POPULAR: [string, string][] = [
+  ['Delhi', '110001'], ['Mumbai', '400001'], ['Kolkata', '700001'], ['Chennai', '600001'],
+  ['Bengaluru', '560001'], ['Hyderabad', '500001'], ['Pune', '411001'], ['Ahmedabad', '380001'],
+  ['Jaipur', '302001'], ['Lucknow', '226001'], ['Patna', '800001'], ['Bhopal', '462001'],
+  ['Chandigarh', '160001'], ['Guwahati', '781001'], ['Kochi', '682001'], ['Nagpur', '440001'],
+];
+---
+<Layout
+  title="Sitemap — every page on Digipincode | India Pincode Directory"
+  description="Human-readable sitemap: all states, union territories, seasonal guides, tools and popular pincode pages on Digipincode — every link in one place for visitors and crawlers."
+>
+  <nav class="breadcrumb" aria-label="Breadcrumb"><a href="/">Home</a> › Sitemap</nav>
+
+  <section class="hero">
+    <h1>🗺️ Sitemap — every page in one place</h1>
+    <p class="sub">{states.length} states & UTs · 6 lakh villages · 1.5 lakh+ pincodes · tools & seasonal guides</p>
+  </section>
+
+  <p class="intro">
+    This page lists our main hubs, every state and union territory, and popular pincode pages as real links,
+    so you (and search engines) can reach everything in a few clicks. The full directory of every village,
+    tehsil and pincode is in the machine-readable sitemap at
+    <a href="/sitemap.xml"><strong>/sitemap.xml</strong></a>.
+  </p>
+
+  <section>
+    <h2>🔧 Tools, guides &amp; essential pages</h2>
+    <ul class="sm-list">
+      {HUBS.map(([href, label]) => <li><a href={href}>{label}</a></li>)}
+    </ul>
+  </section>
+
+  <section>
+    <h2>🗺️ All states &amp; union territories ({states.length})</h2>
+    <ul class="sm-list sm-cols">
+      {states.map((s) => <li><a href={stateUrl(s.slug)}>{s.name}</a> — districts, tehsils, villages &amp; pincodes</li>)}
+    </ul>
+  </section>
+
+  <section>
+    <h2>📮 Popular pincodes</h2>
+    <ul class="sm-list sm-cols">
+      {POPULAR.map(([city, pin]) => <li><a href={`/pincode/${pin}`}>{city} — {pin}</a></li>)}
+    </ul>
+  </section>
+
+  <section>
+    <h2>🔎 Full directory</h2>
+    <p>
+      Browse the complete <a href="/states">state → district → tehsil → village → pincode</a> hierarchy,
+      or use <a href="/search">search</a>. Machine-readable sitemaps:
+      <a href="/sitemap.xml">/sitemap.xml</a> (index) ·
+      <a href="/sitemap/pages.xml">pages</a> ·
+      <a href="/sitemap-chhath.xml">Chhath</a> ·
+      <a href="/sitemap-diwali.xml">Diwali</a>.
+    </p>
+  </section>
+
+  <style>
+    .sm-list{list-style:none;padding:0;margin:.5rem 0;display:grid;gap:.35rem}
+    .sm-list.sm-cols{grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
+    .sm-list li{padding:.35rem .2rem;border-bottom:1px solid #eef2f7}
+    .sm-list a{color:#1a5fb4;text-decoration:none;font-weight:600}
+    .sm-list a:hover{text-decoration:underline}
+    section{margin:1.6rem 0}
+    h2{font-size:1.15rem;margin:0 0 .5rem}
+  </style>
+</Layout>
