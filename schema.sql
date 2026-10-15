@@ -120,7 +120,7 @@ CREATE TABLE IF NOT EXISTS events (
 );
 CREATE INDEX IF NOT EXISTS idx_events_path ON events(path);
 
--- v2 (15 Oct 2026): decision signals for the network audit. Run once; re-runs may
--- error on the existing column, which is harmless (collect.ts falls back gracefully).
-ALTER TABLE events ADD COLUMN scroll INTEGER;
-ALTER TABLE events ADD COLUMN kw TEXT;
+-- v2 (15 Oct 2026): decision signals (scroll, kw) were applied once via ALTER.
+-- D1/SQLite has no ADD COLUMN IF NOT EXISTS, so the ALTERs are intentionally
+-- REMOVED here to keep schema.sql idempotent (re-running must not fail).
+-- collect.ts also falls back gracefully if the columns are ever absent.
