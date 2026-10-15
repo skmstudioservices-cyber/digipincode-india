@@ -113,7 +113,10 @@ export const onRequest = defineMiddleware(async (context, next) => {
     !url.pathname.includes('.') &&
     !SKIP.some((p) => url.pathname === p || url.pathname.startsWith(p));
   const cache = (globalThis as any).caches?.default;
-  const cacheKey = () => new Request(`${url.origin}/${CACHE_VERSION}${url.pathname}`, { method: 'GET' });
+  // Auto cache-bust: Cloudflare's version_metadata.id changes on EVERY deploy,
+  // so the HTML cache key changes with each release and stale pages never persist.
+  const CV = (rt?.env?.CF_VERSION_METADATA?.id) || CACHE_VERSION;
+  const cacheKey = () => new Request(`${url.origin}/${CV}${url.pathname}`, { method: 'GET' });
 
   if (cacheable && cache) {
     try {
