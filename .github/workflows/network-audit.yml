@@ -1,0 +1,60 @@
+name: Network Audit (all sites + workers)
+
+# Full SKM-network audit every 6h (aligned to the agent cron: 05/11/17/23 IST).
+# Reads sites.json (single source of truth) -> homepage + sitemap + robots +
+# canonical + N deep pages per site, with an on-page SEO score per page.
+# Opens/updates ONE issue on failures; uploads the report artifact.
+
+on:
+  schedule:
+    - cron: "40 23,5,11,17 * * *"   # ~05:10/11:10/17:10/23:10 IST
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run network audit
+        id: run
+        continue-on-error: true
+        run: python3 scripts/network_audit.py
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: network-audit-report
+          path: |
+            audit-report.md
+            audit-report.json
+          retention-days: 14
+
+      - name: Open / update issue on failures
+        if: steps.run.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          BODY=$(head -c 60000 audit-report.md)
+          NUM=$(gh issue list -R "$REPO" --state open --search 'in:title "Network Audit"' --json number --jq '.[0].number // 0')
+          if [ -z "$NUM" ] || [ "$NUM" = "0" ]; then
+            gh issue create -R "$REPO" --title "Network Audit - issues found" --body "$BODY" || true
+          else
+            gh issue comment "$NUM" -R "$REPO" --body "$BODY"
+          fi
+
+      - name: Close issue when all healthy
+        if: steps.run.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          for NUM in $(gh issue list -R "$REPO" --state open --search 'in:title "Network Audit"' --json number --jq '.[].number'); do
+            [ -n "$NUM" ] && gh issue close "$NUM" -R "$REPO" --comment "All sites healthy - auto-closed." || true
+          done

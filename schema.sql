@@ -119,3 +119,8 @@ CREATE TABLE IF NOT EXISTS events (
   dwell INTEGER
 );
 CREATE INDEX IF NOT EXISTS idx_events_path ON events(path);
+
+-- v2 (15 Oct 2026): decision signals for the network audit. Run once; re-runs may
+-- error on the existing column, which is harmless (collect.ts falls back gracefully).
+ALTER TABLE events ADD COLUMN scroll INTEGER;
+ALTER TABLE events ADD COLUMN kw TEXT;

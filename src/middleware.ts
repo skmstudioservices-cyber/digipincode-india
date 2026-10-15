@@ -66,7 +66,9 @@ export const onRequest = defineMiddleware(async (context, next) => {
   // cold (uncached) unique URLs. Googlebot/Bingbot and real search engines
   // are never matched here. Mirrors the robots.txt AI-block list.
   const _ua = (context.request.headers.get('user-agent') || '').toLowerCase();
-  const BOT_BLOCK = ['amzn-searchbot','reflectionbot','exasearchbot','exauser','ccbot','bytespider','petalbot','mj12bot','dotbot','dataforseobot','semrushbot','ahrefsbot','baiduspider','yandexbot','sogou','scrapy','diffbot','omgili','timpibot'];
+  // Amzn-SearchBot deliberately NOT blocked (15 Oct 2026): it powers Alexa/Rufus AI-search
+  // and does NOT train AI models — blocking it forfeits AI-search eligibility. Edge cache absorbs it.
+  const BOT_BLOCK = ['reflectionbot','exasearchbot','exauser','ccbot','bytespider','petalbot','mj12bot','dotbot','dataforseobot','semrushbot','ahrefsbot','baiduspider','yandexbot','sogou','scrapy','diffbot','omgili','timpibot'];
   if (_ua && BOT_BLOCK.some((b) => _ua.includes(b))) {
     return new Response('Forbidden', { status: 403, headers: { 'cache-control': 'no-store' } });
   }
