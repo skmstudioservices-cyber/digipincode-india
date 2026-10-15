@@ -17,6 +17,65 @@ const orgLd = {
     { '@type': 'Organization', '@id': `${BASE}/#org`, name: 'Digipincode — SKM Studio Network', url: `${BASE}/` },
   ],
 };
+const NETWORK = [
+  { ico: "\ud83c\udfe2", label: "Businesses near me", cat: "Local", href: "https://mapsnearme.pages.dev/" },
+  { ico: "\u26a1", label: "EV chargers near me", cat: "Travel", href: "https://evchargersnearme.pages.dev/" },
+  { ico: "\ud83d\udebb", label: "Public toilets near me", cat: "Essentials", href: "https://toiletsnearme.pages.dev/" },
+  { ico: "\ud83d\udee3\ufe0f", label: "Highway rest areas", cat: "Travel", href: "https://restareanearme.pages.dev/" },
+  { ico: "\u26fd", label: "CNG pumps near me", cat: "Fuel", href: "https://cngpumpsnearme.pages.dev/" },
+  { ico: "\u26fd", label: "Petrol pumps near me", cat: "Fuel", href: "https://petrolpumpsnearme.pages.dev/" },
+  { ico: "\ud83e\ude78", label: "Blood banks near me", cat: "Health", href: "https://bloodbanksnearme.pages.dev/" },
+  { ico: "\ud83c\udfe7", label: "ATMs near me", cat: "Money", href: "https://atmsnearme.pages.dev/" },
+  { ico: "\ud83c\udfe6", label: "Banks near me", cat: "Money", href: "https://banksnearme.pages.dev/" },
+  { ico: "\ud83c\udfe5", label: "Hospitals near me", cat: "Health", href: "https://hospitalsnearme-9cp.pages.dev/" },
+  { ico: "\ud83d\udc8a", label: "Medical shops near me", cat: "Health", href: "https://medicalshopnearme.pages.dev/" },
+  { ico: "\ud83e\uddb7", label: "Dentists near me", cat: "Health", href: "https://dentistsnearme.pages.dev/" },
+  { ico: "\ud83c\udfe8", label: "Hotels near me", cat: "Stay", href: "https://hotelnearme.pages.dev/" },
+  { ico: "\ud83d\udecf\ufe0f", label: "Lodges near me", cat: "Stay", href: "https://lodgenearme.pages.dev/" },
+  { ico: "\ud83c\udf5b", label: "Dhabas near me", cat: "Food", href: "https://dhabanearme.pages.dev/" },
+  { ico: "\u2615", label: "Cafes near me", cat: "Food", href: "https://cafenearme.pages.dev/" },
+  { ico: "\ud83e\udd50", label: "Bakeries near me", cat: "Food", href: "https://bakerynearme.pages.dev/" },
+  { ico: "\ud83d\ude8c", label: "Bus stops near me", cat: "Transit", href: "https://busstopnearme.pages.dev/" },
+  { ico: "\ud83d\ude8f", label: "Bus stations near me", cat: "Transit", href: "https://busstationnearme.pages.dev/" },
+  { ico: "\ud83d\udefa", label: "Auto stands near me", cat: "Transit", href: "https://autostandnearme.pages.dev/" },
+  { ico: "\ud83d\udefa", label: "E-rickshaw stands", cat: "Transit", href: "https://erickshawstandnearme.pages.dev/" },
+  { ico: "\ud83c\udfcd\ufe0f", label: "Bike stands near me", cat: "Transit", href: "https://bikestandnearme.pages.dev/" },
+  { ico: "\ud83d\udd27", label: "Bike repairs near me", cat: "Auto", href: "https://bikerepairsnearme.pages.dev/" },
+  { ico: "\ud83d\ude97", label: "Car repairs near me", cat: "Auto", href: "https://carrepairsnearme.pages.dev/" },
+  { ico: "\ud83d\udede", label: "Tyre shops near me", cat: "Auto", href: "https://tirenearme.pages.dev/" },
+  { ico: "\ud83c\udd7f\ufe0f", label: "Car parking near me", cat: "Auto", href: "https://carparkingnearme.pages.dev/" },
+  { ico: "\ud83d\udd28", label: "Hardware shops near me", cat: "Shops", href: "https://hardwareshopnearme.pages.dev/" },
+  { ico: "\ud83e\uddf5", label: "Tailor shops near me", cat: "Shops", href: "https://tailorshopnearme.pages.dev/" },
+  { ico: "\ud83d\udc87", label: "Salons near me", cat: "Shops", href: "https://salonnearme.pages.dev/" },
+  { ico: "\ud83e\uddfa", label: "Laundry near me", cat: "Shops", href: "https://laundrynearme.pages.dev/" },
+  { ico: "\ud83c\udfcb\ufe0f", label: "Gyms near me", cat: "Shops", href: "https://gymnearme.pages.dev/" },
+  { ico: "\u26ea", label: "Churches near me", cat: "Faith", href: "https://churchesnearme.pages.dev/" },
+  { ico: "\ud83d\udd4c", label: "Mosques near me", cat: "Faith", href: "https://mosquesnearme.pages.dev/" },
+  { ico: "\ud83d\uded5", label: "Temples near me", cat: "Faith", href: "https://templesnearme.pages.dev/" },
+  { ico: "\u2696\ufe0f", label: "Courts near me", cat: "Civic", href: "https://courtnearme.pages.dev/" },
+  { ico: "\ud83d\ude93", label: "Police stations near me", cat: "Civic", href: "https://policestationsnearme.pages.dev/" },
+  { ico: "\ud83c\udfe4", label: "Post offices near me", cat: "Civic", href: "https://postofficenearme.pages.dev/" },
+  { ico: "\ud83d\udca1", label: "Electricity offices", cat: "Civic", href: "https://electricityofficenearme.pages.dev/" },
+  { ico: "\ud83c\udd94", label: "Aadhaar centres near me", cat: "Civic", href: "https://aadhaarcenternearme.pages.dev/" },
+  { ico: "\ud83c\udd94", label: "Aadhaar Seva Kendra", cat: "Civic", href: "https://aadhaar-seva-kendra-near-me.pages.dev/" },
+  { ico: "\ud83c\udf2b\ufe0f", label: "Air quality near me", cat: "Live", href: "https://airqualitynearme.pages.dev/" },
+  { ico: "\ud83c\udf0d", label: "Earthquakes near me", cat: "Live", href: "https://earthquakenearme.pages.dev/" },
+  { ico: "\ud83c\udf0a", label: "Floods near me", cat: "Live", href: "https://floodsnearme.pages.dev/" },
+  { ico: "\ud83d\ude80", label: "ISRO launches & tracker", cat: "Live", href: "https://isrotracker.pages.dev/" },
+  { ico: "\ud83d\udef0\ufe0f", label: "ISS spotter", cat: "Live", href: "https://issspotter.pages.dev/" },
+  { ico: "\ud83c\uddee\ud83c\uddf3", label: "Bharat live", cat: "Live", href: "https://bharatlive.pages.dev/" },
+  { ico: "\ud83d\udee1\ufe0f", label: "Safe alleys", cat: "Safety", href: "https://safealleys.pages.dev/" },
+  { ico: "\ud83d\udcdd", label: "Exam results \u2014 ExamStatus", cat: "Info", href: "https://examstatus.india-in.workers.dev/" },
+  { ico: "\ud83c\udf15", label: "Karva Chauth 2026", cat: "Seasonal", href: "https://karvachauth.pages.dev/" },
+  { ico: "\ud83c\udfc5", label: "Asian Games medal tally", cat: "Seasonal", href: "https://asiangamesmedaltally2026.pages.dev/" },
+  { ico: "\ud83d\udee0\ufe0f", label: "SKM tools", cat: "Info", href: "https://skmtools.pages.dev/" },
+  { ico: "\ud83e\udded", label: "Near Me directory", cat: "Info", href: "https://demo-vmv.pages.dev/" },
+];
+const netLd = { '@context': 'https://schema.org', '@type': 'ItemList',
+  name: 'SKM Studio Network — near-me directories', numberOfItems: NETWORK.length,
+  itemListElement: NETWORK.map((n, i) => ({ '@type': 'ListItem', position: i + 1,
+    item: { '@type': 'WebSite', name: n.label, url: n.href } })) };
+
 const POPULAR = [
   ['Delhi', '110001'], ['Mumbai', '400001'], ['Kolkata', '700001'], ['Chennai', '600001'],
   ['Bengaluru', '560001'], ['Hyderabad', '500001'], ['Pune', '411001'], ['Ahmedabad', '380001'],
@@ -133,55 +192,20 @@ const COLLECTING = 'Coming soon — we are collecting this from government recor
       </div>
       <div class="net-more">
         <details>
-          <summary>More near me &amp; our network</summary>
-          <p><a href="https://mapsnearme.pages.dev/" rel="noopener">Businesses near me — MapsNearMe</a></p>
-          <p><a href="https://evchargersnearme.pages.dev/" rel="noopener">EV chargers near me</a></p>
-          <p><a href="https://toiletsnearme.pages.dev/" rel="noopener">Public toilets near me</a></p>
-          <p><a href="https://restareanearme.pages.dev/" rel="noopener">Highway rest areas near me</a></p>
-          <p><a href="https://cngpumpsnearme.pages.dev/" rel="noopener">CNG pumps near me</a></p>
-          <p><a href="https://bloodbanksnearme.pages.dev/" rel="noopener">Blood banks near me</a></p>
-          <p><a href="https://atmsnearme.pages.dev/" rel="noopener">ATMs near me</a></p>
-          <p><a href="https://banksnearme.pages.dev/" rel="noopener">Banks near me</a></p>
-          <p><a href="https://hospitalsnearme-9cp.pages.dev/" rel="noopener">Hospitals near me</a></p>
-          <p><a href="https://medicalshopnearme.pages.dev/" rel="noopener">Medical shops near me</a></p>
-          <p><a href="https://dentistsnearme.pages.dev/" rel="noopener">Dentists near me</a></p>
-          <p><a href="https://hotelnearme.pages.dev/" rel="noopener">Hotels near me</a></p>
-          <p><a href="https://lodgenearme.pages.dev/" rel="noopener">Lodges near me</a></p>
-          <p><a href="https://dhabanearme.pages.dev/" rel="noopener">Dhabas near me</a></p>
-          <p><a href="https://cafenearme.pages.dev/" rel="noopener">Cafes near me</a></p>
-          <p><a href="https://bakerynearme.pages.dev/" rel="noopener">Bakeries near me</a></p>
-          <p><a href="https://busstopnearme.pages.dev/" rel="noopener">Bus stops near me</a></p>
-          <p><a href="https://busstationnearme.pages.dev/" rel="noopener">Bus stations near me</a></p>
-          <p><a href="https://autostandnearme.pages.dev/" rel="noopener">Auto stands near me</a></p>
-          <p><a href="https://erickshawstandnearme.pages.dev/" rel="noopener">E-rickshaw stands near me</a></p>
-          <p><a href="https://bikestandnearme.pages.dev/" rel="noopener">Bike stands near me</a></p>
-          <p><a href="https://bikerepairsnearme.pages.dev/" rel="noopener">Bike repairs near me</a></p>
-          <p><a href="https://carrepairsnearme.pages.dev/" rel="noopener">Car repairs near me</a></p>
-          <p><a href="https://tirenearme.pages.dev/" rel="noopener">Tyre shops near me</a></p>
-          <p><a href="https://carparkingnearme.pages.dev/" rel="noopener">Car parking near me</a></p>
-          <p><a href="https://hardwareshopnearme.pages.dev/" rel="noopener">Hardware shops near me</a></p>
-          <p><a href="https://tailorshopnearme.pages.dev/" rel="noopener">Tailor shops near me</a></p>
-          <p><a href="https://salonnearme.pages.dev/" rel="noopener">Salons near me</a></p>
-          <p><a href="https://laundrynearme.pages.dev/" rel="noopener">Laundry near me</a></p>
-          <p><a href="https://gymnearme.pages.dev/" rel="noopener">Gyms near me</a></p>
-          <p><a href="https://churchesnearme.pages.dev/" rel="noopener">Churches near me</a></p>
-          <p><a href="https://courtnearme.pages.dev/" rel="noopener">Courts near me</a></p>
-          <p><a href="https://electricityofficenearme.pages.dev/" rel="noopener">Electricity offices near me</a></p>
-          <p><a href="https://aadhaarcenternearme.pages.dev/" rel="noopener">Aadhaar centres near me</a></p>
-          <p><a href="https://aadhaar-seva-kendra-near-me.pages.dev/" rel="noopener">Aadhaar Seva Kendra</a></p>
-          <p><a href="https://airqualitynearme.pages.dev/" rel="noopener">Air quality near me</a></p>
-          <p><a href="https://earthquakenearme.pages.dev/" rel="noopener">Earthquakes near me</a></p>
-          <p><a href="https://floodsnearme.pages.dev/" rel="noopener">Floods near me</a></p>
-          <p><a href="https://isrotracker.pages.dev/" rel="noopener">ISRO launches & tracker</a></p>
-          <p><a href="https://issspotter.pages.dev/" rel="noopener">ISS spotter</a></p>
-          <p><a href="https://bharatlive.pages.dev/" rel="noopener">Bharat live</a></p>
-          <p><a href="https://safealleys.pages.dev/" rel="noopener">Safe alleys</a></p>
-          <p><a href="https://examstatus.india-in.workers.dev/" rel="noopener">Exam results — ExamStatus</a></p>
-          <p><a href="https://karvachauth.pages.dev/" rel="noopener">Karva Chauth 2026</a></p>
-          <p><a href="https://asiangamesmedaltally2026.pages.dev/" rel="noopener">Asian Games medal tally</a></p>
-          <p><a href="https://skmtools.pages.dev/" rel="noopener">SKM tools</a></p>
-          <p><a href="https://demo-vmv.pages.dev/" rel="noopener">Near Me directory — all finders</a></p>
+          <summary>More near me &amp; our network <span class="net-count">({NETWORK.length})</span></summary>
+          <ul class="net-cards">
+            {NETWORK.map((n) => (
+              <li class="net-card">
+                <a href={n.href} rel="noopener" title={n.label}>
+                  <span class="nc-ico" aria-hidden="true">{n.ico}</span>
+                  <span class="nc-lbl">{n.label}</span>
+                  <span class="nc-cat">{n.cat}</span>
+                </a>
+              </li>
+            ))}
+          </ul>
         </details>
+        <script type="application/ld+json" set:html={JSON.stringify(netLd)} />
       </div>
     </div>
     <p class="muted">
@@ -369,4 +393,13 @@ const COLLECTING = 'Coming soon — we are collecting this from government recor
     .cards { grid-template-columns: 1fr; }
     table.details { min-width: 0; font-size: .88rem; }
   }
+
+.net-cards{list-style:none;margin:.55rem 0 0;padding:0;display:grid;gap:.55rem;grid-template-columns:repeat(auto-fit,minmax(clamp(120px,40vw,170px),1fr))}
+.net-card a{display:flex;flex-direction:column;gap:.12rem;padding:.6rem .7rem;border:1px solid #e3e8f0;border-radius:12px;background:#fff;text-decoration:none;color:#12263f;height:100%;transition:transform .15s ease,box-shadow .15s ease,border-color .15s ease}
+.net-card a:hover,.net-card a:focus-visible{transform:translateY(-3px);box-shadow:0 8px 20px rgba(18,38,63,.12);border-color:#1a5fb4}
+.nc-ico{font-size:1.25rem;line-height:1}
+.nc-lbl{font-weight:600;font-size:.86rem;line-height:1.2}
+.nc-cat{font-size:.66rem;color:#64748b;text-transform:uppercase;letter-spacing:.04em}
+.net-count{color:#64748b;font-weight:400}
+@media (prefers-reduced-motion:reduce){.net-card a{transition:none}}
 </style>
