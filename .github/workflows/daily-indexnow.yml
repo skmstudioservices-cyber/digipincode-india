@@ -1,0 +1,28 @@
+name: Daily IndexNow (per-URL submission)
+
+# DAILY rotating per-URL submission. Individual-URL pings index faster than a
+# bulk sitemap. Google has no per-URL API for general pages, so this targets the
+# IndexNow partners (Bing, Yandex, Seznam, Naver); Google keeps the sitemap +
+# internal links. Falls back to bing.com/indexnow if api.indexnow.org fails.
+
+on:
+  schedule:
+    - cron: "20 1 * * *"   # 01:20 UTC = 06:50 IST, daily
+  workflow_dispatch:
+    inputs:
+      slice:
+        description: "URLs to submit this run"
+        default: "500"
+
+jobs:
+  submit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Submit daily rotating batch
+        env:
+          SLICE: ${{ github.event.inputs.slice || '500' }}
+        run: node scripts/daily-indexnow.mjs
