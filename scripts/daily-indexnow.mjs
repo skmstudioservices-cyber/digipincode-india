@@ -30,7 +30,12 @@ async function submit(urls) {
   return false;
 }
 async function main() {
-  const idx = await get(`${HOST_URL}/sitemap.xml`);
+  // The live index is served at /sitemap-index.xml; fall back to /sitemap.xml.
+  let idx = "";
+  for (const u of [`${HOST_URL}/sitemap-index.xml`, `${HOST_URL}/sitemap.xml`]) {
+    try { idx = await get(u); console.log(`index: ${u}`); break; } catch (e) { console.log(`  ${u} -> ${String(e).slice(0,60)}`); }
+  }
+  if (!idx) throw new Error('no sitemap index reachable');
   const parts = [...idx.matchAll(/<loc>([^<]+)<\/loc>/g)].map(m => m[1].trim());
   if (!parts.length) throw new Error('no sitemap parts');
   const doy = Math.floor((Date.now() - Date.UTC(new Date().getUTCFullYear(), 0, 0)) / 86400000);
