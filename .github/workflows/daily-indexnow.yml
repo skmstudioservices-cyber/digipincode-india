@@ -7,7 +7,8 @@ name: Daily IndexNow (per-URL submission)
 
 on:
   schedule:
-    - cron: "20 1 * * *"   # 01:20 UTC = 06:50 IST, daily
+    # Aligned to the SKM agent cron: 05:00 / 11:00 / 17:00 / 23:00 IST
+    - cron: "30 23,5,11,17 * * *"
   workflow_dispatch:
     inputs:
       slice:
