@@ -34,6 +34,7 @@ def deep_n(url):
     if imp is None: return SITES["deep_pages"]["default"]
     if imp <= 0: return SITES["deep_pages"]["cold"]
     if imp >= 200: return SITES["deep_pages"]["top"]
+    if imp >= 1000: return min(SITES["deep_pages"]["max"], SITES["deep_pages"]["top"]*2)
     return SITES["deep_pages"]["default"]
 
 def fetch(url, timeout=25):
@@ -133,9 +134,21 @@ def audit_site(url, is_worker=False):
         row["deep_avg_score"] = round(sum(d["score"] for d in deep) / len(deep))
     return row
 
+def resolve_workers():
+    """Auto-resolve unmapped worker URLs: probe <name>.india-in.workers.dev. Personal/internal only."""
+    known=[w["url"] for w in SITES["workers"]]
+    resolved=list(SITES["workers"])
+    for name in SITES.get("workers_unmapped", []):
+        cand=f"https://{name}.india-in.workers.dev/"
+        if cand in known: continue
+        code,_=fetch(cand, timeout=12)
+        if code in (200,301,302,401,403):   # any live response = mapped
+            resolved.append({"name":name,"url":cand,"auto":True})
+    return resolved
+
 def main():
     targets = [(u, False) for u in SITES["pages"]]
-    targets += [(w["url"], True) for w in SITES["workers"]]
+    targets += [(w["url"], True) for w in resolve_workers()]
     results = [audit_site(u, w) for u, w in targets]
     red = [r for r in results if r["issues"]]
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")

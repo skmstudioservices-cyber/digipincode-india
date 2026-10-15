@@ -109,9 +109,10 @@
     "spoc-writer"
   ],
   "deep_pages": {
-    "default": 10,
-    "top": 15,
-    "cold": 3,
-    "rule": "N deep pages/site auto-tuned by 28d GSC impressions: 0-impr=3, mid=10, top=15"
+    "default": 15,
+    "top": 60,
+    "cold": 5,
+    "max": 100,
+    "rule": "N deep pages/site auto-tuned by 28d GSC impressions: 0-impr=5, mid=15, top=60, hard cap 100 (ramps up gradually each run)"
   }
 }
