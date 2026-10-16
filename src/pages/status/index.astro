@@ -1,0 +1,42 @@
+---
+export const prerender = true;
+const groups = {
+  'Near-me finders': ['atmsnearme','restareanearme','toiletsnearme','cngpumpsnearme','petrolpumpsnearme','evchargersnearme','hospitalsnearme','banksnearme','hotelnearme','cafenearme','dhabanearme','parksnearme','policestationsnearme','railwaystationnearme','busstationnearme','postofficenearme','templesnearme','churchesnearme','mosquesnearme','gymnearme','laundrynearme','salonnearme','medicalshopnearme','dentistsnearme','bakerynearme','restaurantsnearme','tailorshopnearme','sweetsshopnearme','hardwareshopnearme','paintshopnearme','mechanicnearme','carrepairsnearme','bikerepairsnearme','mobilerepairnearme','tirenearme','bikestandnearme','autostandnearme','erickshawstandnearme','carparkingnearme','busstopnearme','lodgenearme','courtnearme','thananearme','aadhaarcenternearme','rationcardofficernearme','electricityofficenearme','protestsnearme'],
+  'Tools & data': ['digipincode.india-in.workers.dev','mapsnearme','examstatus.india-in.workers.dev','skmtools'],
+  'Live/seasonal': ['karvachauth','issspotter','bharatlive','floodsnearme','earthquakenearme','airqualitynearme','isrotracker','safealleys','asiangamesmedaltally2026','bloodbanksnearme'],
+};
+const title = 'Network Status — SKM Studio Network';
+---
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{title}</title>
+<meta name="description" content="Live status of every site on the SKM Studio Network — one place to check what is up.">
+<meta name="robots" content="index,follow">
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:ui-sans-serif,system-ui,'Segoe UI',Roboto,Arial,sans-serif;background:#f7f8fa;color:#0f172a;line-height:1.6}
+.wrap{max-width:960px;margin:0 auto;padding:24px 20px}
+h1{font-size:1.6rem;margin:0 0 4px}.sub{color:#5b6b80;margin:0 0 20px}
+h2{font-size:1.1rem;margin:26px 0 10px}
+.grid{display:grid;gap:8px;grid-template-columns:repeat(auto-fill,minmax(210px,1fr))}
+a.card{display:block;padding:10px 12px;border:1px solid #e7ebf0;border-radius:10px;background:#fff;text-decoration:none;color:#0f172a;font-size:.9rem}
+a.card:hover{border-color:#2563eb;box-shadow:0 6px 16px rgba(37,99,235,.12)}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#16a34a;margin-right:6px}
+.foot{color:#5b6b80;font-size:.8rem;margin-top:26px;border-top:1px solid #e7ebf0;padding-top:14px}
+</style></head>
+<body><div class="wrap">
+<h1>🛰️ Network Status</h1>
+<p class="sub">Every site on the SKM Studio Network. <span class="dot"></span> = listed (health auto-checked by the cron).</p>
+{Object.entries(groups).map(([g, list]) => (
+  <section>
+    <h2>{g} ({list.length})</h2>
+    <div class="grid">
+      {list.map((s) => {
+        const url = s.includes('.') ? `https://${s}/` : `https://${s}.pages.dev/`;
+        const label = s.replace('.india-in.workers.dev',' (worker)').replace('.pages.dev','');
+        return <a class="card" href={url} target="_blank" rel="noopener"><span class="dot"></span>{label}</a>;
+      })}
+    </div>
+  </section>
+))}
+<p class="foot">Auto-generated · {new Date().toISOString().slice(0,10)} · SKM Studio Network</p>
+</div></body></html>
