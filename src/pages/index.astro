@@ -6,7 +6,9 @@ import { festivalCities } from '../data/cities';
 import { stateUrl } from '../lib/urls';
 
 export const prerender = false;
-const states = await getStates(Astro.locals.runtime.env.DB);
+// D1-resilience (16 Oct 2026): never 500 if D1 is over-quota/slow — fall back to an empty list.
+let states: any[] = [];
+try { states = await getStates(Astro.locals.runtime.env.DB); } catch (e) { states = []; }
 ---
 <Layout
   title="Digipincode — India Pincode, Village & Panchayat Directory"
