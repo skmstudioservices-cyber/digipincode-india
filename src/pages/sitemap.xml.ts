@@ -1,6 +1,6 @@
 // src/pages/sitemap.xml.ts — BLOCK:SITEMAP-INDEX (single entry point; auto add/remove)
 export const prerender = false;
-const CHUNK = 5000; // 5k per child sitemap (smaller chunks crawl more reliably)
+const CHUNK = 3000; // 16 Oct 2026 SKM audit: MUST match [part].xml.ts CHUNK (3000). Was 5000 -> index listed only 33 parts while the child generator needs 55, so ~66k URLs (parts 33-54) were missing from the sitemap. Aligned to 3000 so the index covers all URLs.
 
 export async function GET({ request, locals }) {
   const db = locals.runtime.env.DB;
