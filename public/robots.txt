@@ -181,10 +181,10 @@ User-agent: DotBot
 Disallow: /
 
 # --- AI crawlers added 14 Oct 2026 (D1 read protection; observed in CF analytics) ---
-# Amzn-SearchBot: ALLOWED (15 Oct 2026) — powers Alexa/Rufus AI-search, does NOT train models.
-# Keeping it eligible is an AI-visibility channel; the worker edge cache absorbs the crawl cost.
+# Amzn-SearchBot: BLOCKED (16 Oct 2026) — D1 reads hit 16.1M/day (3.2x the 5M free cap);
+# top non-blocked crawler at ~4.2k req/day. Revert if AI-search visibility matters more than quota.
 User-agent: Amzn-SearchBot
-Allow: /
+Disallow: /
 
 User-agent: Reflectionbot
 Disallow: /
