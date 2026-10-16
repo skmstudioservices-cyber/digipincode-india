@@ -1,0 +1,20 @@
+name: GSC Tag Check
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check verification tag on key pages
+        run: |
+          for u in "https://digipincode.india-in.workers.dev/" "https://digipincode.india-in.workers.dev/states" "https://digipincode.india-in.workers.dev/status/" "https://digipincode.india-in.workers.dev/digipin/"; do
+            body=$(curl -s -L --max-time 30 "$u?cb=$RANDOM")
+            code=$(curl -s -o /dev/null -w "%{http_code}" -L --max-time 30 "$u")
+            tag=$(echo "$body" | grep -o 'google-site-verification[^>]*' | head -1)
+            ga=$(echo "$body" | grep -o 'G-[A-Z0-9]\{8,\}' | head -1)
+            echo "PAGE: $u | HTTP $code | TAG: ${tag:-MISSING} | GA: ${ga:-none}"
+          done
+          echo "---- raw head of homepage ----"
+          curl -s -L --max-time 30 "https://digipincode.india-in.workers.dev/" | head -c 1200
