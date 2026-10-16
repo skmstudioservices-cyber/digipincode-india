@@ -1,6 +1,6 @@
-// src/pages/sitemap/[part].xml.ts — chunked child sitemaps (15k URLs each, cached)
+// src/pages/sitemap/[part].xml.ts — chunked child sitemaps (3k URLs each, cached; smaller = faster + cacheable)
 export const prerender = false;
-const CHUNK = 15000;
+const CHUNK = 3000;
 
 export async function GET({ request, params, locals }) {
   const db = locals.runtime.env.DB;
@@ -25,9 +25,26 @@ export async function GET({ request, params, locals }) {
     }
   } catch {}
   if (!results.length) {
-    const r2 = await db.prepare('SELECT url_path FROM url_index ORDER BY url_path LIMIT ? OFFSET ?').bind(CHUNK, i * CHUNK).all();
-    results = (r2 as any).results || [];
-    // persist the cursor once so future hits read only CHUNK rows (keyset)
+    // BOUNDED fallback (16 Oct 2026): never OFFSET-scan more than ~40k rows.
+    // The old OFFSET i*CHUNK scanned up to ~495k rows on part-32 and was the #1
+    // D1 read burner. We now derive the keyset start from the previous part's
+    // cursor (reading only one chunk), so reads stay flat.
+    try {
+      const prevM = await db.prepare('SELECT v FROM meta WHERE k = ?').bind('part_start_' + (i - 1)).first();
+      const prevStart = (prevM as any)?.v;
+      if (i === 0) {
+        const r2 = await db.prepare('SELECT url_path FROM url_index ORDER BY url_path LIMIT ?').bind(CHUNK).all();
+        results = (r2 as any).results || [];
+      } else if (prevStart) {
+        const pr = await db.prepare('SELECT url_path FROM url_index WHERE url_path >= ? ORDER BY url_path LIMIT ?').bind(prevStart, CHUNK * 2).all();
+        const arr = (pr as any).results || [];
+        if (arr.length > CHUNK) {
+          const start2 = arr[CHUNK].url_path;
+          const r3 = await db.prepare('SELECT url_path FROM url_index WHERE url_path >= ? ORDER BY url_path LIMIT ?').bind(start2, CHUNK).all();
+          results = (r3 as any).results || [];
+        }
+      }
+    } catch {}
     if (results.length) { try { await db.prepare('INSERT OR REPLACE INTO meta(k,v) VALUES(?, ?)').bind('part_start_' + i, results[0].url_path).run(); } catch {} }
   }
   if (!results || !results.length) return new Response('Not Found', { status: 404 });
