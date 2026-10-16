@@ -186,6 +186,19 @@ Disallow: /
 User-agent: Amzn-SearchBot
 Disallow: /
 
+# Heavy SEO/data crawlers that slipped the AhrefsBot token (16 Oct 2026)
+User-agent: AhrefsSiteAudit
+Disallow: /
+
+User-agent: tlm-scanner
+Disallow: /
+
+User-agent: l9scan
+Disallow: /
+
+User-agent: CMS-Checker
+Disallow: /
+
 User-agent: Reflectionbot
 Disallow: /
 
