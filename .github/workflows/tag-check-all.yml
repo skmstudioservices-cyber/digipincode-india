@@ -1,0 +1,36 @@
+name: GSC Tag Check (all sites)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check verification tag across workers + sites
+        run: |
+          urls="
+          https://digipincode.india-in.workers.dev/
+          https://examstatus.india-in.workers.dev/
+          https://skmtools.india-in.workers.dev/
+          https://mapsnearme.india-in.workers.dev/
+          https://toiletsnearme.pages.dev/
+          https://restareanearme.pages.dev/
+          https://cngpumpsnearme.pages.dev/
+          https://evchargersnearme.pages.dev/
+          https://karvachauth.pages.dev/
+          https://issspotter.pages.dev/
+          https://bharatlive.pages.dev/
+          https://floodsnearme.pages.dev/
+          https://earthquakenearme.pages.dev/
+          https://airqualitynearme.pages.dev/
+          https://isrotracker.pages.dev/
+          https://asiangamesmedaltally2026.pages.dev/
+          "
+          for u in $urls; do
+            body=$(curl -s -L --max-time 30 "$u?cb=$RANDOM")
+            code=$(curl -s -o /dev/null -w "%{http_code}" -L --max-time 30 "$u")
+            tag=$(echo "$body" | grep -o 'google-site-verification[^>]*content="[^"]*"' | head -1 | sed 's/.*content="//;s/"//')
+            title=$(echo "$body" | grep -o '<title>[^<]*' | head -1 | sed 's/<title>//')
+            echo "TAGCHECK | $code | ${tag:-MISSING} | $u | ${title:0:50}"
+          done
