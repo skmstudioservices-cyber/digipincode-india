@@ -1,0 +1,32 @@
+name: Net Worker Deploy (bridge)
+
+# Deploys a Worker repo using digipincode-india's Cloudflare token, so repos that
+# lack their own CLOUDFLARE_API_TOKEN secret can still deploy (token-fallback rule).
+on:
+  workflow_dispatch:
+    inputs:
+      target_repo:
+        description: "Repo to deploy (e.g. skmtools)"
+        required: true
+      dir:
+        description: "Working dir inside the repo (default .)"
+        required: false
+        default: "."
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout target repo
+        uses: actions/checkout@v4
+        with:
+          repository: skmstudioservices-cyber/${{ inputs.target_repo }}
+          token: ${{ secrets.GH_PAT || github.token }}
+      - uses: actions/setup-node@v4
+        with: { node-version: '22' }
+      - name: Deploy Worker
+        working-directory: ${{ inputs.dir }}
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx wrangler@latest deploy
