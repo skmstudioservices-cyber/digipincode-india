@@ -1,0 +1,15 @@
+name: Auto Pages (thick pages after 10 impressions)
+on:
+  workflow_dispatch:
+    inputs:
+      site:
+        description: "site name (or 'all')"
+        required: false
+        default: "all"
+jobs:
+  note:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          echo "This engine is driven by the cron agent (it pulls GSC + runs scripts/auto-pages.py,"
+          echo "then commits the generated flat pages). CI cannot call the GSC API directly."
