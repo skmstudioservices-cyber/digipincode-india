@@ -1,0 +1,27 @@
+name: Monetag Tag Check
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check for Monetag tag/script on key sites
+        run: |
+          urls="
+          https://evchargersnearme.pages.dev/
+          https://toiletsnearme.pages.dev/
+          https://restareanearme.pages.dev/
+          https://cngpumpsnearme.pages.dev/
+          https://examstatus.india-in.workers.dev/
+          https://digitalpincode.blogspot.com/
+          https://digipincode.india-in.workers.dev/
+          https://karvachauth.pages.dev/
+          "
+          for u in $urls; do
+            body=$(curl -s -L --max-time 30 "$u?cb=$RANDOM")
+            code=$(curl -s -o /dev/null -w "%{http_code}" -L --max-time 30 "$u")
+            mon=$(echo "$body" | grep -oiE "monetag|upgulpinon|SKM_MONETAG_ZONE|sw\.js" | sort -u | tr '\n' ',' )
+            echo "MONCHECK | HTTP $code | ${mon:-NO-MONETAG} | $u"
+          done
