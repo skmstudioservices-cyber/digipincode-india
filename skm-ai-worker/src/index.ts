@@ -13,6 +13,8 @@ export interface Env {
 export default {
   async scheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<void> {
     await generateDescriptions(env, 50); // 50 per run, 4 runs/day = 200/day
+    // Refresh the cached coverage counts ONCE per run (replaces per-GET full scans).
+    ctx.waitUntil(refreshCoverageCounts(env));
   },
 
   async fetch(request: Request, env: Env): Promise<Response> {
@@ -24,18 +26,39 @@ export default {
       return Response.json(result);
     }
 
-    // GET — show status
-    const stats = await env.DB.prepare(`
-      SELECT
-        COUNT(*) AS total,
-        COUNT(ai_description) AS with_desc,
-        COUNT(*) - COUNT(ai_description) AS without_desc
-      FROM villages
-    `).first();
-
+    // GET — show status. 18 Oct 2026: served from CACHED meta counts (1-row reads).
+    // The old version ran COUNT(*) over the whole villages table (~384k rows) on
+    // EVERY GET — hit ~25x/day = 6.5M rows read/day (44% of all D1 reads). The
+    // scheduled run refreshes these counts once per run instead.
+    let stats: any = {};
+    try {
+      const rows = await env.DB.prepare(
+        "SELECT k, v FROM meta WHERE k IN ('ai_total','ai_with_desc')"
+      ).all();
+      const m: Record<string, string> = {};
+      for (const r of (rows as any).results || []) m[(r as any).k] = (r as any).v;
+      const total = parseInt(m['ai_total'] || '0', 10);
+      const withDesc = parseInt(m['ai_with_desc'] || '0', 10);
+      stats = { total, with_desc: withDesc, without_desc: Math.max(0, total - withDesc), cached: true };
+    } catch (e) {
+      stats = { cached: false, error: 'counts not ready' };
+    }
     return Response.json(stats);
   },
 };
+
+// Compute coverage counts once and cache them in meta (avoids full-table scans on GET).
+async function refreshCoverageCounts(env: Env) {
+  try {
+    const row: any = await env.DB.prepare(
+      'SELECT COUNT(*) AS total, COUNT(ai_description) AS with_desc FROM villages'
+    ).first();
+    if (row) {
+      await env.DB.prepare('INSERT OR REPLACE INTO meta(k,v) VALUES(?, ?)').bind('ai_total', String(row.total ?? 0)).run();
+      await env.DB.prepare('INSERT OR REPLACE INTO meta(k,v) VALUES(?, ?)').bind('ai_with_desc', String(row.with_desc ?? 0)).run();
+    }
+  } catch (e) { /* counting must never break the run */ }
+}
 
 async function generateDescriptions(env: Env, count: number) {
   // Pick villages that don't have descriptions yet
