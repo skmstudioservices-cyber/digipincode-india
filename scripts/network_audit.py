@@ -120,7 +120,21 @@ def audit_site(url, is_worker=False):
     row["robots_status"] = rc
     if rc == 200:
         if "sitemap:" not in rtxt.lower(): row["issues"].append("robots no Sitemap line")
-        if re.search(r"user-agent:\s*googlebot[\s\S]*?disallow:\s*/\s*$", rtxt, re.I|re.M):
+        # Parse robots.txt into user-agent groups; only the group that applies to
+        # Googlebot (its own block, else "*") decides whether Googlebot is blocked.
+        # (v2 fix 18 Oct 2026: old regex false-positived on any later "Disallow: /"
+        #  line meant for AI/SEO bots -> 26 sites falsely flagged every run.)
+        groups = {}; cur = None
+        for ln in rtxt.splitlines():
+            s = ln.strip()
+            if not s or s.startswith("#"): continue
+            m = re.match(r"user-agent:\s*(.+)", s, re.I)
+            if m:
+                cur = m.group(1).strip().lower(); groups.setdefault(cur, []); continue
+            m2 = re.match(r"(disallow|allow):\s*(\S*)", s, re.I)
+            if m2 and cur: groups[cur].append((m2.group(1).lower(), m2.group(2)))
+        gb = groups.get("googlebot") or groups.get("*") or []
+        if any(k == "disallow" and path == "/" for k, path in gb):
             row["issues"].append("robots BLOCKS Googlebot")
     # deep pages
     deep = []
