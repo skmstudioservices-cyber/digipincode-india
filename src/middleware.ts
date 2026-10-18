@@ -131,7 +131,22 @@ export const onRequest = defineMiddleware(async (context, next) => {
     } catch {}
   }
 
-  const res = await next();
+  // D1-resilience (18 Oct 2026): never return a 500 when D1 is over-quota/slow.
+  // Serve a graceful 200 page (with the verification tags) instead.
+  let res: Response;
+  try {
+    res = await next();
+  } catch (e) {
+    const fallback = `<!doctype html><html lang="en"><head><meta charset="utf-8">`
+      + `<meta name="viewport" content="width=device-width, initial-scale=1">`
+      + `<meta name="google-site-verification" content="GlkDu5ZL-CyyKjwPSj9d9X3Y2qsHUj_qAwRwxiLr7nI" />`
+      + `<meta name="google-site-verification" content="Y_eKs_NNxezM-xRutg7oqy5Ga7qwl1W_ZbIPLGmn3pI" />`
+      + `<title>Digipincode — temporarily busy</title>`
+      + `<meta name="robots" content="noindex"></head><body style="font-family:system-ui;max-width:640px;margin:60px auto;padding:0 20px">`
+      + `<h1>We're briefly busy</h1><p>Our data service is catching up. Please refresh in a moment — or use search below.</p>`
+      + `<p><a href="/">← Home</a> · <a href="/states">All states</a></p></body></html>`;
+    return new Response(fallback, { status: 200, headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' } });
+  }
 
   if (cacheable && cache && res.status === 200 && (res.headers.get('content-type') || '').includes('text/html')) {
     // Read the body ONCE — a second res.text() would throw (body already used).
