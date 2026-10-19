@@ -25,10 +25,11 @@ jobs:
             await p.goto(u, { waitUntil:'networkidle', timeout:60000 }).catch(()=>{});
             await p.waitForTimeout(6000);
             const tag = await p.evaluate(() => !!document.querySelector('script[src*="quge5"]'));
+            const sw = await fetch(u.replace(/\/$/,'')+'/sw.js').then(r=>r.status).catch(()=>0);
             const frames = p.frames().length;
             const adEls = await p.evaluate(() => document.querySelectorAll('iframe,[id*=monetag],[class*=monetag],[id*=push]').length);
             await p.screenshot({ path:'shots/'+u.replace(/[^a-z0-9]/gi,'_').slice(-40)+'.png' });
-            console.log('ADTEST |', u, '| scriptPresent:', tag, '| adRequests:', reqs.length, '| frames:', frames, '| adEls:', adEls, '| errors:', errs.join('||')||'none');
+            console.log('ADTEST |', u, '| scriptPresent:', tag, '| adRequests:', reqs.length, '| frames:', frames, '| adEls:', adEls, '| sw.js:', sw, '| errors:', errs.join('||')||'none');
             if (reqs.length) console.log('   requests:', reqs.slice(0,4).join(' , '));
             await p.close();
           }
