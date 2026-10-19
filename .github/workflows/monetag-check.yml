@@ -22,6 +22,6 @@ jobs:
           for u in $urls; do
             body=$(curl -s -L --max-time 30 "$u?cb=$RANDOM")
             code=$(curl -s -o /dev/null -w "%{http_code}" -L --max-time 30 "$u")
-            mon=$(echo "$body" | grep -oiE "monetag|upgulpinon|SKM_MONETAG_ZONE|sw\.js" | sort -u | tr '\n' ',' )
+            mon=$(echo "$body" | grep -oiE 'name="monetag" content="[a-f0-9]+"|upgulpinon|SKM_MONETAG_ZONE' | sort -u | tr '\n' ',' )
             echo "MONCHECK | HTTP $code | ${mon:-NO-MONETAG} | $u"
           done
