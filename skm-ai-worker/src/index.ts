@@ -50,14 +50,20 @@ export default {
 // Compute coverage counts once and cache them in meta (avoids full-table scans on GET).
 async function refreshCoverageCounts(env: Env) {
   try {
+    // Seed ONCE only. After that, ai_with_desc is incremented on every generation,
+    // so we NEVER run the full-table COUNT again (was 384k rows/scan = top D1 driver).
+    const seeded: any = await env.DB.prepare("SELECT v FROM meta WHERE k = 'ai_seeded'").first();
+    if (seeded) return;
     const row: any = await env.DB.prepare(
       'SELECT COUNT(*) AS total, COUNT(ai_description) AS with_desc FROM villages'
     ).first();
     if (row) {
       await env.DB.prepare('INSERT OR REPLACE INTO meta(k,v) VALUES(?, ?)').bind('ai_total', String(row.total ?? 0)).run();
       await env.DB.prepare('INSERT OR REPLACE INTO meta(k,v) VALUES(?, ?)').bind('ai_with_desc', String(row.with_desc ?? 0)).run();
+      await env.DB.prepare('INSERT OR REPLACE INTO meta(k,v) VALUES(?, ?)').bind('ai_seeded', '1').run();
     }
   } catch (e) { /* counting must never break the run */ }
+}
 }
 
 async function generateDescriptions(env: Env, count: number) {
@@ -92,6 +98,12 @@ async function generateDescriptions(env: Env, count: number) {
         await env.DB.prepare(`
           UPDATE villages SET ai_description = ? WHERE id = ?
         `).bind(description, village.id).run();
+        // Increment the cached counter so we never need a full-table COUNT again.
+        try {
+          await env.DB.prepare(
+            "UPDATE meta SET v = CAST(v AS INTEGER) + 1 WHERE k = 'ai_with_desc'"
+          ).run();
+        } catch { /* counter is best-effort */ }
         generated++;
       }
     } catch (err) {
