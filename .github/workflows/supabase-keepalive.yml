@@ -1,0 +1,39 @@
+name: Supabase Keep-Alive (every 3 days)
+
+# Free Supabase projects PAUSE after ~7 days of inactivity. This pings every
+# project every 3 days (a safe margin) so none of them ever pauses.
+#
+# Keyless by default (auth health endpoint + REST root). If you add a repo
+# secret SUPABASE_ANON_KEY, it also runs a real REST read for a stronger signal.
+# 21 Oct 2026 — user rule: read ALL Supabase projects every 3 days.
+
+on:
+  schedule:
+    - cron: '20 3 */3 * *'   # every 3rd day, 08:50 IST
+  workflow_dispatch:
+
+jobs:
+  keepalive:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping all Supabase projects
+        env:
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          PROJECTS="
+          timnrnmmmmuqmcnuaend|skmstudioservices-cyber's Project Maps
+          hfmkznptehdhtgsuwzri|mapsnearme
+          "
+          fail=0
+          echo "$PROJECTS" | while IFS='|' read -r REF NAME; do
+            [ -z "$REF" ] && continue
+            h=$(curl -s -o /dev/null -w '%{http_code}' -m 30 "https://${REF}.supabase.co/auth/v1/health")
+            r=$(curl -s -o /dev/null -w '%{http_code}' -m 30 "https://${REF}.supabase.co/rest/v1/")
+            k="skipped"
+            if [ -n "$SUPABASE_ANON_KEY" ]; then
+              k=$(curl -s -o /dev/null -w '%{http_code}' -m 30 "https://${REF}.supabase.co/rest/v1/" -H "apikey: ${SUPABASE_ANON_KEY}" -H "Authorization: Bearer ${SUPABASE_ANON_KEY}")
+            fi
+            echo "KEEPALIVE | ${REF} (${NAME}) | auth-health ${h} | rest-root ${r} | keyed-read ${k}"
+            if [ "$h" != "200" ] && [ "$r" != "200" ] && [ "$r" != "401" ]; then fail=1; fi
+          done
+          echo "done"
