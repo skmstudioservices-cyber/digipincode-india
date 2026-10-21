@@ -10,18 +10,21 @@ jobs:
       - name: Check for Monetag tag/script on key sites
         run: |
           urls="
-          https://evchargersnearme.pages.dev/
+          https://gymnearme.pages.dev/
+          https://tailorshopnearme.pages.dev/
+          https://busstationnearme.pages.dev/
+          https://busstopnearme.pages.dev/
+          https://railwaystationnearme.pages.dev/
+          https://safealleys.pages.dev/
+          https://floodsnearme.pages.dev/
+          https://airqualitynearme.pages.dev/
           https://toiletsnearme.pages.dev/
-          https://restareanearme.pages.dev/
-          https://cngpumpsnearme.pages.dev/
-          https://examstatus.india-in.workers.dev/
-          https://digitalpincode.blogspot.com/
-          https://digipincode.india-in.workers.dev/
-          https://karvachauth.pages.dev/
           "
           for u in $urls; do
             body=$(curl -s -L --max-time 30 "$u?cb=$RANDOM")
             code=$(curl -s -o /dev/null -w "%{http_code}" -L --max-time 30 "$u")
-            mon=$(echo "$body" | grep -oiE 'name="monetag" content="[a-f0-9]+"|upgulpinon|quge5\.com|data-zone|SKM_MONETAG_ZONE' | sort -u | tr '\n' ',' )
-            echo "MONCHECK | HTTP $code | ${mon:-NO-MONETAG} | $u"
+            sw=$(curl -s -o /dev/null -w "%{http_code}" -L --max-time 30 "${u}sw.js")
+            mon=$(echo "$body" | grep -oiE 'name="monetag" content="[a-f0-9]+"|upgulpinon|quge5\.com|data-zone|SKM_MONETAG_ZONE' | sort -u | tr '
+' ',' )
+            echo "MONCHECK | HTTP $code | sw.js $sw | ${mon:-NO-MONETAG} | $u"
           done
