@@ -4,6 +4,11 @@ name: Network Deploy (fallback CF access)
 # CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID secrets — so individual site
 # repos never need their own CF secrets. Fallback path for any site whose own
 # deploy workflow lacks credentials.
+#
+# 21 Oct 2026 FIX: added an optional BUILD step. Astro/Next sites keep SOURCE
+# in the repo (no dist/), so deploying the repo root uploaded no index.html and
+# the site 404'd (mapsnearme). Set build=true for any built site; the workflow
+# then runs `npm run build` and deploys the output dir (default `dist`).
 
 on:
   workflow_dispatch:
@@ -22,6 +27,14 @@ on:
         description: 'Branch'
         required: false
         default: 'main'
+      build:
+        description: 'Run npm build first (true for Astro/Next sites)'
+        required: false
+        default: 'false'
+      build_dir:
+        description: 'Build output dir to deploy when build=true (default dist)'
+        required: false
+        default: 'dist'
 
 jobs:
   deploy:
@@ -35,14 +48,35 @@ jobs:
           path: site
       - uses: actions/setup-node@v4
         with: { node-version: 22 }
+      - name: Build (if requested)
+        if: ${{ inputs.build == 'true' }}
+        run: |
+          cd site
+          if [ -f package.json ]; then
+            npm ci || npm install
+            npm run build
+          else
+            echo "no package.json — skipping build"
+          fi
+      - name: Pick deploy dir
+        id: pick
+        run: |
+          cd site
+          D="${{ inputs.dir }}"
+          if [ "${{ inputs.build }}" = "true" ]; then
+            if [ -d "${{ inputs.build_dir }}" ]; then D="${{ inputs.build_dir }}"; fi
+          fi
+          echo "dir=$D" >> $GITHUB_OUTPUT
+          echo "Deploying: $D"
+          ls -la "$D" | head -20
       - name: Deploy to Cloudflare Pages
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           cd site
-          npx --yes wrangler@latest pages deploy "${{ inputs.dir }}" --project-name="${{ inputs.project_name }}" --branch="${{ inputs.branch }}" --commit-dirty=true
+          npx --yes wrangler@latest pages deploy "${{ steps.pick.outputs.dir }}" --project-name="${{ inputs.project_name }}" --branch="${{ inputs.branch }}" --commit-dirty=true
       - name: Verify
         run: |
-          sleep 20
+          sleep 25
           echo "${{ inputs.project_name }} home -> $(curl -s -o /dev/null -w '%{http_code}' -m 30 https://${{ inputs.project_name }}.pages.dev/)"
