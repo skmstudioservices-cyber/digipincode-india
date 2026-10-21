@@ -1,0 +1,35 @@
+name: Full Site Check
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check every site + key subpages
+        run: |
+          python3 - <<'PY'
+          import json, urllib.request, urllib.error
+          d=json.load(open("sites.json"))
+          pages=[p.rstrip("/") for p in d.get("pages",[])]
+          workers=[w["url"].rstrip("/") for w in d.get("workers",[])]
+          urls=pages+workers
+          def code(u):
+              try:
+                  r=urllib.request.urlopen(urllib.request.Request(u,headers={"User-Agent":"Mozilla/5.0 skm-check"}),timeout=25)
+                  return r.getcode(), r.read(4000).decode("utf-8","replace")
+              except urllib.error.HTTPError as e: return e.code,""
+              except Exception: return 0,""
+          bad=[]
+          for u in urls:
+              c,body=code(u+"/")
+              tag = "name=\"monetag\"" in body
+              swc,_=code(u+"/sw.js")
+              flag=""
+              if c!=200: flag="❌ DOWN"; bad.append(u)
+              print(f"{flag:8} {c:3} | sw.js {swc:3} | tag={'Y' if tag else 'n'} | {u}")
+          print(f"\nTOTAL {len(urls)} | DOWN {len(bad)}")
+          for b in bad: print("  DOWN:", b)
+          PY
