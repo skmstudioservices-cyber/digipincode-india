@@ -64,7 +64,6 @@ async function refreshCoverageCounts(env: Env) {
     }
   } catch (e) { /* counting must never break the run */ }
 }
-}
 
 async function generateDescriptions(env: Env, count: number) {
   // Pick villages that don't have descriptions yet
