@@ -1,0 +1,74 @@
+name: Page Test Gate (pre-deploy)
+
+# MANDATORY pre-deploy gate (user rule, 22 Oct 2026).
+# Crawls a site's sitemap and tests EVERY page: HTTP status, title, H1,
+# real content length, schema, and obvious error strings. Fails loudly if any
+# page is thin/broken so we never publish spammy or empty pages.
+#
+# Run BEFORE deploying, and again AFTER — 200 OK alone is NOT verification.
+
+on:
+  workflow_dispatch:
+    inputs:
+      site:
+        description: 'Site base URL (e.g. https://washroomsnearme.pages.dev)'
+        required: true
+      min_words:
+        description: 'Minimum visible words per page'
+        required: false
+        default: '120'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Test every page in the sitemap
+        run: |
+          python3 - <<'PY'
+          import os, re, urllib.request, urllib.error
+          SITE=os.environ["SITE"].rstrip("/")
+          MINW=int(os.environ["MINW"])
+          def get(u):
+              try:
+                  r=urllib.request.urlopen(urllib.request.Request(u,headers={"User-Agent":"Mozilla/5.0 skm-test"}),timeout=25)
+                  return r.getcode(), r.read().decode("utf-8","replace")
+              except urllib.error.HTTPError as e: return e.code,""
+              except Exception: return 0,""
+          # discover pages: sitemap first, else root + common paths
+          urls=[]
+          c,b=get(SITE+"/sitemap.xml")
+          if c==200:
+              urls=re.findall(r"<loc>([^<]+)</loc>", b)
+          if not urls:
+              urls=[SITE+"/"]
+          print(f"Testing {len(urls)} pages on {SITE} (min {MINW} words)\n")
+          bad=[]
+          for u in urls:
+              code,html=get(u)
+              title=re.search(r"<title>(.*?)</title>", html, re.S|re.I)
+              h1=re.search(r"<h1[^>]*>(.*?)</h1>", html, re.S|re.I)
+              txt=re.sub(r"<script.*?</script>|<style.*?</style>","",html,flags=re.S|re.I)
+              txt=re.sub(r"<[^>]+>"," ",txt)
+              words=len(txt.split())
+              schema = "application/ld+json" in html
+              err = any(s in html.lower() for s in ["undefined</", "cannot be found", "404 not found", "internal server error"])
+              probs=[]
+              if code!=200: probs.append(f"HTTP {code}")
+              if not title: probs.append("no <title>")
+              if not h1: probs.append("no <h1>")
+              if words<MINW: probs.append(f"thin ({words}w)")
+              if not schema: probs.append("no JSON-LD")
+              if err: probs.append("error string")
+              flag="❌" if probs else "✅"
+              if probs: bad.append((u,probs))
+              print(f"{flag} {code} | {words:5}w | schema={'Y' if schema else 'n'} | {u}")
+              if probs: print(f"      -> {'; '.join(probs)}")
+          print(f"\nRESULT: {len(urls)-len(bad)}/{len(urls)} pages pass")
+          if bad:
+              print("FAILED PAGES:")
+              for u,p in bad: print(f"  - {u}: {'; '.join(p)}")
+              raise SystemExit(1)
+          PY
+        env:
+          SITE: ${{ inputs.site }}
+          MINW: ${{ inputs.min_words }}
