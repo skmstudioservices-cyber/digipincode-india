@@ -82,7 +82,37 @@ jobs:
         run: |
           cd site
           npx --yes wrangler@latest pages deploy "${{ steps.pick.outputs.dir }}" --project-name="${{ inputs.project_name }}" --branch="${{ inputs.branch }}" --commit-dirty=true
-      - name: Verify
+      - name: Verify (home must be 200)
         run: |
           sleep 25
-          echo "${{ inputs.project_name }} home -> $(curl -s -o /dev/null -w '%{http_code}' -m 30 https://${{ inputs.project_name }}.pages.dev/)"
+          code=$(curl -s -o /dev/null -w '%{http_code}' -m 30 https://${{ inputs.project_name }}.pages.dev/)
+          echo "${{ inputs.project_name }} home -> $code"
+          if [ "$code" != "200" ]; then echo "::error::root not 200"; exit 1; fi
+      - name: Page-test gate (every page: status, title, H1, words, JSON-LD)
+        run: |
+          python3 - <<'PY'
+          import os, re, urllib.request, urllib.error
+          SITE="https://${{ inputs.project_name }}.pages.dev"; MINW=120
+          def get(u):
+              try:
+                  r=urllib.request.urlopen(urllib.request.Request(u,headers={"User-Agent":"Mozilla/5.0 skm-test"}),timeout=25)
+                  return r.getcode(), r.read().decode("utf-8","replace")
+              except urllib.error.HTTPError as e: return e.code,""
+              except Exception: return 0,""
+          c,b=get(SITE+"/sitemap.xml"); urls=re.findall(r"<loc>([^<]+)</loc>", b) if c==200 else [SITE+"/"]
+          urls=urls[:40]; bad=[]
+          for u in urls:
+              code,html=get(u)
+              txt=re.sub(r"<script.*?</script>|<style.*?</style>","",html,flags=re.S|re.I)
+              words=len(re.sub(r"<[^>]+>"," ",txt).split())
+              probs=[]
+              if code!=200: probs.append("HTTP %s"%code)
+              if not re.search(r"<title>",html,re.I): probs.append("no title")
+              if not re.search(r"<h1",html,re.I): probs.append("no h1")
+              if words<MINW: probs.append("thin %sw"%words)
+              if "application/ld+json" not in html: probs.append("no JSON-LD")
+              if probs: bad.append("%s [%s]"%(u,"; ".join(probs)))
+          print("PAGE-TEST: %d/%d pass"%(len(urls)-len(bad),len(urls)))
+          for x in bad: print("  -",x)
+          if bad: raise SystemExit(1)
+          PY
