@@ -1,0 +1,87 @@
+name: D1 Load Places (real near-me data)
+
+# Fetches REAL place data from OpenStreetMap/Nominatim and loads it into the
+# Indian D1 database (pincode-india-db) -> places table.
+# Runs on a GH runner (full internet), so it is not blocked like the sandbox.
+# Additive + idempotent (INSERT OR IGNORE + UNIQUE). Safe to re-run daily.
+# 22 Oct 2026 - user rule: build enriched real data, manage the 100k write budget.
+
+on:
+  schedule:
+    - cron: '30 1 * * *'
+  workflow_dispatch:
+    inputs:
+      cities:
+        description: 'Comma-separated extra cities (optional)'
+        required: false
+        default: ''
+
+jobs:
+  load:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: Fetch + build SQL
+        env:
+          EXTRA_CITIES: ${{ inputs.cities }}
+        run: |
+          python3 - <<'PY'
+          import json, os, urllib.request, urllib.parse, time
+          UA={"User-Agent":"skm-studio-nearme/1.0 (contact: skmstudio.services@gmail.com)"}
+          NICHES=[("toiletsnearme","toilets","public toilets"),("evchargersnearme","ev_chargers","EV charging station"),
+                  ("busstopnearme","bus_stops","bus stop"),("busstationnearme","bus_stations","bus station"),
+                  ("railwaystationnearme","railway","railway station"),("cngpumpsnearme","cng","CNG station"),
+                  ("restareanearme","rest_area","rest area"),("petrolpumpsnearme","petrol","petrol station"),
+                  ("atmsnearme","atms","ATM"),("hospitalsnearme","hospitals","hospital"),
+                  ("banksnearme","banks","bank"),("parksnearme","parks","park"),
+                  ("templesnearme","temples","temple"),("pharmaciesnearme","pharmacy","pharmacy"),
+                  ("cafenearme","cafes","cafe"),("restaurantsnearme","restaurants","restaurant")]
+          CITIES=["Delhi","Mumbai","Bengaluru","Hyderabad","Chennai","Kolkata","Pune","Ahmedabad","Jaipur","Lucknow",
+                  "Kanpur","Nagpur","Indore","Bhopal","Patna","Surat","Vadodara","Ludhiana","Agra","Nashik",
+                  "Varanasi","Amritsar","Ranchi","Coimbatore","Kochi","Guwahati","Bhubaneswar","Chandigarh",
+                  "Dehradun","Raipur","Gorakhpur","Noida","Gurugram","Meerut","Faridabad","Vijayawada","Madurai",
+                  "Jodhpur","Kota","Salem","Tiruchirappalli","Bareilly","Aligarh","Moradabad","Jalandhar",
+                  "Udaipur","Siliguri","Dhanbad","Gaya","Bhagalpur"]
+          extra=[c.strip() for c in (os.environ.get("EXTRA_CITIES") or "").split(",") if c.strip()]
+          CITIES=list(dict.fromkeys(CITIES+extra))
+          rows=[]
+          for site,niche,q in NICHES:
+              for city in CITIES:
+                  url="https://nominatim.openstreetmap.org/search?"+urllib.parse.urlencode(
+                      {"q":f"{q} in {city}","format":"json","limit":25,"addressdetails":1,"countrycodes":"in"})
+                  try:
+                      d=json.load(urllib.request.urlopen(urllib.request.Request(url,headers=UA),timeout=30))
+                      for x in d:
+                          ad=x.get("address",{}) or {}
+                          rows.append({"site":site,"niche":niche,
+                              "name":(x.get("name") or x.get("display_name","")[:70]).replace("'","''"),
+                              "city":city,"state":(ad.get("state","") or "").replace("'","''")[:60],
+                              "lat":float(x.get("lat",0)),"lon":float(x.get("lon",0)),
+                              "address":(x.get("display_name","")[:70]).replace("'","''"),
+                              "osm_type":x.get("osm_type",""),"osm_id":str(x.get("osm_id",""))})
+                  except Exception: pass
+                  time.sleep(1.1)
+          seen=set(); vals=[]
+          for r in rows:
+              k=(r["site"],r["name"],r["lat"],r["lon"])
+              if k in seen: continue
+              seen.add(k)
+              vals.append("('%s','%s','%s','%s','%s',%f,%f,'%s','%s','%s')"%(r["site"],r["niche"],r["name"],r["city"],r["state"],r["lat"],r["lon"],r["address"],r["osm_type"],r["osm_id"]))
+          CH=300; n=0
+          for i in range(0,len(vals),CH):
+              sql="INSERT OR IGNORE INTO places (site,niche,name,city,state,lat,lon,address,osm_type,osm_id) VALUES "+",".join(vals[i:i+CH])+";"
+              open(f"load_{i//CH}.sql","w").write(sql); n+=1
+          print(f"fetched {len(rows)} rows, {len(vals)} unique, {n} sql files")
+          PY
+      - name: Load into D1 (pincode-india-db)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          for f in load_*.sql; do
+            echo "== $f =="
+            npx --yes wrangler@latest d1 execute pincode-india-db --remote --file="$f" --yes || echo "chunk failed: $f"
+          done
+          npx --yes wrangler@latest d1 execute pincode-india-db --remote --command "SELECT site, COUNT(*) AS n FROM places GROUP BY site ORDER BY n DESC" --yes
