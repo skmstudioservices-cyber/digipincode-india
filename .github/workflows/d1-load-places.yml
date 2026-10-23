@@ -5,6 +5,7 @@ name: D1 Load Places (real near-me data)
 # Runs on a GH runner (full internet), so it is not blocked like the sandbox.
 # Additive + idempotent (INSERT OR IGNORE + UNIQUE). Safe to re-run daily.
 # 22 Oct 2026 - user rule: build enriched real data, manage the 100k write budget.
+# 23 Oct 2026 - expanded to 26 niches (incl. campus/study) x 100 cities.
 
 on:
   schedule:
@@ -37,13 +38,25 @@ jobs:
                   ("atmsnearme","atms","ATM"),("hospitalsnearme","hospitals","hospital"),
                   ("banksnearme","banks","bank"),("parksnearme","parks","park"),
                   ("templesnearme","temples","temple"),("pharmaciesnearme","pharmacy","pharmacy"),
-                  ("cafenearme","cafes","cafe"),("restaurantsnearme","restaurants","restaurant")]
+                  ("cafenearme","cafes","cafe"),("restaurantsnearme","restaurants","restaurant"),
+                  ("collegesnearme","colleges","college"),("universitiesnearme","universities","university"),
+                  ("hostelsnearme","hostels","hostel"),("librariesnearme","libraries","library"),
+                  ("examcentresnearme","exam_centres","examination centre"),
+                  ("coachingnearme","coaching","coaching centre"),
+                  ("computertrainingnearme","computer_training","computer training centre"),
+                  ("canteensnearme","canteens","canteen"),
+                  ("schoolsnearme","schools","school"),("studypointsnearme","study_points","study room")]
           CITIES=["Delhi","Mumbai","Bengaluru","Hyderabad","Chennai","Kolkata","Pune","Ahmedabad","Jaipur","Lucknow",
                   "Kanpur","Nagpur","Indore","Bhopal","Patna","Surat","Vadodara","Ludhiana","Agra","Nashik",
                   "Varanasi","Amritsar","Ranchi","Coimbatore","Kochi","Guwahati","Bhubaneswar","Chandigarh",
                   "Dehradun","Raipur","Gorakhpur","Noida","Gurugram","Meerut","Faridabad","Vijayawada","Madurai",
                   "Jodhpur","Kota","Salem","Tiruchirappalli","Bareilly","Aligarh","Moradabad","Jalandhar",
-                  "Udaipur","Siliguri","Dhanbad","Gaya","Bhagalpur"]
+                  "Udaipur","Siliguri","Dhanbad","Gaya","Bhagalpur",
+                  "Jammu","Srinagar","Shimla","Kollam","Thrissur","Kozhikode","Warangal","Guntur","Nellore",
+                  "Hubballi","Mysuru","Mangaluru","Belagavi","Davangere","Jabalpur","Gwalior","Ujjain","Sagar","Satna",
+                  "Aurangabad","Solapur","Kolhapur","Amravati","Akola","Nanded","Sangli","Jalgaon","Bhilai","Bilaspur",
+                  "Rourkela","Cuttack","Sambalpur","Jamshedpur","Bokaro","Hazaribagh","Muzaffarpur","Purnia","Darbhanga",
+                  "Arrah","Begusarai","Katihar","Munger","Chapra","Siwan","Saharsa","Samastipur","Hajipur","Motihari"]
           extra=[c.strip() for c in (os.environ.get("EXTRA_CITIES") or "").split(",") if c.strip()]
           CITIES=list(dict.fromkeys(CITIES+extra))
           rows=[]
