@@ -1,0 +1,55 @@
+name: City Schema Check (weekly)
+
+# Weekly recheck (user rule 403, 24 Oct 2026): every city page must carry JSON-LD.
+# Found 23 Oct: toiletsnearme city pages had ZERO structured data.
+# Also flags robots.txt that blocks AI SEARCH bots (OAI-SearchBot / ChatGPT-User).
+
+on:
+  schedule:
+    - cron: '15 3 * * 1'
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check city-page schema across the network
+        run: |
+          python3 - <<'PY'
+          import json, re, urllib.request, urllib.error
+          d=json.load(open("sites.json"))
+          sites=[p.rstrip("/") for p in d.get("pages",[])]
+          def get(u):
+              try:
+                  r=urllib.request.urlopen(urllib.request.Request(u,headers={"User-Agent":"Mozilla/5.0 skm-check"}),timeout=20)
+                  return r.getcode(), r.read().decode("utf-8","replace")
+              except urllib.error.HTTPError as e: return e.code,""
+              except Exception: return 0,""
+          CITY=re.compile(r"/(delhi|mumbai|bengaluru|hyderabad|chennai|kolkata|pune|ahmedabad|jaipur|lucknow|surat|indore|chandigarh|bhopal|nagpur)/?$")
+          issues=[]; checked=0
+          for s in sites:
+              c,b=get(s+"/sitemap.xml")
+              urls=re.findall(r"<loc>([^<]+)</loc>", b) if c==200 else []
+              city_urls=[u for u in urls if CITY.search(u)]
+              if not city_urls: continue
+              missing=[]
+              for u in city_urls:
+                  code,html=get(u); checked+=1
+                  if code==200 and "application/ld+json" not in html:
+                      missing.append(u)
+              if missing:
+                  issues.append((s,len(missing),len(city_urls)))
+                  print(f"❌ {s}: {len(missing)}/{len(city_urls)} city pages WITHOUT schema")
+                  for m in missing[:3]: print(f"     - {m}")
+              else:
+                  print(f"✅ {s}: all {len(city_urls)} city pages have schema")
+          for s in sites[:20]:
+              code,rb=get(s+"/robots.txt")
+              if code==200 and "OAI-SearchBot" in rb:
+                  seg=rb.split("OAI-SearchBot")[1][:40]
+                  if "Disallow" in seg: print(f"WARN {s}: robots blocks OAI-SearchBot (AI search)")
+          print(f"\n===== CITY SCHEMA SUMMARY =====")
+          print(f"city pages checked: {checked} | sites with missing schema: {len(issues)}")
+          if issues: raise SystemExit(1)
+          PY
