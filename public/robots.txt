@@ -12,11 +12,14 @@ Allow: /
 User-agent: Bingbot
 Allow: /
 
-# --- AI / LLM bots blocked (request-quota protection, 25 Sep 2026) ---
-User-agent: GPTBot
-Disallow: /
-
+# --- AI SEARCH bots ALLOWED (24 Oct 2026, user rule 434) ---
+# Rationale: AI-search visibility (AIO). Quota is protected by the 7-day edge
+# cache in middleware.ts, NOT by blocking - cached HTML never re-touches D1.
 User-agent: OAI-SearchBot
+Allow: /
+
+# --- AI / LLM TRAINING bots blocked (request-quota protection) ---
+User-agent: GPTBot
 Disallow: /
 
 User-agent: ChatGPT-User
@@ -168,25 +171,9 @@ User-agent: Scrapy
 Disallow: /
 
 # --- Extra heavy crawlers (D1 read protection) ---
-User-agent: Bytespider
-Disallow: /
-
-User-agent: SemrushBot
-Disallow: /
-
-User-agent: AhrefsBot
-Disallow: /
-
-User-agent: DotBot
-Disallow: /
-
-# --- AI crawlers added 14 Oct 2026 (D1 read protection; observed in CF analytics) ---
-# Amzn-SearchBot: BLOCKED (16 Oct 2026) — D1 reads hit 16.1M/day (3.2x the 5M free cap);
-# top non-blocked crawler at ~4.2k req/day. Revert if AI-search visibility matters more than quota.
 User-agent: Amzn-SearchBot
 Disallow: /
 
-# Heavy SEO/data crawlers that slipped the AhrefsBot token (16 Oct 2026)
 User-agent: AhrefsSiteAudit
 Disallow: /
 
