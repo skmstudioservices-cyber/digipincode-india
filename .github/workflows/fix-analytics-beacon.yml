@@ -1,0 +1,51 @@
+name: Fix analytics beacon (one-shot)
+
+# 25 Oct 2026. The Internal Analytics tab was EMPTY because the first-party
+# beacon in Base.astro only fired on `pagehide` / visibilitychange-hidden,
+# which mobile browsers (esp. iOS) frequently never fire — so real visits left
+# no row. It also never sent `host`, so /api/collect could not attribute an
+# event to a site. This one-shot patches both.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch Base.astro beacon
+        run: |
+          python3 - <<'PY'
+          p = 'src/layouts/Base.astro'
+          s = open(p, encoding='utf-8').read()
+
+          # 1) send `host` so events attribute to the right site
+          old = "JSON.stringify({ path: location.pathname, ref: document.referrer, event: 'view', dwell: Math.round((Date.now() - t0) / 1000), scroll: maxScroll })"
+          new = "JSON.stringify({ host: location.host, path: location.pathname, ref: document.referrer, event: 'view', dwell: Math.round((Date.now() - t0) / 1000), scroll: maxScroll })"
+          assert old in s, 'ANCHOR-1 (view payload) not found'
+          s = s.replace(old, new, 1)
+
+          # 2) single-send guard (avoid double rows)
+          old2 = "        function send() {\n          try {\n            if (!navigator.sendBeacon) return;"
+          new2 = "        var _sent = false;\n        function send() {\n          if (_sent) return; _sent = true;\n          try {\n            if (!navigator.sendBeacon) return;"
+          if old2 in s:
+              s = s.replace(old2, new2, 1)
+              print('guard added')
+          else:
+              print('WARN: guard anchor not found - continuing')
+
+          # 3) guaranteed early row (pagehide is unreliable on mobile)
+          anchor = "window.addEventListener('pagehide', send, { once: true });"
+          assert anchor in s, 'ANCHOR-3 (pagehide) not found'
+          s = s.replace(anchor, anchor + "\n        setTimeout(send, 5000); // guaranteed view row - pagehide never fires on many mobile browsers", 1)
+
+          open(p, 'w', encoding='utf-8').write(s)
+          print('patched OK')
+          PY
+          git config user.name "skm-bot"
+          git config user.email "bot@skmstudioservices.local"
+          git add -A
+          git diff --cached --quiet && echo "nothing to change" || (git commit -m "fix(analytics): beacon sends host + guaranteed early view row" && git push)
