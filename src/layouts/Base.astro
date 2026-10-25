@@ -245,13 +245,16 @@ const COLLECTING = 'Coming soon — we are collecting this from government recor
         var maxScroll = 0;
         window.addEventListener('scroll', function () { try { var h = document.documentElement.scrollHeight - window.innerHeight; var p = h > 0 ? Math.round((window.scrollY / h) * 100) : 0; if (p > maxScroll) maxScroll = p; } catch (e) {} }, { passive: true });
         try { var _q = new URLSearchParams(location.search).get('q'); if (_q) navigator.sendBeacon('/api/collect', new Blob([JSON.stringify({ path: '/search', ref: '', event: 'search', kw: _q.slice(0,120), dwell: 0, scroll: 0 })], { type: 'application/json' })); } catch (e) {}
+        var _sent = false;
         function send() {
+          if (_sent) return; _sent = true;
           try {
             if (!navigator.sendBeacon) return;
-            navigator.sendBeacon('/api/collect', new Blob([JSON.stringify({ path: location.pathname, ref: document.referrer, event: 'view', dwell: Math.round((Date.now() - t0) / 1000), scroll: maxScroll })], { type: 'application/json' }));
+            navigator.sendBeacon('/api/collect', new Blob([JSON.stringify({ host: location.host, path: location.pathname, ref: document.referrer, event: 'view', dwell: Math.round((Date.now() - t0) / 1000), scroll: maxScroll })], { type: 'application/json' }));
           } catch (e) {}
         }
         window.addEventListener('pagehide', send, { once: true });
+        setTimeout(send, 5000); // guaranteed view row - pagehide never fires on many mobile browsers
         document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden') send(); });
       } catch (e) {}
     })();
