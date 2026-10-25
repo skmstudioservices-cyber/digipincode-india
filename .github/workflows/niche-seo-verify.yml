@@ -1,0 +1,13 @@
+name: Niche SEO Verify
+on:
+  workflow_dispatch:
+jobs:
+  v:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          B=https://atmsnearme.pages.dev
+          echo "sitemap_body: $(curl -s -m 20 $B/sitemap.xml | head -c 90)"
+          echo "robots_body: $(curl -s -m 20 $B/robots.txt | head -1)"
+          echo "soft404_now: $(curl -s -o /dev/null -w '%{http_code}' -m 20 $B/does-not-exist-xyz)"
+          echo "home: $(curl -s -o /dev/null -w '%{http_code}' -m 20 $B/)"
