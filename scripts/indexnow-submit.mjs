@@ -26,7 +26,7 @@ async function submit(batch) {
 
 async function main() {
   console.log('Fetching sitemap index…');
-  const idxRes = await fetch(`${HOST_URL}/sitemap-index.xml`, { headers: { 'User-Agent': UA } });
+  const idxRes = await fetch(`${HOST_URL}/sitemap.xml`, { headers: { 'User-Agent': UA } });
   if (!idxRes.ok) throw new Error(`sitemap-index HTTP ${idxRes.status}`);
   const idx = await idxRes.text();
   const sitemaps = [...idx.matchAll(/<loc>([^<]+)<\/loc>/g)].map(m => m[1].trim());
