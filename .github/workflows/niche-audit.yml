@@ -1,0 +1,11 @@
+name: Niche Audit
+on:
+  workflow_dispatch:
+jobs:
+  a:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          for u in protestsnearme atmsnearme restaurantsnearme templesnearme hospitalsnearme-9cp; do
+            echo "$u sitemap=$(curl -s -o /dev/null -w '%{http_code}' -m 20 https://$u.pages.dev/sitemap.xml) robots=$(curl -s -o /dev/null -w '%{http_code}' -m 20 https://$u.pages.dev/robots.txt) gsc=$(curl -s -m 20 https://$u.pages.dev/ | grep -c 'google-site-verification') title=$(curl -s -m 20 https://$u.pages.dev/ | grep -o '<title>[^<]*' | head -1 | cut -c8-50)"
+          done
