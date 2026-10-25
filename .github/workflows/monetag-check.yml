@@ -1,5 +1,11 @@
 name: Monetag Tag Check
 
+# 25 Oct 2026 FIX: the previous version was UNPARSEABLE by GitHub (it answered
+# "Workflow does not have 'workflow_dispatch' trigger" on dispatch, and reported
+# "No jobs were run / 0.0s" by file path on every push - that was the email
+# flood). Rewritten as clean, valid YAML. It now reports all THREE Monetag parts
+# separately per site: zone tag, verification meta, and sw.js.
+
 on:
   workflow_dispatch:
 
@@ -7,9 +13,12 @@ jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-      - name: Check for Monetag tag/script on key sites
+      - name: Check Monetag tag + meta + sw.js
         run: |
           urls="
+          https://toiletsnearme.pages.dev/
+          https://evchargersnearme.pages.dev/
+          https://airqualitynearme.pages.dev/
           https://gymnearme.pages.dev/
           https://tailorshopnearme.pages.dev/
           https://busstationnearme.pages.dev/
@@ -17,14 +26,13 @@ jobs:
           https://railwaystationnearme.pages.dev/
           https://safealleys.pages.dev/
           https://floodsnearme.pages.dev/
-          https://airqualitynearme.pages.dev/
-          https://toiletsnearme.pages.dev/
           "
           for u in $urls; do
             body=$(curl -s -L --max-time 30 "$u?cb=$RANDOM")
-            code=$(curl -s -o /dev/null -w "%{http_code}" -L --max-time 30 "$u")
-            sw=$(curl -s -o /dev/null -w "%{http_code}" -L --max-time 30 "${u}sw.js")
-            mon=$(echo "$body" | grep -oiE 'name="monetag" content="[a-f0-9]+"|upgulpinon|quge5\.com|data-zone|SKM_MONETAG_ZONE' | sort -u | tr '
-' ',' )
-            echo "MONCHECK | HTTP $code | sw.js $sw | ${mon:-NO-MONETAG} | $u"
+            code=$(curl -s -o /dev/null -w '%{http_code}' -L --max-time 30 "$u")
+            sw=$(curl -s -o /dev/null -w '%{http_code}' -L --max-time 30 "${u}sw.js")
+            tag=$(printf '%s' "$body" | grep -c 'quge5.com/88/tag.min.js')
+            zone=$(printf '%s' "$body" | grep -oE 'data-zone="[0-9]+"' | head -1)
+            meta=$(printf '%s' "$body" | grep -oE 'name="monetag" content="[a-f0-9]+"' | head -1)
+            echo "MONCHECK | HTTP $code | sw.js $sw | tag=$tag | ${zone:-NO-ZONE} | ${meta:-NO-META} | $u"
           done
