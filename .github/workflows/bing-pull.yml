@@ -1,11 +1,9 @@
 name: Bing Webmaster Pull (daily)
 
-# Pulls Bing Webmaster keyword data (queries, impressions, clicks, position)
-# using the BING_WEBMASTER_API_KEY repo secret (Bing has no OAuth).
-# Output JSON is uploaded as an artifact; the cron agent folds it into the sheet's Bing tab.
+# Pulls Bing Webmaster keyword data using the BING_WEBMASTER_API_KEY repo secret.
 on:
   schedule:
-    - cron: '40 1 * * *'   # 07:10 IST
+    - cron: '40 1 * * *'
   workflow_dispatch:
 
 jobs:
@@ -19,5 +17,11 @@ jobs:
         env:
           BING_WEBMASTER_API_KEY: ${{ secrets.BING_WEBMASTER_API_KEY }}
         run: node scripts/bing-pull.mjs || true
+      - name: Show data (for sheet fold)
+        run: |
+          echo "---BING-JSON-START---"
+          head -c 3000 bing-data.json 2>/dev/null || echo "NO_FILE"
+          echo
+          echo "---BING-JSON-END---"
       - uses: actions/upload-artifact@v4
         with: { name: bing-data, path: bing-data.json, retention-days: 7, if-no-files-found: warn }
