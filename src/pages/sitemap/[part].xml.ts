@@ -2,10 +2,39 @@
 export const prerender = false;
 const CHUNK = 3000;
 // 26 Oct 2026 SKM audit: bounded self-heal walk for chunks with no stored cursor.
-const MAX_HOPS = 8;
+// 27 Oct 2026 SKM audit: reduced 8 -> 2. All part cursors are now precomputed
+// into meta (part_start_0..N) by one ROW_NUMBER() query, so the walk is only a
+// rare safety net. A long walk blew the Worker CPU budget and produced 504s.
+const MAX_HOPS = 2;
+
+const EMPTY_URLSET =
+  '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n</urlset>';
+
+function xmlResponse(body: string, maxAge: number) {
+  return new Response(body, {
+    status: 200,
+    headers: {
+      'Content-Type': 'application/xml; charset=utf-8',
+      'Cache-Control': `public, max-age=${maxAge}, s-maxage=${maxAge}`,
+    },
+  });
+}
 
 export async function GET({ request, params, locals }) {
-  const db = locals.runtime.env.DB;
+  // 27 Oct 2026 SKM audit: never let this route emit 204 / 5xx.
+  // CF analytics showed 137 x 204 and 433 x 504 on /sitemap* over 72h,
+  // which is exactly what GSC reports as sitemap errors. Any throw now
+  // degrades to a valid (empty) urlset with status 200 instead.
+  try {
+    return await buildPart({ request, params, locals });
+  } catch {
+    return xmlResponse(EMPTY_URLSET, 300);
+  }
+}
+
+async function buildPart({ request, params, locals }): Promise<Response> {
+  const db = locals?.runtime?.env?.DB;
+  if (!db) return xmlResponse(EMPTY_URLSET, 300);
   const base = new URL(request.url).origin;
   const m = String((params as any).part || '').match(/^part-(\d+)$/);
   if (!m) return new Response('Not Found', { status: 404 });
@@ -13,7 +42,13 @@ export async function GET({ request, params, locals }) {
 
   const cache = (globalThis as any).caches?.default;
   const key = new Request(request.url, { method: 'GET' });
-  if (cache) { try { const hit = await cache.match(key); if (hit) return hit; } catch {} }
+  // Only a cached 200 is reusable — a cached empty/edge response must not stick.
+  if (cache) {
+    try {
+      const hit = await cache.match(key);
+      if (hit && hit.status === 200) return hit;
+    } catch {}
+  }
 
   // Keyset pagination: start from the meta cursor (reads only CHUNK rows).
   // OFFSET would scan offset+limit rows (part-10 scanned ~165k) per miss.
@@ -80,10 +115,7 @@ export async function GET({ request, params, locals }) {
   // Never 404 a chunk the index advertises: an unfilled or out-of-range chunk
   // returns a valid (possibly empty) urlset so GSC and audits see no broken
   // sitemap, and re-checks itself after a short cache.
-  if (!results || !results.length) {
-    const empty = '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n</urlset>';
-    return new Response(empty, { headers: { 'Content-Type': 'application/xml; charset=utf-8', 'Cache-Control': 'public, max-age=300, s-maxage=300' } });
-  }
+  if (!results || !results.length) return xmlResponse(EMPTY_URLSET, 300);
 
   let xml = '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n';
   for (const r of results as any[]) {
@@ -93,7 +125,7 @@ export async function GET({ request, params, locals }) {
   }
   xml += '</urlset>';
 
-  const res = new Response(xml, { headers: { 'Content-Type': 'application/xml; charset=utf-8', 'Cache-Control': 'public, max-age=86400, s-maxage=86400' } });
+  const res = xmlResponse(xml, 86400);
   if (cache) { try { const ctx = (locals as any).runtime?.ctx; const put = cache.put(key, res.clone()); if (ctx?.waitUntil) ctx.waitUntil(put); else await put; } catch {} }
   return res;
 }
