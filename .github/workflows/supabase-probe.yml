@@ -1,0 +1,24 @@
+name: Supabase Status Probe
+on:
+  workflow_dispatch:
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Probe both projects
+        env:
+          KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          echo "key_present=$([ -n "$KEY" ] && echo YES || echo NO)"
+          for ref in timnrnmmmmuqmcnuaend hfmkznptehdhtgsuwzri; do
+            echo "===== $ref"
+            echo "dns: $(getent hosts $ref.supabase.co | head -1 || echo FAIL)"
+            for path in /auth/v1/health /rest/v1/; do
+              code=$(curl -s -o /tmp/b -w '%{http_code}' -m 25 "https://$ref.supabase.co$path")
+              echo "  $path -> $code | $(head -c 120 /tmp/b | tr -d '\n')"
+            done
+            if [ -n "$KEY" ]; then
+              code=$(curl -s -o /tmp/k -w '%{http_code}' -m 25 "https://$ref.supabase.co/rest/v1/" -H "apikey: $KEY" -H "Authorization: Bearer $KEY")
+              echo "  keyed /rest/v1/ -> $code | $(head -c 120 /tmp/k | tr -d '\n')"
+            fi
+          done
