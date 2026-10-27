@@ -2,6 +2,8 @@ name: Karvachauth Deploy (icons)
 
 on:
   workflow_dispatch:
+  schedule:
+    - cron: '30 23 * * *'
 
 jobs:
   deploy:
@@ -70,3 +72,16 @@ jobs:
           sleep 25
           echo "favicon.ico: $(curl -s -o /dev/null -w '%{http_code}' --max-time 30 https://karvachauth.pages.dev/favicon.ico)"
           curl -s --max-time 30 https://karvachauth.pages.dev/ | grep -o 'og:site_name[^>]*' | head -2 || echo 'og:site_name NOT FOUND'
+      - name: Verify subpages live (fail loudly)
+        run: |
+          fail=0
+          for p in katha sargi vidhi mehendi songs about privacy; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 "https://karvachauth.pages.dev/$p.html")
+            echo "$p.html -> HTTP $code"
+            if [ "$code" != "200" ]; then fail=1; fi
+          done
+          if [ "$fail" = "1" ]; then
+            echo "::error::karvachauth subpages not live after deploy"
+            exit 1
+          fi
+          echo "All karvachauth subpages live."
