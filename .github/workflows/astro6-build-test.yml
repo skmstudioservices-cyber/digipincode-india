@@ -1,0 +1,30 @@
+name: Astro6 Build Test
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: branch to test
+        default: feat/emdash
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: skmstudioservices-cyber/digipincode-india
+          ref: ${{ github.event.inputs.ref }}
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: Versions in package.json
+        run: grep -E '"(astro|@astrojs/cloudflare)"' package.json
+      - name: Install
+        run: npm install --no-audit --no-fund 2>&1 | tail -15
+      - name: Installed
+        run: npm ls astro @astrojs/cloudflare --depth=0 2>&1 | head -8
+      - name: Build
+        run: npm run build 2>&1 | tail -40
+      - name: Output
+        run: |
+          ls dist | head -15
+          ls dist/_worker.js 2>/dev/null | head -3 || echo "no _worker.js"
