@@ -1,11 +1,8 @@
 name: Bing Webmaster Pull (daily)
-
-# Pulls Bing Webmaster keyword data using the BING_WEBMASTER_API_KEY repo secret.
 on:
   schedule:
     - cron: '40 1 * * *'
   workflow_dispatch:
-
 jobs:
   pull:
     runs-on: ubuntu-latest
@@ -17,11 +14,13 @@ jobs:
         env:
           BING_WEBMASTER_API_KEY: ${{ secrets.BING_WEBMASTER_API_KEY }}
         run: node scripts/bing-pull.mjs || true
-      - name: Show data (for sheet fold)
+      - name: Shape + summary
         run: |
-          echo "---BING-JSON-START---"
-          head -c 3000 bing-data.json 2>/dev/null || echo "NO_FILE"
-          echo
-          echo "---BING-JSON-END---"
+          node -e "
+          const d=require('./bing-data.json');
+          const s=d.sites||[];
+          console.log('COUNT='+s.length);
+          console.log('SAMPLE='+JSON.stringify(s[0]).slice(0,700));
+          "
       - uses: actions/upload-artifact@v4
         with: { name: bing-data, path: bing-data.json, retention-days: 7, if-no-files-found: warn }
