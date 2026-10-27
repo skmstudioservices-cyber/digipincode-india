@@ -14,13 +14,17 @@ jobs:
         env:
           BING_WEBMASTER_API_KEY: ${{ secrets.BING_WEBMASTER_API_KEY }}
         run: node scripts/bing-pull.mjs || true
-      - name: Shape + summary
+      - name: Summary
         run: |
           node -e "
-          const d=require('./bing-data.json');
-          const s=d.sites||[];
-          console.log('COUNT='+s.length);
-          console.log('SAMPLE='+JSON.stringify(s[0]).slice(0,700));
+          const d=require('./bing-data.json'); const s=d.sites||[];
+          for (const x of s) {
+            const c=(x.daily||[]).reduce((a,b)=>a+(b.Clicks||0),0);
+            const i=(x.daily||[]).reduce((a,b)=>a+(b.Impressions||0),0);
+            const q=(x.queries||[]).length;
+            console.log('ROW|'+(x.site||'')+'|'+c+'|'+i+'|'+q);
+          }
+          console.log('TOTAL|'+s.length);
           "
       - uses: actions/upload-artifact@v4
         with: { name: bing-data, path: bing-data.json, retention-days: 7, if-no-files-found: warn }
