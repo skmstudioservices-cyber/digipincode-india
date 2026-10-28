@@ -76,7 +76,7 @@ jobs:
         run: |
           fail=0
           for p in katha sargi vidhi mehendi songs about privacy; do
-            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 "https://karvachauth.pages.dev/$p.html")
+            code=$(curl -sL -o /dev/null -w '%{http_code}' --max-time 30 "https://karvachauth.pages.dev/$p.html")
             echo "$p.html -> HTTP $code"
             if [ "$code" != "200" ]; then fail=1; fi
           done
