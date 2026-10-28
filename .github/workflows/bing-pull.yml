@@ -14,17 +14,16 @@ jobs:
         env:
           BING_WEBMASTER_API_KEY: ${{ secrets.BING_WEBMASTER_API_KEY }}
         run: node scripts/bing-pull.mjs || true
-      - name: Summary
+      - name: Emit daily series (for DoD / WoW)
         run: |
           node -e "
           const d=require('./bing-data.json'); const s=d.sites||[];
-          for (const x of s) {
-            const c=(x.daily||[]).reduce((a,b)=>a+(b.Clicks||0),0);
-            const i=(x.daily||[]).reduce((a,b)=>a+(b.Impressions||0),0);
-            const q=(x.queries||[]).length;
-            console.log('ROW|'+(x.site||'')+'|'+c+'|'+i+'|'+q);
+          const cut = Date.now() - 22*86400000;
+          for (const x of s) for (const day of (x.daily||[])) {
+            const m=/\((\d+)\)/.exec(day.Date||''); if(!m) continue;
+            const ts=parseInt(m[1]); if(ts<cut) continue;
+            console.log('D|'+(x.site||'')+'|'+new Date(ts).toISOString().slice(0,10)+'|'+(day.Clicks||0)+'|'+(day.Impressions||0));
           }
-          console.log('TOTAL|'+s.length);
           "
       - uses: actions/upload-artifact@v4
         with: { name: bing-data, path: bing-data.json, retention-days: 7, if-no-files-found: warn }
