@@ -1,20 +1,21 @@
-User-agent: *
-Allow: /
-
-# Search result pages - thin + D1 quota; never index
-User-agent: *
-Disallow: /search
-
-# Search engines always allowed
+# Search engines (Google, Bing, Yahoo, DuckDuckGo)
 User-agent: Googlebot
 Allow: /
+Disallow: /search
+Disallow: /api/
 
 User-agent: Bingbot
 Allow: /
+Disallow: /search
+Disallow: /api/
 
-# --- AI SEARCH bots ALLOWED (24 Oct 2026, user rule 434) ---
-# Rationale: AI-search visibility (AIO). Quota is protected by the 7-day edge
-# cache in middleware.ts, NOT by blocking - cached HTML never re-touches D1.
+User-agent: *
+Allow: /
+Disallow: /search
+Disallow: /api/
+
+# --- AI SEARCH bots ALLOWED (AI-search visibility / AIO) ---
+# Quota protected by edge cache in middleware.ts
 User-agent: OAI-SearchBot
 Allow: /
 
@@ -191,9 +192,5 @@ Disallow: /
 
 User-agent: ExaSearchBot
 Disallow: /
-
-# Politeness delay for the rest
-User-agent: *
-Crawl-delay: 5
 
 Sitemap: https://digipincode.india-in.workers.dev/sitemap.xml

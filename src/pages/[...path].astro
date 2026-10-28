@@ -17,6 +17,9 @@ import { flatState, flatDistrict, flatSub, flatVillage, flatPincode } from '../l
 import { FRESHNESS, fmtDate } from '../config/site';
 
 const raw = Astro.params.path ?? '';
+if (typeof raw === 'string' && /^sitemap-(?:index|pages|flat|chhath|diwali|karvachauth|[a-z0-9-]+)\.xml$/i.test(raw)) {
+  return Astro.redirect('/sitemap.xml', 301);
+}
 let segs = (Array.isArray(raw) ? raw.join('/') : String(raw)).split('/').filter(Boolean).map(s => decodeURIComponent(s));
 const wasFlat = segs.length === 1 && segs[0].startsWith('india-IN-');
 const DB = Astro.locals.runtime.env.DB;
