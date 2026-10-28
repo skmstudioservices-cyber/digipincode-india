@@ -1,0 +1,33 @@
+name: pagesdev availability
+on:
+  workflow_dispatch:
+jobs:
+  t:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          echo "scamcheck -> $(curl -s -o /dev/null -w '%{http_code}' -m 15 https://scamcheck.pages.dev/)"
+          echo "scamcheckindia -> $(curl -s -o /dev/null -w '%{http_code}' -m 15 https://scamcheckindia.pages.dev/)"
+          echo "isitscam -> $(curl -s -o /dev/null -w '%{http_code}' -m 15 https://isitscam.pages.dev/)"
+          echo "scamlookup -> $(curl -s -o /dev/null -w '%{http_code}' -m 15 https://scamlookup.pages.dev/)"
+          echo "fraudcheck -> $(curl -s -o /dev/null -w '%{http_code}' -m 15 https://fraudcheck.pages.dev/)"
+          echo "scamradar -> $(curl -s -o /dev/null -w '%{http_code}' -m 15 https://scamradar.pages.dev/)"
+          echo "scamshield -> $(curl -s -o /dev/null -w '%{http_code}' -m 15 https://scamshield.pages.dev/)"
+          echo "reportscam -> $(curl -s -o /dev/null -w '%{http_code}' -m 15 https://reportscam.pages.dev/)"
+          echo "scamdb -> $(curl -s -o /dev/null -w '%{http_code}' -m 15 https://scamdb.pages.dev/)"
+          echo "scamscan -> $(curl -s -o /dev/null -w '%{http_code}' -m 15 https://scamscan.pages.dev/)"
+          echo "verifykaro -> $(curl -s -o /dev/null -w '%{http_code}' -m 15 https://verifykaro.pages.dev/)"
+          echo "dhokhacheck -> $(curl -s -o /dev/null -w '%{http_code}' -m 15 https://dhokhacheck.pages.dev/)"
+          echo "scamkya -> $(curl -s -o /dev/null -w '%{http_code}' -m 15 https://scamkya.pages.dev/)"
+          echo "checkbeforeyoupay -> $(curl -s -o /dev/null -w '%{http_code}' -m 15 https://checkbeforeyoupay.pages.dev/)"
+          echo "numberscam -> $(curl -s -o /dev/null -w '%{http_code}' -m 15 https://numberscam.pages.dev/)"
+          echo "scamalertindia -> $(curl -s -o /dev/null -w '%{http_code}' -m 15 https://scamalertindia.pages.dev/)"
+          echo "indianscamcheck -> $(curl -s -o /dev/null -w '%{http_code}' -m 15 https://indianscamcheck.pages.dev/)"
+          echo "scamseva -> $(curl -s -o /dev/null -w '%{http_code}' -m 15 https://scamseva.pages.dev/)"
+          echo "jhoothcheck -> $(curl -s -o /dev/null -w '%{http_code}' -m 15 https://jhoothcheck.pages.dev/)"
+          echo "bharatscam -> $(curl -s -o /dev/null -w '%{http_code}' -m 15 https://bharatscam.pages.dev/)"
+          echo "scamfinder -> $(curl -s -o /dev/null -w '%{http_code}' -m 15 https://scamfinder.pages.dev/)"
+          echo "scamverify -> $(curl -s -o /dev/null -w '%{http_code}' -m 15 https://scamverify.pages.dev/)"
+          echo "kyascam -> $(curl -s -o /dev/null -w '%{http_code}' -m 15 https://kyascam.pages.dev/)"
+          echo "scamwatchindia -> $(curl -s -o /dev/null -w '%{http_code}' -m 15 https://scamwatchindia.pages.dev/)"
+          echo "scamcheckin -> $(curl -s -o /dev/null -w '%{http_code}' -m 15 https://scamcheckin.pages.dev/)"
