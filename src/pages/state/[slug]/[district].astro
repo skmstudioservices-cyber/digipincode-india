@@ -1,6 +1,6 @@
 ---
-// Legacy URL /state/{s}/{d} → 301 → /{s}/district-{d}
+// Legacy URL /state/{s}/{d} → 301 direct to canonical flat URL (kills 2-hop redirect chain)
 export const prerender = false;
 const { slug, district } = Astro.params;
-return Astro.redirect(`/${slug}/district-${district}`, 301);
+return Astro.redirect(`/india-IN-state-${slug}-district-${district}/`, 301);
 ---

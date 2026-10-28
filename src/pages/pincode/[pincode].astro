@@ -1,6 +1,6 @@
 ---
-// Legacy URL /pincode/{p} → 301 → /{state}/district-{d}/pincode-{p}
-import { pincodeUrl } from '../../lib/urls';
+// Legacy URL /pincode/{p} → 301 direct to canonical flat URL (kills 2-hop redirect chain)
+import { pincodeUrl } from '../../lib/flaturls';
 import { getPincode } from '../../lib/db';
 export const prerender = false;
 const { pincode } = Astro.params;

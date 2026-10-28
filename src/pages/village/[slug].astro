@@ -1,6 +1,6 @@
 ---
-// Legacy URL /village/{slug} → 301 → full hierarchy path ending in /pincode-{p}
-import { villageUrl, districtUrl } from '../../lib/urls';
+// Legacy URL /village/{slug} → 301 direct to canonical flat URL (kills 2-hop redirect chain)
+import { villageUrl, districtUrl } from '../../lib/flaturls';
 import { getVillageBySlug } from '../../lib/db';
 export const prerender = false;
 const { slug } = Astro.params;
