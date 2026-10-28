@@ -55,9 +55,15 @@ jobs:
           WORKERS=$(curl -s -H "$H" "https://api.cloudflare.com/client/v4/accounts/$ACCT/workers/scripts" | jq -c '[.result[]? | {id, modified: .modified_on}]')
           D1=$(curl -s -H "$H" "https://api.cloudflare.com/client/v4/accounts/$ACCT/d1/database" | jq -c '[.result[]? | {name, uuid, sizeKb: ((.file_size // 0)/1024|floor)}]')
           KV=$(curl -s -H "$H" "https://api.cloudflare.com/client/v4/accounts/$ACCT/storage/kv/namespaces" | jq -c '[.result[]? | {title, id}]')
+          CMS_COMMIT="$(git rev-parse HEAD)"
+          CMS_MESSAGE="$(git log -1 --pretty=%s)"
+          CMS_COMMITTED_AT="$(git log -1 --format=%cI)"
+          RUN_URL="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
           jq -n --arg acct "$ACCT" --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --arg repo "skmstudioservices-cyber/my-CMS-dashboard" --arg branch "$CMS_REF" \
+            --arg commit "$CMS_COMMIT" --arg message "$CMS_MESSAGE" --arg committedAt "$CMS_COMMITTED_AT" --arg runUrl "$RUN_URL" \
             --argjson pages "$PAGES" --argjson workers "$WORKERS" --argjson d1 "$D1" --argjson kv "$KV" \
-            '{accountId:$acct, generatedAt:$ts, pages:$pages, workers:$workers, d1:$d1, kv:$kv}' > /tmp/cf-snapshot.json
+            '{accountId:$acct, generatedAt:$ts, source:{repository:$repo, branch:$branch, commit:$commit, message:$message, committedAt:$committedAt, runUrl:$runUrl}, pages:$pages, workers:$workers, d1:$d1, kv:$kv}' > /tmp/cf-snapshot.json
           npx --yes wrangler@latest kv key put cf:snapshot --path=/tmp/cf-snapshot.json --namespace-id=e0d8b85873724d2a9779f84b91676e41 --remote
 
       - name: Verify live
