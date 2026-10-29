@@ -87,6 +87,20 @@ export const onRequest = defineMiddleware(async (context, next) => {
     return new Response('Forbidden', { status: 403, headers: { 'cache-control': 'no-store' } });
   }
 
+  // --- Bogus cache-key prefix guard (29 Oct 2026, D1 read incident) ---
+  // Requests shaped /<uuid>/... are Workers Cache API keys, never real pages.
+  // A UA-less crawler landed on one (it answered 200 because the Astro
+  // catch-all matched), followed that page's RELATIVE links, and generated
+  // thousands of unique URLs -> every one a cache miss -> 18.6M D1 rows read
+  // in 11h (373% of the 5M/day free cap) plus ~29k 504s from retry storms.
+  // 410 Gone kills the whole subtree instantly at zero D1 cost.
+  if (/^\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(\/|$)/i.test(_path0)) {
+    return new Response('Gone', {
+      status: 410,
+      headers: { 'cache-control': 'public, max-age=86400', 'x-robots-tag': 'noindex' },
+    });
+  }
+
   // Protect the expensive /search endpoint: crawlers and empty-UA agents hammering
   // it burn D1 reads (the top read drain). Real browsers always send a user-agent.
   if (new URL(context.request.url).pathname.startsWith('/search') && (!_ua || BOT_BLOCK.some((b) => _ua.includes(b)))) {
