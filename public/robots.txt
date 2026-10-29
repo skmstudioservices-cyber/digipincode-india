@@ -32,13 +32,19 @@ Disallow: /
 User-agent: Operator
 Disallow: /
 
+# --- Anthropic: ALLOW only the user-initiated fetcher, block the rest (30 Oct 2026) ---
+# Claude-User fires once per human action (someone pasting a URL into Claude chat to
+# inspect/test it). It is NOT a crawler. ClaudeBot = model training, Claude-SearchBot
+# = search indexing, Claude-Web / anthropic-ai = deprecated legacy agents: all blocked.
+# Crawl-delay keeps the allowed fetcher gentle on D1 reads.
+User-agent: Claude-User
+Allow: /
+Crawl-delay: 2
+
 User-agent: ClaudeBot
 Disallow: /
 
 User-agent: Claude-SearchBot
-Disallow: /
-
-User-agent: Claude-User
 Disallow: /
 
 User-agent: Claude-Web
