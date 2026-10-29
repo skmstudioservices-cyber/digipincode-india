@@ -10,7 +10,12 @@
 //    appears in the HTML that AI crawlers fetch (no JS needed to see it).
 import { defineMiddleware } from 'astro:middleware';
 
-const CACHE_VERSION = 'v6' // bumped 15 Oct 2026: purge stale edge-cached HTML (stale _astro/*.css 404s) + serve fresh after latest deploy
+// 30 Oct 2026 (D1 read incident): this is now the ONLY cache-bust control.
+// Previously the key used CF_VERSION_METADATA.id, so EVERY deploy wiped the whole
+// HTML cache -> every URL became a cold render -> a D1 read storm on each release
+// (3 deploys on 29 Oct = 3 full recrawls). Bump this constant by hand when the
+// page template changes and you need a global purge.
+const CACHE_VERSION = 'v7' // bumped 30 Oct 2026: one-time purge of HTML cached by the per-deploy key
 const PAGE_TTL = 60 * 60 * 24 * 7; // 7 days
 const SKIP = ['/api/', '/search', '/saved', '/sitemap', '/404'];
 
@@ -136,7 +141,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
   const cache = (globalThis as any).caches?.default;
   // Auto cache-bust: Cloudflare's version_metadata.id changes on EVERY deploy,
   // so the HTML cache key changes with each release and stale pages never persist.
-  const CV = (rt?.env?.CF_VERSION_METADATA?.id) || CACHE_VERSION;
+  const CV = CACHE_VERSION; // stable across deploys — see CACHE_VERSION note above
   const cacheKey = () => new Request(`${url.origin}/${CV}${url.pathname}`, { method: 'GET' });
 
   if (cacheable && cache) {
