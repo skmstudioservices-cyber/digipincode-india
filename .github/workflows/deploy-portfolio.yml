@@ -1,0 +1,48 @@
+name: Deploy portfolio sites (bridge)
+
+# Bridge deploy: builds the portfolio repos with Node 22 and pushes the static
+# output to their Cloudflare Pages projects using this repo's CF token.
+# Used when the Cloudflare GitHub App has not been granted access to the repo.
+
+on:
+  workflow_dispatch:
+    inputs:
+      site:
+        description: "skmstudio | subhammaddheshiya | all"
+        required: false
+        default: "all"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.23.4"
+
+      - name: Build + deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          WANT="${{ github.event.inputs.site }}"
+          [ -z "$WANT" ] && WANT="all"
+
+          build_site () {
+            repo="$1"; project="$2"
+            if [ "$WANT" != "all" ] && [ "$WANT" != "$project" ]; then return 0; fi
+            echo "::group::build $repo -> $project"
+            rm -rf "/tmp/$project"; mkdir -p "/tmp/$project"
+            curl -sSL "https://codeload.github.com/skmstudioservices-cyber/$repo/tar.gz/refs/heads/main" \
+              | tar -xz -C "/tmp/$project" --strip-components=1
+            cd "/tmp/$project"
+            npm install --no-audit --no-fund
+            npm run build
+            npx --yes wrangler@4 pages deploy dist --project-name="$project" --branch=main --commit-dirty=true
+            cd - >/dev/null
+            echo "::endgroup::"
+          }
+
+          build_site SKM-Studio skmstudio
+          build_site Subham-Maddheshiya subhammaddheshiya
