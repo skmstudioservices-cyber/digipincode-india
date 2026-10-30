@@ -1,4 +1,12 @@
-# Search engines (Google, Bing, Yahoo, DuckDuckGo)
+# robots.txt — Digipincode India
+# Policy (30 Oct 2026):
+#   ALLOW  = search engines + AI agents that fetch a page because a HUMAN asked
+#            (chat-time retrieval) + AI search-index crawlers. These bring visitors.
+#   BLOCK  = training-only crawlers and bulk SEO/data scrapers. They cost D1 reads
+#            and send back nothing.
+# Rationale: an AI answer that cites this site is traffic. A model training run is not.
+
+# ---------- Search engines ----------
 User-agent: Googlebot
 Allow: /
 Disallow: /search
@@ -9,42 +17,60 @@ Allow: /
 Disallow: /search
 Disallow: /api/
 
-User-agent: *
+User-agent: DuckDuckBot
 Allow: /
 Disallow: /search
 Disallow: /api/
 
-# --- AI SEARCH bots ALLOWED (AI-search visibility / AIO) ---
-# Quota protected by edge cache in middleware.ts
+User-agent: Applebot
+Allow: /
+Disallow: /search
+Disallow: /api/
+
+# ---------- AI: allowed (user-initiated retrieval + AI search index) ----------
+# These fire because a person asked a question, or to build an answer index.
+# They are not training crawlers and they do not crawl the whole site on a timer.
+
 User-agent: OAI-SearchBot
 Allow: /
+Disallow: /search
+Disallow: /api/
 
-# --- AI / LLM TRAINING bots blocked (request-quota protection) ---
+User-agent: ChatGPT-User
+Allow: /
+Disallow: /search
+Disallow: /api/
+
+User-agent: Claude-User
+Allow: /
+Disallow: /search
+Disallow: /api/
+
+User-agent: Claude-SearchBot
+Allow: /
+Disallow: /search
+Disallow: /api/
+
+User-agent: Perplexity-User
+Allow: /
+Disallow: /search
+Disallow: /api/
+
+User-agent: Amzn-SearchBot
+Allow: /
+Disallow: /search
+Disallow: /api/
+
+User-agent: DuckAssistBot
+Allow: /
+Disallow: /search
+Disallow: /api/
+
+# ---------- AI: blocked (training only — eats the free tier, returns nothing) ----------
 User-agent: GPTBot
 Disallow: /
 
-User-agent: ChatGPT-User
-Disallow: /
-
-User-agent: ChatGPT Agent
-Disallow: /
-
-User-agent: Operator
-Disallow: /
-
-# --- Anthropic: ALLOW only the user-initiated fetcher, block the rest (30 Oct 2026) ---
-# Claude-User fires once per human action (someone pasting a URL into Claude chat to
-# inspect/test it). It is NOT a crawler. ClaudeBot = model training, Claude-SearchBot
-# = search indexing, Claude-Web / anthropic-ai = deprecated legacy agents: all blocked.
-# Crawl-delay keeps the allowed fetcher gentle on D1 reads.
-User-agent: Claude-User
-Allow: /
-Crawl-delay: 2
-
 User-agent: ClaudeBot
-Disallow: /
-
-User-agent: Claude-SearchBot
 Disallow: /
 
 User-agent: Claude-Web
@@ -57,30 +83,6 @@ User-agent: CCBot
 Disallow: /
 
 User-agent: Google-Extended
-Disallow: /
-
-User-agent: GoogleOther
-Disallow: /
-
-User-agent: Gemini-Deep-Research
-Disallow: /
-
-User-agent: Google-CloudVertexBot
-Disallow: /
-
-User-agent: PerplexityBot
-Disallow: /
-
-User-agent: Perplexity-User
-Disallow: /
-
-User-agent: DuckAssistBot
-Disallow: /
-
-User-agent: Amazonbot
-Disallow: /
-
-User-agent: Applebot
 Disallow: /
 
 User-agent: Applebot-Extended
@@ -102,9 +104,6 @@ User-agent: FacebookBot
 Disallow: /
 
 User-agent: cohere-ai
-Disallow: /
-
-User-agent: MistralAI-User
 Disallow: /
 
 User-agent: Diffbot
@@ -143,8 +142,29 @@ Disallow: /
 User-agent: VelenPublicWebCrawler
 Disallow: /
 
-# --- Heavy SEO/data crawlers blocked (quota burners) ---
+User-agent: Scrapy
+Disallow: /
+
+User-agent: tlm-scanner
+Disallow: /
+
+User-agent: l9scan
+Disallow: /
+
+User-agent: CMS-Checker
+Disallow: /
+
+User-agent: Reflectionbot
+Disallow: /
+
+User-agent: ExaSearchBot
+Disallow: /
+
+# ---------- Heavy SEO / data crawlers (blocked) ----------
 User-agent: AhrefsBot
+Disallow: /
+
+User-agent: AhrefsSiteAudit
 Disallow: /
 
 User-agent: SemrushBot
@@ -162,6 +182,7 @@ Disallow: /
 User-agent: PetalBot
 Disallow: /
 
+# ---------- Non-India search engines (negligible traffic, real crawl cost) ----------
 User-agent: Baiduspider
 Disallow: /
 
@@ -174,29 +195,11 @@ Disallow: /
 User-agent: YandexBot
 Disallow: /
 
-User-agent: Scrapy
-Disallow: /
-
-# --- Extra heavy crawlers (D1 read protection) ---
-User-agent: Amzn-SearchBot
-Disallow: /
-
-User-agent: AhrefsSiteAudit
-Disallow: /
-
-User-agent: tlm-scanner
-Disallow: /
-
-User-agent: l9scan
-Disallow: /
-
-User-agent: CMS-Checker
-Disallow: /
-
-User-agent: Reflectionbot
-Disallow: /
-
-User-agent: ExaSearchBot
-Disallow: /
+# ---------- Everything else ----------
+User-agent: *
+Allow: /
+Disallow: /search
+Disallow: /api/
+Crawl-delay: 5
 
 Sitemap: https://digipincode.india-in.workers.dev/sitemap.xml

@@ -76,11 +76,16 @@ export const onRequest = defineMiddleware(async (context, next) => {
   // 26 Oct 2026 SKM audit: 'oai-searchbot' removed from BOT_BLOCK - repo robots.txt
   // (24 Oct, rule 434) ALLOWS OAI-SearchBot for AI-search visibility, so the
   // middleware 403 was silently contradicting robots.txt. Edge cache absorbs it.
-  // 30 Oct 2026: Claude-User is deliberately NOT in BOT_BLOCK. It is Anthropic's
-  // user-initiated fetcher (one request per human action, e.g. a URL pasted into
-  // Claude chat to test a page) — not a crawler. robots.txt allows it with
-  // Crawl-delay: 2. ClaudeBot / Claude-SearchBot / Claude-Web / anthropic-ai stay blocked.
-  const BOT_BLOCK = ['reflectionbot','exasearchbot','exauser','ccbot','bytespider','petalbot','mj12bot','dotbot','dataforseobot','semrushbot','ahrefsbot','baiduspider','yandexbot','sogou','scrapy','diffbot','omgili','timpibot','gptbot','chatgpt-user','chatgpt agent','claudebot','claude-searchbot','claude-web','anthropic','perplexitybot','perplexity-user','google-extended','meta-externalagent','meta-externalfetcher','cohere-ai','youbot','iaskspider','webzio','linespider','aihitbot','velenpublicwebcrawler','img2dataset','icc-crawler','amazonbot','amzn-searchbot','applebot-extended','ahrefssiteaudit','tlm-scanner','l9scan','leakix','cms-checker'];  // 16 Oct 2026 SKM audit: enforce robots Amzn-SearchBot block in middleware + close AhrefsSiteAudit/tlm-scanner/l9scan gaps (top non-blocked read burners)
+  // 30 Oct 2026 POLICY (mirrors robots.txt):
+  //   ALLOWED through this middleware = search engines + AI agents that fetch a page
+  //   because a HUMAN asked (Claude-User, ChatGPT-User, Perplexity-User) + AI search
+  //   index crawlers (OAI-SearchBot, Claude-SearchBot, Amzn-SearchBot). An AI answer
+  //   that cites us is traffic; a training run is not.
+  //   BLOCKED = training-only crawlers (GPTBot, ClaudeBot, CCBot, Google-Extended,
+  //   Bytespider, meta-external*, cohere-ai...) and bulk SEO/data scrapers.
+  //   Deliberately NOT in BOT_BLOCK: claude-user, claude-searchbot, chatgpt-user,
+  //   perplexity-user, amzn-searchbot, oai-searchbot.
+  const BOT_BLOCK = ['reflectionbot','exasearchbot','exauser','ccbot','bytespider','petalbot','mj12bot','dotbot','dataforseobot','semrushbot','ahrefsbot','baiduspider','yandexbot','sogou','scrapy','diffbot','omgili','timpibot','gptbot','chatgpt agent','claudebot','claude-web','anthropic-ai','perplexitybot','google-extended','meta-externalagent','meta-externalfetcher','cohere-ai','youbot','iaskspider','webzio','linespider','aihitbot','velenpublicwebcrawler','img2dataset','icc-crawler','amazonbot','applebot-extended','ahrefssiteaudit','tlm-scanner','l9scan','leakix','cms-checker'];  // 16 Oct 2026 SKM audit: enforce robots Amzn-SearchBot block in middleware + close AhrefsSiteAudit/tlm-scanner/l9scan gaps (top non-blocked read burners)
   if (_ua && BOT_BLOCK.some((b) => _ua.includes(b))) {
     return new Response('Forbidden', { status: 403, headers: { 'cache-control': 'no-store' } });
   }
