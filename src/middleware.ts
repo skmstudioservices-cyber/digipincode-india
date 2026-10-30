@@ -115,6 +115,24 @@ export const onRequest = defineMiddleware(async (context, next) => {
     });
   }
 
+  // --- Cache-key prefix leak guard (30 Oct 2026, D1 read + 504 incident) ---
+  // The HTML edge-cache key is built as `/${CACHE_VERSION}${pathname}`, so every
+  // cache entry is stored under a synthetic `/v7/<path>` URL. A crawler found
+  // that shape and started requesting `/v7/<path>` directly. Those requests are
+  // cache MISSES by definition (their own key becomes `/v7/v7/<path>`), so each
+  // one forced a full Astro render + D1 read, and ~half of them timed out (504).
+  // Measured 30 Oct 09:00-17:30 UTC: 16.5k 504s and 17.1M D1 rows read (341% of
+  // the 5M/day free cap). `/v7/` is not a real route and is not in any sitemap,
+  // so 410 Gone kills the subtree at zero D1 cost.
+  // RULE: the cache-key prefix must never be reachable as a page. If CACHE_VERSION
+  // is bumped, add the new value here (and keep the old one for a week).
+  if (/^\/v\d+(\/|$)/i.test(_path0)) {
+    return new Response('Gone', {
+      status: 410,
+      headers: { 'cache-control': 'public, max-age=86400', 'x-robots-tag': 'noindex' },
+    });
+  }
+
   // Protect the expensive /search endpoint: crawlers and empty-UA agents hammering
   // it burn D1 reads (the top read drain). Real browsers always send a user-agent.
   if (new URL(context.request.url).pathname.startsWith('/search') && (!_ua || BOT_BLOCK.some((b) => _ua.includes(b)))) {
