@@ -1,14 +1,10 @@
 name: Deploy portfolio sites (bridge)
 
-# Bridge deploy: builds the portfolio repos with Node 22 and pushes the static
-# output to their Cloudflare Pages projects using this repo's CF token.
-# Used when the Cloudflare GitHub App has not been granted access to the repo.
-
 on:
   workflow_dispatch:
     inputs:
       site:
-        description: "skmstudio | subhammaddheshiya | all"
+        description: "skmstudio | subhammaddheshiya | digipincode-static | all"
         required: false
         default: "all"
 
@@ -30,19 +26,21 @@ jobs:
           [ -z "$WANT" ] && WANT="all"
 
           build_site () {
-            repo="$1"; project="$2"
+            repo="$1"; project="$2"; branch="$3"
             if [ "$WANT" != "all" ] && [ "$WANT" != "$project" ]; then return 0; fi
-            echo "::group::build $repo -> $project"
+            echo "::group::build $repo -> $project ($branch)"
             rm -rf "/tmp/$project"; mkdir -p "/tmp/$project"
             curl -sSL "https://codeload.github.com/skmstudioservices-cyber/$repo/tar.gz/refs/heads/main" \
               | tar -xz -C "/tmp/$project" --strip-components=1
             cd "/tmp/$project"
             npm install --no-audit --no-fund
             npm run build
-            npx --yes wrangler@4 pages deploy dist --project-name="$project" --branch=main --commit-dirty=true
+            npx --yes wrangler@4 pages deploy dist --project-name="$project" --branch="$branch" --commit-dirty=true
             cd - >/dev/null
             echo "::endgroup::"
           }
 
-          build_site SKM-Studio skmstudio
-          build_site Subham-Maddheshiya subhammaddheshiya
+          build_site SKM-Studio skmstudio main
+          build_site Subham-Maddheshiya subhammaddheshiya main
+          # preview only — never the production branch of the live digipincode
+          build_site digipincode-static digipincode-static preview
