@@ -1,0 +1,61 @@
+name: CMS Pages bridge deploy
+
+# Manual batch deployment for my-CMS-dashboard.
+# Source commits do NOT trigger this workflow. Run once after a batch is ready.
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Git branch to build. Use main only for an intentional production deploy."
+        required: true
+        default: "feature/visual-design-studio"
+        type: string
+
+concurrency:
+  group: cms-pages-bridge-${{ inputs.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CMS_REF: ${{ inputs.ref }}
+    steps:
+      - name: Checkout CMS source
+        uses: actions/checkout@v4
+        with:
+          repository: skmstudioservices-cyber/my-CMS-dashboard
+          ref: ${{ inputs.ref }}
+          path: cms
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install CMS dependencies
+        working-directory: cms
+        run: npm install --no-audit --no-fund
+
+      - name: Build CMS
+        working-directory: cms
+        run: npm run build
+
+      - name: Verify expected static output
+        working-directory: cms
+        run: |
+          test -f dist/index.html
+          test -f dist/design-studio/index.html
+          echo "Static output verified for ref: $CMS_REF"
+
+      - name: Deploy batch to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: cms
+          command: pages deploy dist --project-name=my-cms-dashboard --branch="$CMS_REF" --commit-dirty=true
