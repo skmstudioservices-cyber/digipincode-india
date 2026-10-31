@@ -160,6 +160,14 @@ Disallow: /
 User-agent: ExaSearchBot
 Disallow: /
 
+# AionBot (31 Oct 2026 SKM audit): unnamed-index crawler, 2,520 requests in
+# 30h sweeping unique village URLs -> uncached D1 reads, no referral traffic.
+User-agent: AionBot
+Disallow: /
+
+User-agent: AionBot/1.0
+Disallow: /
+
 # ---------- Heavy SEO / data crawlers (blocked) ----------
 User-agent: AhrefsBot
 Disallow: /
