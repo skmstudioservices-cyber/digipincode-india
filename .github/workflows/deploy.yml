@@ -71,7 +71,25 @@ jobs:
       # Migrations always run (idempotent - CREATE TABLE IF NOT EXISTS),
       # even when the deploy below is skipped, so schema changes always
       # land regardless of which deploy path wins.
+      # 31 Oct 2026 SKM audit fix: a transient D1 storage error
+      # ("Internal error in D1 DB storage caused object to be reset") failed this
+      # step at 00:45 UTC and blocked the whole Worker deploy, so the 30 Oct
+      # robots.txt policy never shipped. schema.sql is idempotent
+      # (CREATE TABLE/INDEX IF NOT EXISTS), so a skipped run is safe: the next
+      # push re-applies it. Never let migrations block the code deploy.
       - name: Run D1 migrations
+        id: d1mig
+        continue-on-error: true
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: d1 execute pincode-india-db --file=./schema.sql --remote
+          workingDirectory: .
+
+      - name: Retry D1 migrations once (transient D1 storage reset)
+        if: steps.d1mig.outcome == 'failure'
+        continue-on-error: true
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
