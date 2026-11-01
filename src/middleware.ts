@@ -101,6 +101,16 @@ export const onRequest = defineMiddleware(async (context, next) => {
     return new Response('Forbidden', { status: 403, headers: { 'cache-control': 'no-store' } });
   }
 
+  // --- Spoofed-browser scraper guard (1 Nov 2026 SKM D1 read audit) ---
+  // CF analytics 1 Nov: 13.3k req/day arrive as
+  // "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:151.0) Gecko/20100101 Firefox/151.0"
+  // plus ~34k UA-less hits from the same actor. Firefox dropped macOS 10.15 long ago,
+  // so that fingerprint is a scraper replaying our pincode dataset, not a browser.
+  // Each hit is a cache miss -> full Astro render -> ~2.4 D1 queries (~900k rows/day).
+  if (_ua.includes('firefox/151.0') && _ua.includes('mac os x 10.15')) {
+    return new Response('Forbidden', { status: 403, headers: { 'cache-control': 'no-store' } });
+  }
+
   // --- Bogus cache-key prefix guard (29 Oct 2026, D1 read incident) ---
   // Requests shaped /<uuid>/... are Workers Cache API keys, never real pages.
   // A UA-less crawler landed on one (it answered 200 because the Astro
