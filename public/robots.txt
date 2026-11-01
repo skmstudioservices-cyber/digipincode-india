@@ -204,10 +204,16 @@ User-agent: YandexBot
 Disallow: /
 
 # ---------- Everything else ----------
+# 2 Nov 2026 SKM audit: /v7/ is the synthetic HTML edge-cache key prefix, never a
+# real route and never in any sitemap. Crawlers that discovered it forced cache
+# misses (each one a full render + D1 read) and ~half timed out (504).
+# Mirrors the middleware 410 Gone guard. Belt and braces: compliant crawlers stop
+# here, non-compliant ones are refused at the edge.
 User-agent: *
 Allow: /
 Disallow: /search
 Disallow: /api/
+Disallow: /v7/
 Crawl-delay: 5
 
 Sitemap: https://digipincode.india-in.workers.dev/sitemap.xml
