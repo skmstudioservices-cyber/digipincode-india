@@ -5,24 +5,37 @@ on:
     - cron: "*/30 * * * *"
   workflow_dispatch:
 
+env:
+  # Cloudflare WAF blocks blank / non-browser UAs with 403, so the monitor
+  # must identify itself as a browser or it reports false failures.
+  UA: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+
 jobs:
   check:
     runs-on: ubuntu-latest
     steps:
       - name: Check digipincode homepage
         run: |
-          code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 30 "https://digipincode.india-in.workers.dev/")
+          code=$(curl -s -o /dev/null -w "%{http_code}" -A "$UA" --max-time 30 "https://digipincode.india-in.workers.dev/")
           echo "digipincode homepage: HTTP $code"
-          if [ "$code" != "200" ]; then
-            echo "::error::digipincode.india-in.workers.dev returned HTTP $code"
-            exit 1
-          fi
+          case "$code" in
+            200|301|302) ;;
+            *) echo "::error::digipincode.india-in.workers.dev returned HTTP $code"; exit 1 ;;
+          esac
+
+      - name: Check digipincode deep page
+        run: |
+          code=$(curl -s -o /dev/null -w "%{http_code}" -A "$UA" --max-time 30 "https://digipincode.india-in.workers.dev/v7/")
+          echo "digipincode /v7/ : HTTP $code"
+          case "$code" in
+            200|301|302|204) ;;
+            *) echo "::warning::digipincode /v7/ returned HTTP $code" ;;
+          esac
 
       - name: Check skm-ai-worker responds
         run: |
-          code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 30 "https://skm-ai-worker.india-in.workers.dev/")
+          code=$(curl -s -o /dev/null -w "%{http_code}" -A "$UA" --max-time 30 "https://skm-ai-worker.india-in.workers.dev/")
           echo "skm-ai-worker root: HTTP $code"
-          if [ "$code" = "000" ] || [ "$code" = "522" ] || [ "$code" = "523" ]; then
-            echo "::error::skm-ai-worker.india-in.workers.dev unreachable (HTTP $code)"
-            exit 1
-          fi
+          case "$code" in
+            000|522|523|504) echo "::error::skm-ai-worker.india-in.workers.dev unreachable (HTTP $code)"; exit 1 ;;
+          esac
