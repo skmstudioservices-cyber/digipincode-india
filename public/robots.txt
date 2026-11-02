@@ -1,219 +1,28 @@
 # robots.txt — Digipincode India
-# Policy (30 Oct 2026):
-#   ALLOW  = search engines + AI agents that fetch a page because a HUMAN asked
-#            (chat-time retrieval) + AI search-index crawlers. These bring visitors.
-#   BLOCK  = training-only crawlers and bulk SEO/data scrapers. They cost D1 reads
-#            and send back nothing.
-# Rationale: an AI answer that cites this site is traffic. A model training run is not.
+# Policy (2 Nov 2026, owner directive): allow Googlebot only.
+#   Every other crawler is disallowed at the robots level, and the worker
+#   middleware enforces the same rule at the edge (robots.txt is advisory;
+#   scrapers ignore it, so both layers are required).
+# Reason: the D1 free tier (5M rows read/day) was exceeded 5 days running,
+#   peaking at 33.8M. Non-Google crawlers returned no measurable traffic.
+# To reverse: restore the previous allow-list for Bingbot / AI-search crawlers.
 
-# ---------- Search engines ----------
+# ---------- Allowed: Googlebot only ----------
 User-agent: Googlebot
 Allow: /
 Disallow: /search
 Disallow: /api/
 
-User-agent: Bingbot
+User-agent: Googlebot-Image
 Allow: /
 Disallow: /search
 Disallow: /api/
 
-User-agent: DuckDuckBot
+User-agent: Google-InspectionTool
 Allow: /
 Disallow: /search
 Disallow: /api/
 
-User-agent: Applebot
-Allow: /
-Disallow: /search
-Disallow: /api/
-
-# ---------- AI: allowed (user-initiated retrieval + AI search index) ----------
-# These fire because a person asked a question, or to build an answer index.
-# They are not training crawlers and they do not crawl the whole site on a timer.
-
-User-agent: OAI-SearchBot
-Allow: /
-Disallow: /search
-Disallow: /api/
-
-User-agent: ChatGPT-User
-Allow: /
-Disallow: /search
-Disallow: /api/
-
-User-agent: Claude-User
-Allow: /
-Disallow: /search
-Disallow: /api/
-
-User-agent: Claude-SearchBot
-Allow: /
-Disallow: /search
-Disallow: /api/
-
-User-agent: Perplexity-User
-Allow: /
-Disallow: /search
-Disallow: /api/
-
-User-agent: Amzn-SearchBot
-Allow: /
-Disallow: /search
-Disallow: /api/
-
-User-agent: DuckAssistBot
-Allow: /
-Disallow: /search
-Disallow: /api/
-
-# ---------- AI: blocked (training only — eats the free tier, returns nothing) ----------
-User-agent: GPTBot
-Disallow: /
-
-User-agent: ClaudeBot
-Disallow: /
-
-User-agent: Claude-Web
-Disallow: /
-
-User-agent: anthropic-ai
-Disallow: /
-
-User-agent: CCBot
-Disallow: /
-
-User-agent: Google-Extended
-Disallow: /
-
-User-agent: Applebot-Extended
-Disallow: /
-
-User-agent: Bytespider
-Disallow: /
-
-User-agent: meta-externalagent
-Disallow: /
-
-User-agent: meta-externalfetcher
-Disallow: /
-
-User-agent: Meta-WebIndexer
-Disallow: /
-
-User-agent: FacebookBot
-Disallow: /
-
-User-agent: cohere-ai
-Disallow: /
-
-User-agent: Diffbot
-Disallow: /
-
-User-agent: YouBot
-Disallow: /
-
-User-agent: iaskspider
-Disallow: /
-
-User-agent: webzio
-Disallow: /
-
-User-agent: Omgili
-Disallow: /
-
-User-agent: Omgilibot
-Disallow: /
-
-User-agent: img2dataset
-Disallow: /
-
-User-agent: ICC-Crawler
-Disallow: /
-
-User-agent: Timpibot
-Disallow: /
-
-User-agent: Linespider
-Disallow: /
-
-User-agent: aiHitBot
-Disallow: /
-
-User-agent: VelenPublicWebCrawler
-Disallow: /
-
-User-agent: Scrapy
-Disallow: /
-
-User-agent: tlm-scanner
-Disallow: /
-
-User-agent: l9scan
-Disallow: /
-
-User-agent: CMS-Checker
-Disallow: /
-
-User-agent: Reflectionbot
-Disallow: /
-
-User-agent: ExaSearchBot
-Disallow: /
-
-# AionBot (31 Oct 2026 SKM audit): unnamed-index crawler, 2,520 requests in
-# 30h sweeping unique village URLs -> uncached D1 reads, no referral traffic.
-User-agent: AionBot
-Disallow: /
-
-User-agent: AionBot/1.0
-Disallow: /
-
-# ---------- Heavy SEO / data crawlers (blocked) ----------
-User-agent: AhrefsBot
-Disallow: /
-
-User-agent: AhrefsSiteAudit
-Disallow: /
-
-User-agent: SemrushBot
-Disallow: /
-
-User-agent: MJ12bot
-Disallow: /
-
-User-agent: DotBot
-Disallow: /
-
-User-agent: DataForSeoBot
-Disallow: /
-
-User-agent: PetalBot
-Disallow: /
-
-# ---------- Non-India search engines (negligible traffic, real crawl cost) ----------
-User-agent: Baiduspider
-Disallow: /
-
-User-agent: Sogou
-Disallow: /
-
-User-agent: Yeti
-Disallow: /
-
-User-agent: YandexBot
-Disallow: /
-
-# ---------- Everything else ----------
-# 2 Nov 2026 SKM audit: /v7/ is the synthetic HTML edge-cache key prefix, never a
-# real route and never in any sitemap. Crawlers that discovered it forced cache
-# misses (each one a full render + D1 read) and ~half timed out (504).
-# Mirrors the middleware 410 Gone guard. Belt and braces: compliant crawlers stop
-# here, non-compliant ones are refused at the edge.
+# ---------- Everything else: denied ----------
 User-agent: *
-Allow: /
-Disallow: /search
-Disallow: /api/
-Disallow: /v7/
-Crawl-delay: 5
-
-Sitemap: https://digipincode.india-in.workers.dev/sitemap.xml
+Disallow: /
