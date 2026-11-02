@@ -90,6 +90,25 @@ export const onRequest = defineMiddleware(async (context, next) => {
     return new Response('Forbidden', { status: 403, headers: { 'cache-control': 'no-store' } });
   }
 
+  // --- Bot ALLOWLIST (2 Nov 2026, owner directive: Googlebot only) ---
+  // Previous policy was a blocklist, which only stopped named crawlers. It left
+  // every unnamed scraper and every spoofed-browser farm free to render cold
+  // URLs and burn D1 reads. This inverts the rule: if the UA looks like a
+  // crawler at all, it must prove it is Googlebot or it is refused.
+  // Mirrors robots.txt (which is advisory only).
+  const BOT_ALLOW = ['googlebot', 'google-inspectiontool', 'adsbot-google',
+    'mediapartners-google', 'apis-google', 'feedfetcher-google',
+    'skm-site-monitor', 'skm-network-audit']; // our own monitors must keep working
+  const BOT_TOKENS = ['bot', 'crawler', 'spider', 'scrape', 'slurp', 'archiver',
+    'fetcher', 'curl', 'wget', 'python', 'go-http-client', 'headless', 'phantom',
+    'exabot', 'ia_archiver', 'facebookexternalhit', 'monitor', 'audit', 'scan',
+    'probe', 'checker', 'validator', 'lighthouse'];
+  const _isBot = BOT_TOKENS.some((t) => _ua.includes(t));
+  const _isAllowedBot = BOT_ALLOW.some((a) => _ua.includes(a));
+  if (_ua && _isBot && !_isAllowedBot) {
+    return new Response('Forbidden', { status: 403, headers: { 'cache-control': 'no-store' } });
+  }
+
   // --- Empty-UA guard (D1 read protection, 15 Oct 2026) ---
   // CF analytics show the single biggest D1 read drain is UA-less traffic:
   // ~13.7k req/day to this worker (more than every named bot combined), hitting
