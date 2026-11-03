@@ -1,10 +1,14 @@
 name: Deploy portfolio sites (bridge)
 
+# Bridge deploy: builds the site repos with Node 22 and pushes the output to
+# their Cloudflare Pages projects using this repo's CF token. Used when the
+# Pages Git build lags or the Cloudflare GitHub App has no access to the repo.
+
 on:
   workflow_dispatch:
     inputs:
       site:
-        description: "skmstudio | subhammaddheshiya | digipincode-static | all"
+        description: "skmstudio | subhammaddheshiya | digipincode-static | toiletsnearme | all"
         required: false
         default: "all"
 
@@ -20,27 +24,31 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          SITE: ${{ github.event.inputs.site }}
         run: |
           set -euo pipefail
-          WANT="${{ github.event.inputs.site }}"
-          [ -z "$WANT" ] && WANT="all"
+          get() { curl -sSL "https://codeload.github.com/skmstudioservices-cyber/$1/tar.gz/refs/heads/main" | tar -xz -C "$2" --strip-components=1; }
 
-          build_site () {
-            repo="$1"; project="$2"; branch="$3"
-            if [ "$WANT" != "all" ] && [ "$WANT" != "$project" ]; then return 0; fi
-            echo "::group::build $repo -> $project ($branch)"
-            rm -rf "/tmp/$project"; mkdir -p "/tmp/$project"
-            curl -sSL "https://codeload.github.com/skmstudioservices-cyber/$repo/tar.gz/refs/heads/main" \
-              | tar -xz -C "/tmp/$project" --strip-components=1
-            cd "/tmp/$project"
-            npm install --no-audit --no-fund
-            npm run build
-            npx --yes wrangler@4 pages deploy dist --project-name="$project" --branch="$branch" --commit-dirty=true
-            cd - >/dev/null
-            echo "::endgroup::"
-          }
+          if [ "$SITE" = "all" ] || [ "$SITE" = "skmstudio" ]; then
+            rm -rf /tmp/a && mkdir -p /tmp/a && get SKM-Studio /tmp/a
+            (cd /tmp/a && npm install --no-audit --no-fund && npm run build && npx --yes wrangler@4 pages deploy dist --project-name=skmstudio --branch=main --commit-dirty=true)
+          fi
 
-          build_site SKM-Studio skmstudio main
-          build_site Subham-Maddheshiya subhammaddheshiya main
-          # preview only — never the production branch of the live digipincode
-          build_site digipincode-static digipincode-static preview
+          if [ "$SITE" = "all" ] || [ "$SITE" = "subhammaddheshiya" ]; then
+            rm -rf /tmp/b && mkdir -p /tmp/b && get Subham-Maddheshiya /tmp/b
+            (cd /tmp/b && npm install --no-audit --no-fund && npm run build && npx --yes wrangler@4 pages deploy dist --project-name=subhammaddheshiya --branch=main --commit-dirty=true)
+          fi
+
+          if [ "$SITE" = "all" ] || [ "$SITE" = "digipincode-static" ]; then
+            rm -rf /tmp/c && mkdir -p /tmp/c && get digipincode-static /tmp/c
+            (cd /tmp/c && npm install --no-audit --no-fund && npm run build && npx --yes wrangler@4 pages deploy dist --project-name=digipincode-static --branch=preview --commit-dirty=true)
+          fi
+
+          # toiletsnearme is pure static HTML — no build step, deploy the repo root
+          # (minus .github/scripts) so every fix lands immediately, bypassing the
+          # Pages Git build queue.
+          if [ "$SITE" = "all" ] || [ "$SITE" = "toiletsnearme" ]; then
+            rm -rf /tmp/d && mkdir -p /tmp/d && get toiletsnearme /tmp/d
+            rm -rf /tmp/d/.github /tmp/d/scripts
+            (cd /tmp/d && npx --yes wrangler@4 pages deploy . --project-name=toiletsnearme --branch=main --commit-dirty=true)
+          fi
