@@ -1,119 +1,293 @@
 {
-  "version": 1,
-  "note": "Single source of truth for the SKM network audit. Add/remove a site here only.",
-  "pages": [
-    "https://aadhaar-seva-kendra-near-me.pages.dev/",
-    "https://aadhaarcenternearme.pages.dev/",
-    "https://airqualitynearme.pages.dev/",
-    "https://asiangamesmedaltally2026.pages.dev/",
-    "https://atmsnearme.pages.dev/",
-    "https://autostandnearme.pages.dev/",
-    "https://bakerynearme.pages.dev/",
-    "https://banksnearme.pages.dev/",
-    "https://bharatlive.pages.dev/",
-    "https://bicyclestandnearme.pages.dev/",
-    "https://bikerepairsnearme.pages.dev/",
-    "https://bikestandnearme.pages.dev/",
-    "https://bloodbanksnearme.pages.dev/",
-    "https://busstationnearme.pages.dev/",
-    "https://busstopnearme.pages.dev/",
-    "https://cafenearme.pages.dev/",
-    "https://carparkingnearme.pages.dev/",
-    "https://carrepairsnearme.pages.dev/",
-    "https://churchesnearme.pages.dev/",
-    "https://cngpumpsnearme.pages.dev/",
-    "https://courtnearme.pages.dev/",
-    "https://demo-vmv.pages.dev/",
-    "https://dentistsnearme.pages.dev/",
-    "https://dhabanearme.pages.dev/",
-    "https://digipincode.india-in.workers.dev/",
-    "https://digipincode.pages.dev/",
-    "https://earthquakenearme.pages.dev/",
-    "https://electricityofficenearme.pages.dev/",
-    "https://erickshawstandnearme.pages.dev/",
-    "https://evchargersnearme.pages.dev/",
-    "https://examstatus.india-in.workers.dev/",
-    "https://floodsnearme.pages.dev/",
-    "https://gymnearme.pages.dev/",
-    "https://hardwareshopnearme.pages.dev/",
-    "https://hospitalsnearme-9cp.pages.dev/",
-    "https://hotelnearme.pages.dev/",
-    "https://isrotracker.pages.dev/",
-    "https://issspotter.pages.dev/",
-    "https://karvachauth.india-in.workers.dev/",
-    "https://karvachauth.pages.dev/",
-    "https://laundrynearme.pages.dev/",
-    "https://lodgenearme.pages.dev/",
-    "https://mapsnearme.pages.dev/",
-    "https://mechanicnearme.pages.dev/",
-    "https://medicalshopnearme.pages.dev/",
-    "https://mobilerepairnearme.pages.dev/",
-    "https://mosquesnearme.pages.dev/",
-    "https://paintshopnearme.pages.dev/",
-    "https://parksnearme.pages.dev/",
-    "https://petrolpumpsnearme.pages.dev/",
-    "https://policestationsnearme.pages.dev/",
-    "https://postofficenearme.pages.dev/",
-    "https://protestsnearme.pages.dev/",
-    "https://railwaystationnearme.pages.dev/",
-    "https://rationcardofficernearme.pages.dev/",
-    "https://restareanearme.pages.dev/",
-    "https://restaurantsnearme.pages.dev/",
-    "https://rtoofficenearme.pages.dev/",
-    "https://safealleys.pages.dev/",
-    "https://salonnearme.pages.dev/",
-    "https://skmtools.pages.dev/",
-    "https://sweetsshopnearme.pages.dev/",
-    "https://tailorshopnearme.pages.dev/",
-    "https://templesnearme.pages.dev/",
-    "https://thananearme.pages.dev/",
-    "https://tirenearme.pages.dev/",
-    "https://toiletsnearme.pages.dev/",
-    "https://tollplazanearme.pages.dev/",
-    "https://washroomsnearme.pages.dev/"
-  ],
-  "blogger": [
-    "sc-domain:15augustbestwishesstatus.blogspot.com",
-    "sc-domain:15augustwishesstatus.blogspot.com",
-    "sc-domain:bustrackr.blogspot.com",
-    "sc-domain:digitalpincode.blogspot.com",
-    "sc-domain:happywishesandshayari.blogspot.com",
-    "sc-domain:independenceday2026wishes.blogspot.com",
-    "sc-domain:metrocityproperties.blogspot.com",
-    "sc-domain:purvanchalproperties.blogspot.com"
-  ],
-  "workers": [
+  "generated": "2026-11-03",
+  "note": "enabled=false entries need their deploy type confirmed before turning on",
+  "sites": [
     {
-      "name": "digipincode",
-      "url": "https://digipincode.india-in.workers.dev/"
+      "repo": "toiletsnearme",
+      "type": "pages-static",
+      "project": "toiletsnearme",
+      "branch": "main",
+      "enabled": true
     },
     {
-      "name": "examstatus",
-      "url": "https://examstatus.india-in.workers.dev/"
+      "repo": "washroomsnearme",
+      "type": "pages-static",
+      "project": "washroomsnearme",
+      "branch": "main",
+      "enabled": true
     },
     {
-      "name": "karvachauth",
-      "url": "https://karvachauth.india-in.workers.dev/"
+      "repo": "restareanearme",
+      "type": "pages-static",
+      "project": "restareanearme",
+      "branch": "main",
+      "enabled": true
     },
     {
-      "name": "skm-voice-agent-proxy",
-      "url": "https://skm-voice-agent-proxy.india-in.workers.dev/"
+      "repo": "cngpumpsnearme",
+      "type": "pages-static",
+      "project": "cngpumpsnearme",
+      "branch": "main",
+      "enabled": true
+    },
+    {
+      "repo": "EVchargersnearme",
+      "type": "pages-static",
+      "project": "evchargersnearme",
+      "branch": "main",
+      "enabled": true
+    },
+    {
+      "repo": "busstationnearme",
+      "type": "pages-static",
+      "project": "busstationnearme",
+      "branch": "main",
+      "enabled": true
+    },
+    {
+      "repo": "busstopnearme",
+      "type": "pages-static",
+      "project": "busstopnearme",
+      "branch": "main",
+      "enabled": true
+    },
+    {
+      "repo": "gymnearme",
+      "type": "pages-static",
+      "project": "gymnearme",
+      "branch": "main",
+      "enabled": true
+    },
+    {
+      "repo": "tailorshopnearme",
+      "type": "pages-static",
+      "project": "tailorshopnearme",
+      "branch": "main",
+      "enabled": true
+    },
+    {
+      "repo": "railwaystationnearme",
+      "type": "pages-static",
+      "project": "railwaystationnearme",
+      "branch": "main",
+      "enabled": true
+    },
+    {
+      "repo": "floodsnearme",
+      "type": "pages-static",
+      "project": "floodsnearme",
+      "branch": "main",
+      "enabled": true
+    },
+    {
+      "repo": "airqualitynearme",
+      "type": "pages-static",
+      "project": "airqualitynearme",
+      "branch": "main",
+      "enabled": true
+    },
+    {
+      "repo": "bloodbanksnearme",
+      "type": "pages-static",
+      "project": "bloodbanksnearme",
+      "branch": "main",
+      "enabled": true
+    },
+    {
+      "repo": "earthquakenearme",
+      "type": "pages-static",
+      "project": "earthquakenearme",
+      "branch": "main",
+      "enabled": true
+    },
+    {
+      "repo": "issspotter",
+      "type": "pages-static",
+      "project": "issspotter",
+      "branch": "main",
+      "enabled": true
+    },
+    {
+      "repo": "isrotracker",
+      "type": "pages-static",
+      "project": "isrotracker",
+      "branch": "main",
+      "enabled": true
+    },
+    {
+      "repo": "bharatlive",
+      "type": "pages-static",
+      "project": "bharatlive",
+      "branch": "main",
+      "enabled": true
+    },
+    {
+      "repo": "asiangamesmedaltally2026",
+      "type": "pages-static",
+      "project": "asiangamesmedaltally2026",
+      "branch": "main",
+      "enabled": true
+    },
+    {
+      "repo": "Aadhaar-Seva-Kendra-near-me",
+      "type": "pages-static",
+      "project": "aadhaar-seva-kendra-near-me",
+      "branch": "main",
+      "enabled": true
+    },
+    {
+      "repo": "Safe-Alleys",
+      "type": "pages-static",
+      "project": "safe-alleys",
+      "branch": "main",
+      "enabled": true
+    },
+    {
+      "repo": "examcentrenearme",
+      "type": "pages-static",
+      "project": "examcentrenearme",
+      "branch": "main",
+      "enabled": true
+    },
+    {
+      "repo": "examcentersindia",
+      "type": "pages-static",
+      "project": "examcentersindia",
+      "branch": "main",
+      "enabled": true
+    },
+    {
+      "repo": "skmtools",
+      "type": "pages-static",
+      "project": "skmtools",
+      "branch": "main",
+      "enabled": true
+    },
+    {
+      "repo": "karvachauth",
+      "type": "pages-static",
+      "project": "karvachauth",
+      "branch": "main",
+      "enabled": true
+    },
+    {
+      "repo": "Demo",
+      "type": "pages-static",
+      "project": "demo",
+      "branch": "main",
+      "enabled": true
+    },
+    {
+      "repo": "CMS",
+      "type": "pages-static",
+      "project": "cms",
+      "branch": "main",
+      "enabled": true
+    },
+    {
+      "repo": "SKM-Studio",
+      "type": "pages-build",
+      "project": "skmstudio",
+      "branch": "main",
+      "enabled": true
+    },
+    {
+      "repo": "Subham-Maddheshiya",
+      "type": "pages-build",
+      "project": "subhammaddheshiya",
+      "branch": "main",
+      "enabled": true
+    },
+    {
+      "repo": "digipincode-india",
+      "type": "worker",
+      "project": "digipincode",
+      "branch": "main",
+      "enabled": true
+    },
+    {
+      "repo": "examstatus",
+      "type": "worker",
+      "project": "examstatus",
+      "branch": "main",
+      "enabled": true
+    },
+    {
+      "repo": "mapsnearme",
+      "type": "worker",
+      "project": "mapsnearme",
+      "branch": "main",
+      "enabled": true
+    },
+    {
+      "repo": "my-CMS-dashboard",
+      "type": "worker",
+      "project": "my-CMS-dashboard",
+      "branch": "main",
+      "enabled": true
+    },
+    {
+      "repo": "dashboardmapsnearme",
+      "type": "unclassified",
+      "project": "dashboardmapsnearme",
+      "branch": "main",
+      "enabled": false
+    },
+    {
+      "repo": "my-dashboard",
+      "type": "unclassified",
+      "project": "my-dashboard",
+      "branch": "main",
+      "enabled": false
+    },
+    {
+      "repo": "global-spatial-vault",
+      "type": "unclassified",
+      "project": "global-spatial-vault",
+      "branch": "main",
+      "enabled": false
+    },
+    {
+      "repo": "skm-studio-project",
+      "type": "unclassified",
+      "project": "skm-studio-project",
+      "branch": "main",
+      "enabled": false
+    },
+    {
+      "repo": "voice-brain",
+      "type": "unclassified",
+      "project": "voice-brain",
+      "branch": "main",
+      "enabled": false
+    },
+    {
+      "repo": "maps",
+      "type": "unclassified",
+      "project": "maps",
+      "branch": "main",
+      "enabled": false
+    },
+    {
+      "repo": "maps-old-repo",
+      "type": "unclassified",
+      "project": "maps-old-repo",
+      "branch": "main",
+      "enabled": false
+    },
+    {
+      "repo": "v3",
+      "type": "unclassified",
+      "project": "v3",
+      "branch": "main",
+      "enabled": false
+    },
+    {
+      "repo": "digipincode-static",
+      "type": "unclassified",
+      "project": "digipincode-static",
+      "branch": "main",
+      "enabled": false
     }
-  ],
-  "workers_unmapped": [
-    "cms",
-    "mapsnearme",
-    "my-cms-dashboard",
-    "skm-ai-worker",
-    "skm-diagnostic",
-    "skmtools",
-    "spoc-writer"
-  ],
-  "deep_pages": {
-    "default": 15,
-    "top": 60,
-    "cold": 5,
-    "max": 100,
-    "rule": "N deep pages/site auto-tuned by 28d GSC impressions: 0-impr=5, mid=15, top=60, hard cap 100 (ramps up gradually each run)"
-  }
+  ]
 }
