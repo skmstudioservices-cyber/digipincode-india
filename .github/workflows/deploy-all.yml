@@ -55,18 +55,22 @@ jobs:
           W=$(mktemp -d)
           curl -sSL "https://codeload.github.com/skmstudioservices-cyber/$REPO/tar.gz/refs/heads/main" | tar -xz -C "$W" --strip-components=1
           cd "$W"
-          rm -rf .github scripts || true
+          rm -rf .github || true
 
           case "$TYPE" in
             pages-static)
+              # pure HTML repos: scripts/ is not needed at runtime
+              rm -rf scripts || true
               npx --yes wrangler@4 pages deploy . --project-name="$PROJECT" --branch="$BRANCH" --commit-dirty=true
               ;;
             pages-build)
+              # Astro build — scripts/ MUST stay, some builds call it
               npm install --no-audit --no-fund
               npm run build
               npx --yes wrangler@4 pages deploy dist --project-name="$PROJECT" --branch="$BRANCH" --commit-dirty=true
               ;;
             worker)
+              # scripts/ MUST stay (examstatus wraps its scheduled handler)
               npm install --no-audit --no-fund
               npm run build --if-present
               npx --yes wrangler@4 deploy
