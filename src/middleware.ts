@@ -66,6 +66,28 @@ export const onRequest = defineMiddleware(async (context, next) => {
   if (_cu.hostname.endsWith('.pages.dev') && context.request.method === 'GET') {
     return Response.redirect(`https://digipincode.india-in.workers.dev${_cu.pathname}${_cu.search}`, 301);
   }
+  // --- Geo guard (3 Nov 2026, user rule): India-only traffic ---
+  // Every request from outside India is refused, EXCEPT Googlebot and the other
+  // Google indexing crawlers (they crawl from US IPs and must stay allowed or
+  // the site can never be indexed). Measured 2 Nov: 48,204 UA-less requests from
+  // US were burning CPU and D1 on cold renders — this blocks that entire class
+  // at the cheapest possible point (before any URL parse or render).
+  // Cached for a year so repeat offenders cost zero CPU.
+  const _cf = (context.request as any).cf || {};
+  const _country = String(_cf.country || '');
+  const _uaGeo = (context.request.headers.get('user-agent') || '');
+  const _isGoogleIndexer = /googlebot|google-inspectiontool|adsbot-google|mediapartners-google|apis-google|googleother|storebot-google/i.test(_uaGeo);
+  if (_country && _country !== 'IN' && !_isGoogleIndexer) {
+    return new Response('Not available in your region', {
+      status: 403,
+      headers: {
+        'content-type': 'text/plain; charset=utf-8',
+        'cache-control': 'public, max-age=31536000, immutable',
+        'x-robots-tag': 'noindex',
+      },
+    });
+  }
+
   // --- Bot guard (D1 read protection, 14 Oct 2026) ---
   // Known AI / heavy crawlers that ignore robots.txt and burn D1 reads on
   // cold (uncached) unique URLs. Googlebot/Bingbot and real search engines
