@@ -76,7 +76,9 @@ export const onRequest = defineMiddleware(async (context, next) => {
   const _cf = (context.request as any).cf || {};
   const _country = String(_cf.country || '');
   const _uaGeo = (context.request.headers.get('user-agent') || '');
-  const _isGoogleIndexer = /googlebot|google-inspectiontool|adsbot-google|mediapartners-google|apis-google|googleother|storebot-google/i.test(_uaGeo);
+  // Allowed regardless of country: search-index crawlers (Google + Bing) and the
+  // chat-retrieval agents (they fetch one page per human action, so volume is low).
+  const _isGoogleIndexer = /googlebot|google-inspectiontool|adsbot-google|mediapartners-google|apis-google|googleother|storebot-google|bingbot|msnbot|adidxbot|claude-user|claude-searchbot|chatgpt-user|oai-searchbot|perplexity-user/i.test(_uaGeo);
   if (_country && _country !== 'IN' && !_isGoogleIndexer) {
     return new Response('Not available in your region', {
       status: 403,
