@@ -106,7 +106,13 @@ export const onRequest = defineMiddleware(async (context, next) => {
   const _isBot = BOT_TOKENS.some((t) => _ua.includes(t));
   const _isAllowedBot = BOT_ALLOW.some((a) => _ua.includes(a));
   if (_ua && _isBot && !_isAllowedBot) {
-    return new Response('Forbidden', { status: 403, headers: { 'cache-control': 'no-store' } });
+    return new Response('Forbidden', {
+      status: 403,
+      headers: {
+        'cache-control': 'public, max-age=31536000, immutable',
+        'x-robots-tag': 'noindex',
+      },
+    });
   }
 
   // --- Empty-UA guard (D1 read protection, 15 Oct 2026) ---
@@ -116,8 +122,17 @@ export const onRequest = defineMiddleware(async (context, next) => {
   // legitimate crawler sends a User-Agent, so we refuse UA-less requests.
   // /api/* is exempt so the first-party /api/collect beacon keeps working.
   const _path0 = new URL(context.request.url).pathname;
+  // 3 Nov 2026: the block was `no-store`, so every repeat hit re-invoked the
+  // Worker (48,204 UA-less US hits/day -> 504 + CPU exhaustion). Cache the
+  // block at the edge for a year: repeat offenders then cost zero CPU, zero D1.
   if (!_ua && !_path0.startsWith('/api/')) {
-    return new Response('Forbidden', { status: 403, headers: { 'cache-control': 'no-store' } });
+    return new Response('Forbidden', {
+      status: 403,
+      headers: {
+        'cache-control': 'public, max-age=31536000, immutable',
+        'x-robots-tag': 'noindex',
+      },
+    });
   }
 
   // --- Spoofed-browser scraper guard (1 Nov 2026 SKM D1 read audit) ---
@@ -127,7 +142,10 @@ export const onRequest = defineMiddleware(async (context, next) => {
   // so that fingerprint is a scraper replaying our pincode dataset, not a browser.
   // Each hit is a cache miss -> full Astro render -> ~2.4 D1 queries (~900k rows/day).
   if (_ua.includes('firefox/151.0') && _ua.includes('mac os x 10.15')) {
-    return new Response('Forbidden', { status: 403, headers: { 'cache-control': 'no-store' } });
+    return new Response('Forbidden', {
+      status: 403,
+      headers: { 'cache-control': 'public, max-age=31536000, immutable', 'x-robots-tag': 'noindex' },
+    });
   }
 
   // --- Bogus cache-key prefix guard (29 Oct 2026, D1 read incident) ---
@@ -165,7 +183,10 @@ export const onRequest = defineMiddleware(async (context, next) => {
   // Protect the expensive /search endpoint: crawlers and empty-UA agents hammering
   // it burn D1 reads (the top read drain). Real browsers always send a user-agent.
   if (new URL(context.request.url).pathname.startsWith('/search') && (!_ua || BOT_BLOCK.some((b) => _ua.includes(b)))) {
-    return new Response('Forbidden', { status: 403, headers: { 'cache-control': 'no-store' } });
+    return new Response('Forbidden', {
+      status: 403,
+      headers: { 'cache-control': 'public, max-age=31536000, immutable', 'x-robots-tag': 'noindex' },
+    });
   }
 
   // --- D1 read-replication session ---
