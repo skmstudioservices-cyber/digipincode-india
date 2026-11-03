@@ -1,6 +1,6 @@
 {
   "generated": "2026-11-03",
-  "note": "enabled=false entries need their deploy type confirmed before turning on",
+  "note": "enabled=false = Pages project does not exist or deploy type unconfirmed",
   "sites": [
     {
       "repo": "toiletsnearme",
@@ -136,27 +136,6 @@
       "enabled": true
     },
     {
-      "repo": "Safe-Alleys",
-      "type": "pages-static",
-      "project": "safe-alleys",
-      "branch": "main",
-      "enabled": true
-    },
-    {
-      "repo": "examcentrenearme",
-      "type": "pages-static",
-      "project": "examcentrenearme",
-      "branch": "main",
-      "enabled": true
-    },
-    {
-      "repo": "examcentersindia",
-      "type": "pages-static",
-      "project": "examcentersindia",
-      "branch": "main",
-      "enabled": true
-    },
-    {
       "repo": "skmtools",
       "type": "pages-static",
       "project": "skmtools",
@@ -178,13 +157,6 @@
       "enabled": true
     },
     {
-      "repo": "CMS",
-      "type": "pages-static",
-      "project": "cms",
-      "branch": "main",
-      "enabled": true
-    },
-    {
       "repo": "SKM-Studio",
       "type": "pages-build",
       "project": "skmstudio",
@@ -195,6 +167,13 @@
       "repo": "Subham-Maddheshiya",
       "type": "pages-build",
       "project": "subhammaddheshiya",
+      "branch": "main",
+      "enabled": true
+    },
+    {
+      "repo": "mapsnearme",
+      "type": "pages-build",
+      "project": "mapsnearme",
       "branch": "main",
       "enabled": true
     },
@@ -213,18 +192,39 @@
       "enabled": true
     },
     {
-      "repo": "mapsnearme",
-      "type": "worker",
-      "project": "mapsnearme",
-      "branch": "main",
-      "enabled": true
-    },
-    {
       "repo": "my-CMS-dashboard",
       "type": "worker",
       "project": "my-CMS-dashboard",
       "branch": "main",
       "enabled": true
+    },
+    {
+      "repo": "examcentrenearme",
+      "type": "unclassified",
+      "project": "examcentrenearme",
+      "branch": "main",
+      "enabled": false
+    },
+    {
+      "repo": "examcentersindia",
+      "type": "unclassified",
+      "project": "examcentersindia",
+      "branch": "main",
+      "enabled": false
+    },
+    {
+      "repo": "Safe-Alleys",
+      "type": "unclassified",
+      "project": "safe-alleys",
+      "branch": "main",
+      "enabled": false
+    },
+    {
+      "repo": "CMS",
+      "type": "unclassified",
+      "project": "cms",
+      "branch": "main",
+      "enabled": false
     },
     {
       "repo": "dashboardmapsnearme",
