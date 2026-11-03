@@ -87,7 +87,25 @@ export async function getVillagesByPincode(db: DB, pincode: string) {
   return results;
 }
 
+// 3 Nov 2026 (D1 read audit): lgd_panchayats is EMPTY (0 rows) yet this join ran
+// 4,051x/day and read 369,032 rows to return nothing — 15% of all reads.
+// Probe once per isolate and skip the join entirely while the table is empty.
+// If the table is ever populated, fresh isolates pick it up automatically.
+let _panchayatTableEmpty: boolean | null = null;
+
 export async function getPanchayatsByPincode(db: DB, pincode: string) {
+  if (_panchayatTableEmpty === true) return [];
+  if (_panchayatTableEmpty === null) {
+    try {
+      const probe = await withRetry(() =>
+        db.prepare('SELECT 1 AS x FROM lgd_panchayats LIMIT 1').first()
+      );
+      _panchayatTableEmpty = !probe;
+      if (_panchayatTableEmpty) return [];
+    } catch {
+      // probe failed — fall through to the real query rather than hide data
+    }
+  }
   const { results } = await withRetry(() =>
     db.prepare(`
     SELECT DISTINCT l.* FROM lgd_panchayats l

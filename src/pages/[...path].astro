@@ -174,8 +174,11 @@ if (!dist) {
 } else if (pin) {
   data.pin = await getPincode(DB, pin);
   if (!data.pin) return notFound();
-  data.villages = await getVillagesByPincode(DB, pin);
-  data.panchayats = await getPanchayatsByPincode(DB, pin);
+  // parallel: two independent lookups, no reason to serialise them
+  [data.villages, data.panchayats] = await Promise.all([
+    getVillagesByPincode(DB, pin),
+    getPanchayatsByPincode(DB, pin),
+  ]);
 }
 
 // ===== BLOCK:CANONICAL-301 ===== hierarchy URL -> flat canonical (no loop:
