@@ -29,13 +29,17 @@ if os.path.exists(IMP_PATH):
     try: IMPR = json.load(open(IMP_PATH, encoding="utf-8"))
     except Exception: IMPR = {}
 
+DEEP_DEFAULTS = {"default": 3, "cold": 1, "top": 5, "max": 8}
+
 def deep_n(url):
+    cfg = dict(DEEP_DEFAULTS)
+    cfg.update(SITES.get("deep_pages") or {})
     imp = IMPR.get(url)
-    if imp is None: return SITES["deep_pages"]["default"]
-    if imp <= 0: return SITES["deep_pages"]["cold"]
-    if imp >= 200: return SITES["deep_pages"]["top"]
-    if imp >= 1000: return min(SITES["deep_pages"]["max"], SITES["deep_pages"]["top"]*2)
-    return SITES["deep_pages"]["default"]
+    if imp is None: return cfg["default"]
+    if imp <= 0: return cfg["cold"]
+    if imp >= 200: return cfg["top"]
+    if imp >= 1000: return min(cfg["max"], cfg["top"]*2)
+    return cfg["default"]
 
 def fetch(url, timeout=25):
     req = urllib.request.Request(url, headers={"User-Agent": UA})
@@ -148,21 +152,40 @@ def audit_site(url, is_worker=False):
         row["deep_avg_score"] = round(sum(d["score"] for d in deep) / len(deep))
     return row
 
-def resolve_workers():
-    """Auto-resolve unmapped worker URLs: probe <name>.india-in.workers.dev. Personal/internal only."""
-    known=[w["url"] for w in SITES["workers"]]
-    resolved=list(SITES["workers"])
-    for name in SITES.get("workers_unmapped", []):
-        cand=f"https://{name}.india-in.workers.dev/"
-        if cand in known: continue
-        code,_=fetch(cand, timeout=12)
-        if code in (200,301,302,401,403):   # any live response = mapped
-            resolved.append({"name":name,"url":cand,"auto":True})
-    return resolved
+def build_targets():
+    """Build (url, is_worker) targets from either sites.json schema.
+
+    v2 schema (2026-11-03+): {"sites":[{repo,project,type,enabled}]}
+    v1 schema: {"pages":[...], "workers":[{name,url}], "workers_unmapped":[...]}
+    """
+    out = []
+    for s in (SITES.get("sites") or []):
+        if not s.get("enabled", True):
+            continue
+        proj = s.get("project") or s.get("repo")
+        if not proj:
+            continue
+        if s.get("type") == "worker":
+            out.append((f"https://{proj}.india-in.workers.dev/", True))
+        else:
+            out.append((f"https://{proj}.pages.dev/", False))
+    for u in (SITES.get("pages") or []):
+        out.append((u, False))
+    for w in (SITES.get("workers") or []):
+        out.append((w["url"] if isinstance(w, dict) else w, True))
+    for name in (SITES.get("workers_unmapped") or []):
+        out.append((f"https://{name}.india-in.workers.dev/", True))
+    seen, res = set(), []
+    for u, is_w in out:
+        if u in seen:
+            continue
+        seen.add(u)
+        res.append((u, is_w))
+    return res
+
 
 def main():
-    targets = [(u, False) for u in SITES["pages"]]
-    targets += [(w["url"], True) for w in resolve_workers()]
+    targets = build_targets()
     results = [audit_site(u, w) for u, w in targets]
     red = [r for r in results if r["issues"]]
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
