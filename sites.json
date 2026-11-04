@@ -1,293 +1,300 @@
 {
-  "generated": "2026-11-03",
-  "note": "enabled=false = Pages project does not exist or deploy type unconfirmed",
-  "sites": [
-    {
-      "repo": "toiletsnearme",
-      "type": "pages-static",
-      "project": "toiletsnearme",
-      "branch": "main",
-      "enabled": true
-    },
-    {
-      "repo": "washroomsnearme",
-      "type": "pages-static",
-      "project": "washroomsnearme",
-      "branch": "main",
-      "enabled": true
-    },
-    {
-      "repo": "restareanearme",
-      "type": "pages-static",
-      "project": "restareanearme",
-      "branch": "main",
-      "enabled": true
-    },
-    {
-      "repo": "cngpumpsnearme",
-      "type": "pages-static",
-      "project": "cngpumpsnearme",
-      "branch": "main",
-      "enabled": true
-    },
-    {
-      "repo": "EVchargersnearme",
-      "type": "pages-static",
-      "project": "evchargersnearme",
-      "branch": "main",
-      "enabled": true
-    },
-    {
-      "repo": "busstationnearme",
-      "type": "pages-static",
-      "project": "busstationnearme",
-      "branch": "main",
-      "enabled": true
-    },
-    {
-      "repo": "busstopnearme",
-      "type": "pages-static",
-      "project": "busstopnearme",
-      "branch": "main",
-      "enabled": true
-    },
-    {
-      "repo": "gymnearme",
-      "type": "pages-static",
-      "project": "gymnearme",
-      "branch": "main",
-      "enabled": true
-    },
-    {
-      "repo": "tailorshopnearme",
-      "type": "pages-static",
-      "project": "tailorshopnearme",
-      "branch": "main",
-      "enabled": true
-    },
-    {
-      "repo": "railwaystationnearme",
-      "type": "pages-static",
-      "project": "railwaystationnearme",
-      "branch": "main",
-      "enabled": true
-    },
-    {
-      "repo": "floodsnearme",
-      "type": "pages-static",
-      "project": "floodsnearme",
-      "branch": "main",
-      "enabled": true
-    },
-    {
-      "repo": "airqualitynearme",
-      "type": "pages-static",
-      "project": "airqualitynearme",
-      "branch": "main",
-      "enabled": true
-    },
-    {
-      "repo": "bloodbanksnearme",
-      "type": "pages-static",
-      "project": "bloodbanksnearme",
-      "branch": "main",
-      "enabled": true
-    },
-    {
-      "repo": "earthquakenearme",
-      "type": "pages-static",
-      "project": "earthquakenearme",
-      "branch": "main",
-      "enabled": true
-    },
-    {
-      "repo": "issspotter",
-      "type": "pages-static",
-      "project": "issspotter",
-      "branch": "main",
-      "enabled": true
-    },
-    {
-      "repo": "isrotracker",
-      "type": "pages-static",
-      "project": "isrotracker",
-      "branch": "main",
-      "enabled": true
-    },
-    {
-      "repo": "bharatlive",
-      "type": "pages-static",
-      "project": "bharatlive",
-      "branch": "main",
-      "enabled": true
-    },
-    {
-      "repo": "asiangamesmedaltally2026",
-      "type": "pages-static",
-      "project": "asiangamesmedaltally2026",
-      "branch": "main",
-      "enabled": true
-    },
-    {
-      "repo": "Aadhaar-Seva-Kendra-near-me",
-      "type": "pages-static",
-      "project": "aadhaar-seva-kendra-near-me",
-      "branch": "main",
-      "enabled": true
-    },
-    {
-      "repo": "skmtools",
-      "type": "pages-static",
-      "project": "skmtools",
-      "branch": "main",
-      "enabled": true
-    },
-    {
-      "repo": "karvachauth",
-      "type": "pages-static",
-      "project": "karvachauth",
-      "branch": "main",
-      "enabled": true
-    },
-    {
-      "repo": "Demo",
-      "type": "pages-static",
-      "project": "demo",
-      "branch": "main",
-      "enabled": true
-    },
-    {
-      "repo": "SKM-Studio",
-      "type": "pages-build",
-      "project": "skmstudio",
-      "branch": "main",
-      "enabled": true
-    },
-    {
-      "repo": "Subham-Maddheshiya",
-      "type": "pages-build",
-      "project": "subhammaddheshiya",
-      "branch": "main",
-      "enabled": true
-    },
-    {
-      "repo": "mapsnearme",
-      "type": "pages-build",
-      "project": "mapsnearme",
-      "branch": "main",
-      "enabled": true
-    },
-    {
-      "repo": "digipincode-india",
-      "type": "worker",
-      "project": "digipincode",
-      "branch": "main",
-      "enabled": true
-    },
-    {
-      "repo": "examstatus",
-      "type": "worker",
-      "project": "examstatus",
-      "branch": "main",
-      "enabled": true
-    },
-    {
-      "repo": "my-CMS-dashboard",
-      "type": "worker",
-      "project": "my-CMS-dashboard",
-      "branch": "main",
-      "enabled": true
-    },
-    {
-      "repo": "examcentrenearme",
-      "type": "unclassified",
-      "project": "examcentrenearme",
-      "branch": "main",
-      "enabled": false
-    },
-    {
-      "repo": "examcentersindia",
-      "type": "unclassified",
-      "project": "examcentersindia",
-      "branch": "main",
-      "enabled": false
-    },
-    {
-      "repo": "Safe-Alleys",
-      "type": "unclassified",
-      "project": "safe-alleys",
-      "branch": "main",
-      "enabled": false
-    },
-    {
-      "repo": "CMS",
-      "type": "unclassified",
-      "project": "cms",
-      "branch": "main",
-      "enabled": false
-    },
-    {
-      "repo": "dashboardmapsnearme",
-      "type": "unclassified",
-      "project": "dashboardmapsnearme",
-      "branch": "main",
-      "enabled": false
-    },
-    {
-      "repo": "my-dashboard",
-      "type": "unclassified",
-      "project": "my-dashboard",
-      "branch": "main",
-      "enabled": false
-    },
-    {
-      "repo": "global-spatial-vault",
-      "type": "unclassified",
-      "project": "global-spatial-vault",
-      "branch": "main",
-      "enabled": false
-    },
-    {
-      "repo": "skm-studio-project",
-      "type": "unclassified",
-      "project": "skm-studio-project",
-      "branch": "main",
-      "enabled": false
-    },
-    {
-      "repo": "voice-brain",
-      "type": "unclassified",
-      "project": "voice-brain",
-      "branch": "main",
-      "enabled": false
-    },
-    {
-      "repo": "maps",
-      "type": "unclassified",
-      "project": "maps",
-      "branch": "main",
-      "enabled": false
-    },
-    {
-      "repo": "maps-old-repo",
-      "type": "unclassified",
-      "project": "maps-old-repo",
-      "branch": "main",
-      "enabled": false
-    },
-    {
-      "repo": "v3",
-      "type": "unclassified",
-      "project": "v3",
-      "branch": "main",
-      "enabled": false
-    },
-    {
-      "repo": "digipincode-static",
-      "type": "unclassified",
-      "project": "digipincode-static",
-      "branch": "main",
-      "enabled": false
-    }
-  ]
+ "generated": "2026-11-04",
+ "note": "enabled=false = Pages project does not exist or deploy type unconfirmed",
+ "sites": [
+  {
+   "repo": "toiletsnearme",
+   "type": "pages-static",
+   "project": "toiletsnearme",
+   "branch": "main",
+   "enabled": true
+  },
+  {
+   "repo": "washroomsnearme",
+   "type": "pages-static",
+   "project": "washroomsnearme",
+   "branch": "main",
+   "enabled": true
+  },
+  {
+   "repo": "restareanearme",
+   "type": "pages-static",
+   "project": "restareanearme",
+   "branch": "main",
+   "enabled": true
+  },
+  {
+   "repo": "cngpumpsnearme",
+   "type": "pages-static",
+   "project": "cngpumpsnearme",
+   "branch": "main",
+   "enabled": true
+  },
+  {
+   "repo": "EVchargersnearme",
+   "type": "pages-static",
+   "project": "evchargersnearme",
+   "branch": "main",
+   "enabled": true
+  },
+  {
+   "repo": "busstationnearme",
+   "type": "pages-static",
+   "project": "busstationnearme",
+   "branch": "main",
+   "enabled": true
+  },
+  {
+   "repo": "busstopnearme",
+   "type": "pages-static",
+   "project": "busstopnearme",
+   "branch": "main",
+   "enabled": true
+  },
+  {
+   "repo": "gymnearme",
+   "type": "pages-static",
+   "project": "gymnearme",
+   "branch": "main",
+   "enabled": true
+  },
+  {
+   "repo": "tailorshopnearme",
+   "type": "pages-static",
+   "project": "tailorshopnearme",
+   "branch": "main",
+   "enabled": true
+  },
+  {
+   "repo": "railwaystationnearme",
+   "type": "pages-static",
+   "project": "railwaystationnearme",
+   "branch": "main",
+   "enabled": true
+  },
+  {
+   "repo": "floodsnearme",
+   "type": "pages-static",
+   "project": "floodsnearme",
+   "branch": "main",
+   "enabled": true
+  },
+  {
+   "repo": "airqualitynearme",
+   "type": "pages-static",
+   "project": "airqualitynearme",
+   "branch": "main",
+   "enabled": true
+  },
+  {
+   "repo": "bloodbanksnearme",
+   "type": "pages-static",
+   "project": "bloodbanksnearme",
+   "branch": "main",
+   "enabled": true
+  },
+  {
+   "repo": "earthquakenearme",
+   "type": "pages-static",
+   "project": "earthquakenearme",
+   "branch": "main",
+   "enabled": true
+  },
+  {
+   "repo": "issspotter",
+   "type": "pages-static",
+   "project": "issspotter",
+   "branch": "main",
+   "enabled": true
+  },
+  {
+   "repo": "isrotracker",
+   "type": "pages-static",
+   "project": "isrotracker",
+   "branch": "main",
+   "enabled": true
+  },
+  {
+   "repo": "bharatlive",
+   "type": "pages-static",
+   "project": "bharatlive",
+   "branch": "main",
+   "enabled": true
+  },
+  {
+   "repo": "asiangamesmedaltally2026",
+   "type": "pages-static",
+   "project": "asiangamesmedaltally2026",
+   "branch": "main",
+   "enabled": true
+  },
+  {
+   "repo": "Aadhaar-Seva-Kendra-near-me",
+   "type": "pages-static",
+   "project": "aadhaar-seva-kendra-near-me",
+   "branch": "main",
+   "enabled": true
+  },
+  {
+   "repo": "skmtools",
+   "type": "pages-static",
+   "project": "skmtools",
+   "branch": "main",
+   "enabled": true
+  },
+  {
+   "repo": "karvachauth",
+   "type": "pages-static",
+   "project": "karvachauth",
+   "branch": "main",
+   "enabled": true
+  },
+  {
+   "repo": "Demo",
+   "type": "pages-static",
+   "project": "demo",
+   "branch": "main",
+   "enabled": true
+  },
+  {
+   "repo": "SKM-Studio",
+   "type": "pages-build",
+   "project": "skmstudio",
+   "branch": "main",
+   "enabled": true
+  },
+  {
+   "repo": "Subham-Maddheshiya",
+   "type": "pages-build",
+   "project": "subhammaddheshiya",
+   "branch": "main",
+   "enabled": true
+  },
+  {
+   "repo": "mapsnearme",
+   "type": "pages-build",
+   "project": "mapsnearme",
+   "branch": "main",
+   "enabled": true
+  },
+  {
+   "repo": "digipincode-india",
+   "type": "worker",
+   "project": "digipincode",
+   "branch": "main",
+   "enabled": true
+  },
+  {
+   "repo": "examstatus",
+   "type": "worker",
+   "project": "examstatus",
+   "branch": "main",
+   "enabled": true
+  },
+  {
+   "repo": "my-CMS-dashboard",
+   "type": "worker",
+   "project": "my-CMS-dashboard",
+   "branch": "main",
+   "enabled": true
+  },
+  {
+   "repo": "examcentrenearme",
+   "type": "unclassified",
+   "project": "examcentrenearme",
+   "branch": "main",
+   "enabled": false
+  },
+  {
+   "repo": "examcentersindia",
+   "type": "unclassified",
+   "project": "examcentersindia",
+   "branch": "main",
+   "enabled": false
+  },
+  {
+   "repo": "Safe-Alleys",
+   "type": "unclassified",
+   "project": "safe-alleys",
+   "branch": "main",
+   "enabled": false
+  },
+  {
+   "repo": "CMS",
+   "type": "unclassified",
+   "project": "cms",
+   "branch": "main",
+   "enabled": false
+  },
+  {
+   "repo": "dashboardmapsnearme",
+   "type": "pages-static",
+   "project": "dashboardmapsnearme",
+   "branch": "main",
+   "enabled": true
+  },
+  {
+   "repo": "my-dashboard",
+   "type": "unclassified",
+   "project": "my-dashboard",
+   "branch": "main",
+   "enabled": false
+  },
+  {
+   "repo": "global-spatial-vault",
+   "type": "unclassified",
+   "project": "global-spatial-vault",
+   "branch": "main",
+   "enabled": false
+  },
+  {
+   "repo": "skm-studio-project",
+   "type": "unclassified",
+   "project": "skm-studio-project",
+   "branch": "main",
+   "enabled": false
+  },
+  {
+   "repo": "voice-brain",
+   "type": "unclassified",
+   "project": "voice-brain",
+   "branch": "main",
+   "enabled": false
+  },
+  {
+   "repo": "maps",
+   "type": "unclassified",
+   "project": "maps",
+   "branch": "main",
+   "enabled": false
+  },
+  {
+   "repo": "maps-old-repo",
+   "type": "unclassified",
+   "project": "maps-old-repo",
+   "branch": "main",
+   "enabled": false
+  },
+  {
+   "repo": "v3",
+   "type": "unclassified",
+   "project": "v3",
+   "branch": "main",
+   "enabled": false
+  },
+  {
+   "repo": "digipincode-static",
+   "type": "unclassified",
+   "project": "digipincode-static",
+   "branch": "main",
+   "enabled": false
+  },
+  {
+   "repo": "skm-voice-agent-proxy",
+   "type": "worker",
+   "project": "skm-voice-agent-proxy",
+   "branch": "main",
+   "enabled": true
+  }
+ ]
 }
