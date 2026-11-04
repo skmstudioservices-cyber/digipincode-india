@@ -6,8 +6,9 @@ on:
   workflow_dispatch:
 
 env:
-  # Cloudflare WAF blocks blank / non-browser UAs with 403, so the monitor
-  # must identify itself as a browser or it reports false failures.
+  # Cloudflare bot management 403s datacenter IPs (GitHub runners) even with a
+  # browser UA, so the monitor retries, then falls back to the Pages mirror
+  # before declaring an outage.
   UA: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
 
 jobs:
@@ -16,12 +17,24 @@ jobs:
     steps:
       - name: Check digipincode homepage
         run: |
-          code=$(curl -s -o /dev/null -w "%{http_code}" -A "$UA" --max-time 30 "https://digipincode.india-in.workers.dev/")
-          echo "digipincode homepage: HTTP $code"
-          case "$code" in
-            200|301|302) ;;
-            *) echo "::error::digipincode.india-in.workers.dev returned HTTP $code"; exit 1 ;;
-          esac
+          code=000
+          for i in 1 2 3; do
+            code=$(curl -s -o /dev/null -w "%{http_code}" -A "$UA" --max-time 30 "https://digipincode.india-in.workers.dev/")
+            echo "attempt $i: HTTP $code"
+            case "$code" in
+              200|301|302) exit 0 ;;
+            esac
+            sleep 15
+          done
+          if [ "$code" = "403" ]; then
+            mirror=$(curl -s -o /dev/null -w "%{http_code}" -A "$UA" --max-time 30 "https://digipincode.pages.dev/")
+            echo "pages.dev mirror: HTTP $mirror"
+            case "$mirror" in
+              200|301|302) echo "::warning::workers.dev 403 to GitHub runner IPs (bot management) - mirror healthy"; exit 0 ;;
+            esac
+          fi
+          echo "::error::digipincode.india-in.workers.dev returned HTTP $code"
+          exit 1
 
       - name: Check digipincode deep page
         run: |
