@@ -40,20 +40,20 @@ const post = (path, body) =>
 
 async function collectUrls() {
   const seen = new Set();
+  const out = [];
   const queue = [`${SITE}sitemap.xml`];
-  while (queue.length && seen.size < MAX) {
+  while (queue.length && out.length < MAX) {
     const url = queue.shift();
     if (seen.has(url)) continue;
     seen.add(url);
     const r = await fetch(url).catch(() => null);
     if (!r || !r.ok) continue;
     const body = await r.text();
-    const isIndex = /<sitemapindex/.test(body);
     const locs = [...body.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1].trim());
-    if (isIndex) queue.push(...locs);
-    else return locs;
+    if (/<sitemapindex/.test(body)) queue.push(...locs);   // follow every child
+    else out.push(...locs);                                 // collect pages
   }
-  return [];
+  return out;
 }
 
 (async () => {
@@ -69,7 +69,7 @@ async function collectUrls() {
   const quota = await q('GetUrlSubmissionQuota', { siteUrl: SITE });
   console.log('quota:', JSON.stringify(quota.json?.d ?? quota.text).slice(0, 200));
 
-  const feed = await q('SubmitFeed', { siteUrl: SITE, feedUrl: `${SITE}sitemap.xml` });
+  const feed = await post('SubmitFeed', { siteUrl: SITE, feedUrl: `${SITE}sitemap.xml` });
   console.log('SubmitFeed:', feed.status, (feed.json?.d ?? feed.text).toString().slice(0, 160));
 
   const urls = await collectUrls();
