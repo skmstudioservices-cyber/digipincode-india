@@ -1,0 +1,23 @@
+name: Bing submit (sitemap + URL batch)
+
+on:
+  workflow_dispatch:
+    inputs:
+      site:
+        description: "site URL, e.g. https://toiletsnearme.pages.dev/"
+        required: true
+      max:
+        description: "max URLs to submit"
+        default: "200"
+
+jobs:
+  submit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22.23.4" }
+      - name: Submit to Bing Webmaster
+        env:
+          BING_WEBMASTER_API_KEY: ${{ secrets.BING_WEBMASTER_API_KEY }}
+        run: node scripts/bing-submit.mjs "${{ github.event.inputs.site }}" "${{ github.event.inputs.max }}"
