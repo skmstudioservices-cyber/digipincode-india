@@ -1,19 +1,17 @@
 name: Bing submit (sitemap + URL batch)
 
 on:
-  # daily top-up: Bing allows 100 URL submissions/day, so a 122-URL site
-  # needs two runs. This keeps submitting until everything is in.
   schedule:
     - cron: "40 2 * * *"
   workflow_dispatch:
     inputs:
       site:
-        description: "site URL, e.g. https://toiletsnearme.pages.dev/"
+        description: "site URL, or 'all' to walk bing-sites.json"
         required: false
         default: "https://toiletsnearme.pages.dev/"
       max:
-        description: "max URLs to submit"
-        default: "200"
+        description: "max URLs per site"
+        default: "100"
 
 jobs:
   submit:
@@ -22,7 +20,29 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: "22.23.4" }
-      - name: Submit to Bing Webmaster
+
+      - name: Submit one site
+        if: ${{ github.event.inputs.site != 'all' }}
         env:
           BING_WEBMASTER_API_KEY: ${{ secrets.BING_WEBMASTER_API_KEY }}
         run: node scripts/bing-submit.mjs "${{ github.event.inputs.site || 'https://toiletsnearme.pages.dev/' }}" "${{ github.event.inputs.max || '100' }}"
+
+      - name: Submit every site in bing-sites.json
+        if: ${{ github.event.inputs.site == 'all' }}
+        env:
+          BING_WEBMASTER_API_KEY: ${{ secrets.BING_WEBMASTER_API_KEY }}
+        run: |
+          set -e
+          node -e '
+          const fs=require("fs");
+          const sites=JSON.parse(fs.readFileSync("bing-sites.json","utf8")).sites;
+          console.log("sites to submit:", sites.length);
+          fs.writeFileSync("/tmp/sites.txt", sites.join("\n"));
+          '
+          while read -r S; do
+            [ -z "$S" ] && continue
+            echo "===== $S"
+            node scripts/bing-submit.mjs "$S" "${MAX:-100}" || echo "  (failed, continuing)"
+          done < /tmp/sites.txt
+        env:
+          MAX: ${{ github.event.inputs.max || '100' }}
