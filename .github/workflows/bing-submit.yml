@@ -1,11 +1,16 @@
 name: Bing submit (sitemap + URL batch)
 
 on:
+  # daily top-up: Bing allows 100 URL submissions/day, so a 122-URL site
+  # needs two runs. This keeps submitting until everything is in.
+  schedule:
+    - cron: "40 2 * * *"
   workflow_dispatch:
     inputs:
       site:
         description: "site URL, e.g. https://toiletsnearme.pages.dev/"
-        required: true
+        required: false
+        default: "https://toiletsnearme.pages.dev/"
       max:
         description: "max URLs to submit"
         default: "200"
@@ -20,4 +25,4 @@ jobs:
       - name: Submit to Bing Webmaster
         env:
           BING_WEBMASTER_API_KEY: ${{ secrets.BING_WEBMASTER_API_KEY }}
-        run: node scripts/bing-submit.mjs "${{ github.event.inputs.site }}" "${{ github.event.inputs.max }}"
+        run: node scripts/bing-submit.mjs "${{ github.event.inputs.site || 'https://toiletsnearme.pages.dev/' }}" "${{ github.event.inputs.max || '100' }}"
