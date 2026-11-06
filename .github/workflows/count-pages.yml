@@ -1,0 +1,12 @@
+name: Count pages per site
+on:
+  workflow_dispatch:
+jobs:
+  count:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.23.4"
+      - run: node scripts/count-pages.mjs
