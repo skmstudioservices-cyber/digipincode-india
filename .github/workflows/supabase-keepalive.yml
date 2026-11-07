@@ -6,6 +6,11 @@ name: Supabase Keep-Alive (every 3 days)
 # Keyless by default (auth health endpoint + REST root). If you add a repo
 # secret SUPABASE_ANON_KEY, it also runs a real REST read for a stronger signal.
 # 21 Oct 2026 — user rule: read ALL Supabase projects every 3 days.
+#
+# 07 Nov 2026 — fix: a PAUSED project (DNS removed) made curl exit 6, and
+# `bash -e` killed the whole job before the second project was pinged.
+# Also Supabase now returns 401 on /auth/v1/health without an apikey, so 401
+# counts as healthy. The job now reports and never fails on a paused project.
 
 on:
   schedule:
@@ -20,20 +25,25 @@ jobs:
         env:
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
         run: |
+          set +e
           PROJECTS="
           timnrnmmmmuqmcnuaend|skmstudioservices-cyber's Project Maps
           hfmkznptehdhtgsuwzri|mapsnearme
           "
-          fail=0
-          echo "$PROJECTS" | while IFS='|' read -r REF NAME; do
+          while IFS='|' read -r REF NAME; do
             [ -z "$REF" ] && continue
-            h=$(curl -s -o /dev/null -w '%{http_code}' -m 30 "https://${REF}.supabase.co/auth/v1/health")
-            r=$(curl -s -o /dev/null -w '%{http_code}' -m 30 "https://${REF}.supabase.co/rest/v1/")
+            h=$(curl -s -o /dev/null -w '%{http_code}' -m 30 "https://${REF}.supabase.co/auth/v1/health"); h=${h:-000}
+            r=$(curl -s -o /dev/null -w '%{http_code}' -m 30 "https://${REF}.supabase.co/rest/v1/"); r=${r:-000}
             k="skipped"
             if [ -n "$SUPABASE_ANON_KEY" ]; then
-              k=$(curl -s -o /dev/null -w '%{http_code}' -m 30 "https://${REF}.supabase.co/rest/v1/" -H "apikey: ${SUPABASE_ANON_KEY}" -H "Authorization: Bearer ${SUPABASE_ANON_KEY}")
+              k=$(curl -s -o /dev/null -w '%{http_code}' -m 30 "https://${REF}.supabase.co/rest/v1/" -H "apikey: ${SUPABASE_ANON_KEY}" -H "Authorization: Bearer ${SUPABASE_ANON_KEY}"); k=${k:-000}
             fi
-            echo "KEEPALIVE | ${REF} (${NAME}) | auth-health ${h} | rest-root ${r} | keyed-read ${k}"
-            if [ "$h" != "200" ] && [ "$r" != "200" ] && [ "$r" != "401" ]; then fail=1; fi
-          done
-          echo "done"
+            if [ "$h" = "000" ] && [ "$r" = "000" ]; then
+              state="PAUSED/UNREACHABLE"
+            else
+              state="ok"
+            fi
+            echo "KEEPALIVE | ${REF} (${NAME}) | auth-health ${h} | rest-root ${r} | keyed-read ${k} | ${state}"
+          done <<< "$PROJECTS"
+          echo "done — paused projects are reported above, not treated as job failures"
+          exit 0
