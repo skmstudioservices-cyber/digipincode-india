@@ -122,7 +122,11 @@ export const onRequest = defineMiddleware(async (context, next) => {
   // Mirrors robots.txt (which is advisory only).
   const BOT_ALLOW = ['googlebot', 'google-inspectiontool', 'adsbot-google',
     'mediapartners-google', 'apis-google', 'feedfetcher-google',
+    'bingbot', 'msnbot', 'adidxbot', 'duckduckbot',
     'skm-site-monitor', 'skm-network-audit']; // our own monitors must keep working
+  // 8 Nov 2026 SKM audit: bingbot/msnbot/adidxbot/duckduckbot added. The geo-guard
+  // above already allows Bing indexers and robots.txt allows them, but this
+  // allowlist was blocking them -> 69 bingbot 403s on 1-8 Nov (indexing loss).
   const BOT_TOKENS = ['bot', 'crawler', 'spider', 'scrape', 'slurp', 'archiver',
     'fetcher', 'curl', 'wget', 'python', 'go-http-client', 'headless', 'phantom',
     'exabot', 'ia_archiver', 'facebookexternalhit', 'monitor', 'audit', 'scan',
