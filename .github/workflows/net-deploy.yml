@@ -88,7 +88,7 @@ jobs:
           code=$(curl -s -o /dev/null -w '%{http_code}' -m 30 https://${{ inputs.project_name }}.pages.dev/)
           echo "${{ inputs.project_name }} home -> $code"
           if [ "$code" != "200" ]; then echo "::error::root not 200"; exit 1; fi
-      - name: Page-test gate (every page: status, title, H1, words, JSON-LD)
+      - name: Page-test gate (every page - status, title, H1, words, JSON-LD)
         run: |
           python3 - <<'PY'
           import os, re, urllib.request, urllib.error
