@@ -35,6 +35,10 @@ on:
         description: 'Build output dir to deploy when build=true (default dist)'
         required: false
         default: 'dist'
+      verify_url:
+        description: 'Canonical base URL to verify (default https://<project>.pages.dev). Use the workers.dev host for sites whose pages.dev mirror is bot-protected.'
+        required: false
+        default: ''
 
 jobs:
   deploy:
@@ -83,23 +87,43 @@ jobs:
           cd site
           npx --yes wrangler@latest pages deploy "${{ steps.pick.outputs.dir }}" --project-name="${{ inputs.project_name }}" --branch="${{ inputs.branch }}" --commit-dirty=true
       - name: Verify (home must be 200)
+        env:
+          VERIFY_INPUT: ${{ inputs.verify_url }}
+          PROJECT: ${{ inputs.project_name }}
         run: |
           sleep 25
-          code=$(curl -s -o /dev/null -w '%{http_code}' -m 30 https://${{ inputs.project_name }}.pages.dev/)
-          echo "${{ inputs.project_name }} home -> $code"
-          if [ "$code" != "200" ]; then echo "::error::root not 200"; exit 1; fi
+          BASE="${VERIFY_INPUT:-https://$PROJECT.pages.dev}"
+          BASE="${BASE%/}"
+          UA='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36'
+          code=$(curl -s -L -o /dev/null -w '%{http_code}' -m 30 -A "$UA" -H 'Accept: text/html,application/xhtml+xml' "$BASE/")
+          echo "verify base: $BASE -> home $code"
+          if [ "$code" != "200" ]; then echo "::error::root not 200 ($code) at $BASE"; exit 1; fi
       - name: Page-test gate (every page - status, title, H1, words, JSON-LD)
+        env:
+          VERIFY_INPUT: ${{ inputs.verify_url }}
+          PROJECT: ${{ inputs.project_name }}
         run: |
           python3 - <<'PY'
           import os, re, urllib.request, urllib.error
-          SITE="https://${{ inputs.project_name }}.pages.dev"; MINW=120
+          PROJECT=os.environ.get("PROJECT","")
+          BASE=(os.environ.get("VERIFY_INPUT") or "https://%s.pages.dev"%PROJECT).rstrip("/")
+          UA="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
+          MINW=120
           def get(u):
               try:
-                  r=urllib.request.urlopen(urllib.request.Request(u,headers={"User-Agent":"Mozilla/5.0 skm-test"}),timeout=25)
+                  req=urllib.request.Request(u,headers={"User-Agent":UA,"Accept":"text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"})
+                  r=urllib.request.urlopen(req,timeout=25)
                   return r.getcode(), r.read().decode("utf-8","replace")
               except urllib.error.HTTPError as e: return e.code,""
               except Exception: return 0,""
-          c,b=get(SITE+"/sitemap.xml"); urls=re.findall(r"<loc>([^<]+)</loc>", b) if c==200 else [SITE+"/"]
+          urls=[]
+          for cand in ("/sitemap.xml","/sitemap-index.xml"):
+              c,b=get(BASE+cand)
+              if c==200 and "<loc>" in b:
+                  urls=re.findall(r"<loc>([^<]+)</loc>", b); break
+          if not urls:
+              print("WARN: no readable sitemap at %s — falling back to homepage only"%BASE)
+              urls=[BASE+"/"]
           urls=urls[:40]; bad=[]
           for u in urls:
               code,html=get(u)
@@ -112,7 +136,7 @@ jobs:
               if words<MINW: probs.append("thin %sw"%words)
               if "application/ld+json" not in html: probs.append("no JSON-LD")
               if probs: bad.append("%s [%s]"%(u,"; ".join(probs)))
-          print("PAGE-TEST: %d/%d pass"%(len(urls)-len(bad),len(urls)))
+          print("PAGE-TEST: %d/%d pass on %s"%(len(urls)-len(bad),len(urls),BASE))
           for x in bad: print("  -",x)
           if bad: raise SystemExit(1)
           PY
