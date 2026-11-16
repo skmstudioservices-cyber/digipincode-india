@@ -127,6 +127,9 @@ jobs:
               c,b=get(BASE+cand)
               if c==200 and "<loc>" in b:
                   urls=re.findall(r"<loc>([^<]+)</loc>", b); break
+          # FIX 16 Nov 2026: a sitemap INDEX lists child sitemaps (.xml), not HTML pages.
+          # Testing those as pages produced false "no title / no h1 / no JSON-LD" failures.
+          urls=[u for u in urls if not re.search(r"\.(xml|txt|json|csv|gz|zip|pdf)$", u, re.I)]
           if not urls:
               print("WARN: no readable sitemap at %s — falling back to homepage only"%BASE)
               urls=[BASE+"/"]
