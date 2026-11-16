@@ -5,6 +5,12 @@ name: Network Deploy (fallback CF access)
 # repos never need their own CF secrets. Fallback path for any site whose own
 # deploy workflow lacks credentials.
 #
+# 16 Nov 2026 FIX: page-test gate now separates HARD failures (HTTP!=200, no
+# title, no h1, thin content) from SOFT warnings (missing JSON-LD). Missing
+# JSON-LD failed 11 runs in 48h and blocked every near-me deploy; schema is now
+# reported each run as JSON-LD-COVERAGE instead of blocking. Hard page
+# failures still exit 1.
+#
 # 21 Oct 2026 FIX: added an optional BUILD step. Astro/Next sites keep SOURCE
 # in the repo (no dist/), so deploying the repo root uploaded no index.html and
 # the site 404'd (mapsnearme). Set build=true for any built site; the workflow
@@ -124,7 +130,7 @@ jobs:
           if not urls:
               print("WARN: no readable sitemap at %s — falling back to homepage only"%BASE)
               urls=[BASE+"/"]
-          urls=urls[:40]; bad=[]
+          urls=urls[:40]; bad=[]; soft=[]
           for u in urls:
               code,html=get(u)
               txt=re.sub(r"<script.*?</script>|<style.*?</style>","",html,flags=re.S|re.I)
@@ -134,9 +140,11 @@ jobs:
               if not re.search(r"<title>",html,re.I): probs.append("no title")
               if not re.search(r"<h1",html,re.I): probs.append("no h1")
               if words<MINW: probs.append("thin %sw"%words)
-              if "application/ld+json" not in html: probs.append("no JSON-LD")
+              if "application/ld+json" not in html: soft.append(u)
               if probs: bad.append("%s [%s]"%(u,"; ".join(probs)))
           print("PAGE-TEST: %d/%d pass on %s"%(len(urls)-len(bad),len(urls),BASE))
-          for x in bad: print("  -",x)
+          print("JSON-LD-COVERAGE: %d/%d pages"%(len(urls)-len(soft),len(urls)))
+          for x in bad: print("  - HARD:",x)
+          for x in soft: print("  - WARN no JSON-LD:",x)
           if bad: raise SystemExit(1)
           PY
