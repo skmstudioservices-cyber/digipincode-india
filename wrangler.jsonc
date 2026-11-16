@@ -1,6 +1,9 @@
 {
+  // Astro 7 + @astrojs/cloudflare 14: the adapter's vite plugin supplies the
+  // Worker entry point, so `main` must NOT be hardcoded to the old
+  // dist/_worker.js/index.js path (it does not exist at config-resolution time
+  // and the build fails). Bindings stay here.
   "name": "digipincode",
-  "main": "dist/_worker.js/index.js",
   "compatibility_date": "2026-09-01",
   "compatibility_flags": ["nodejs_compat"],
   "version_metadata": { "binding": "CF_VERSION_METADATA" },
@@ -23,8 +26,7 @@
     {
       "binding": "DB",
       "database_name": "pincode-india-db",
-      "database_id": "74274a3f-9fca-42ec-9fbf-c707ffbc56a4",
-      "read_replication": { "mode": "auto" }
+      "database_id": "74274a3f-9fca-42ec-9fbf-c707ffbc56a4"
     },
     {
       "binding": "SEO_DB",
