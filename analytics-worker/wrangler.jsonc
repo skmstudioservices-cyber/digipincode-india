@@ -1,0 +1,14 @@
+{
+  "name": "skm-analytics",
+  "main": "src/index.js",
+  "compatibility_date": "2026-09-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": { "enabled": true },
+  "d1_databases": [
+    {
+      "binding": "ANALYTICS_DB",
+      "database_name": "analytics-db",
+      "database_id": "a8468976-dee7-462c-bd22-057242545ba4"
+    }
+  ]
+}
