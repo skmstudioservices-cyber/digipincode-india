@@ -1,0 +1,27 @@
+name: HTTP Header Probe
+
+# Read-only: prints response status + key headers for a list of URLs.
+# Exists so we can see Content-Type / X-Robots-Tag without guessing.
+
+on:
+  workflow_dispatch:
+    inputs:
+      urls:
+        description: 'Comma-separated URLs'
+        required: true
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Probe headers
+        run: |
+          IFS=',' read -ra US <<< "${{ inputs.urls }}"
+          UA='Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)'
+          for u in "${US[@]}"; do
+            echo "=============== $u"
+            curl -sS -o /dev/null -D - -m 30 -A "$UA" "$u" | sed -n '1,15p'
+            echo "--- first bytes:"
+            curl -sS -m 30 -A "$UA" "$u" | head -c 200
+            echo
+          done
