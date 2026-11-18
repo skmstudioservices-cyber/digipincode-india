@@ -4,19 +4,34 @@
 // Privacy: the client sends a 7-char geohash, never raw coordinates.
 //          geohash5 is derived here by truncation.
 
-const CORS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
-  'Access-Control-Allow-Headers': 'content-type',
-  'Access-Control-Max-Age': '86400',
-};
+// Origin allow-list: only SKM-owned hosts may POST analytics.
+// Plain words: without this, any website on the internet could write fake rows
+// into the database. With it, only our own pages can.
+const ALLOWED_SUFFIXES = ['.pages.dev', '.workers.dev', '.india-in.workers.dev'];
+const ALLOWED_EXACT = ['http://localhost:4321', 'http://127.0.0.1:4321'];
+
+function corsHeaders(request) {
+  const origin = request.headers.get('origin') || '';
+  let host = '';
+  try { host = new URL(origin).hostname; } catch { host = ''; }
+  const ok = ALLOWED_EXACT.includes(origin) ||
+    (host && ALLOWED_SUFFIXES.some((s) => host.endsWith(s)));
+  return {
+    'Access-Control-Allow-Origin': ok ? origin : 'null',
+    'Vary': 'Origin',
+    'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+    'Access-Control-Allow-Headers': 'content-type',
+    'Access-Control-Max-Age': '86400',
+  };
+}
 
 const BOT_RE = /bot|crawler|spider|slurp|bingpreview|facebookexternalhit|headless|puppeteer|playwright|python-requests|curl|wget|go-http-client|palo alto|recordedfuture|ahrefs|semrush/i;
 
-function json(body, status = 200) {
+function json(body, status = 200, request = null) {
+  const extra = request ? corsHeaders(request) : {};
   return new Response(JSON.stringify(body), {
     status,
-    headers: { 'content-type': 'application/json', ...CORS },
+    headers: { 'content-type': 'application/json', ...extra },
   });
 }
 
@@ -29,24 +44,24 @@ function clean(v, max = 300) {
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
-    if (request.method === 'OPTIONS') return new Response(null, { headers: CORS });
+    if (request.method === 'OPTIONS') return new Response(null, { headers: corsHeaders(request) });
 
     if (url.pathname === '/health') {
       const r = await env.ANALYTICS_DB
         .prepare('SELECT (SELECT COUNT(*) FROM site) AS sites, (SELECT COUNT(*) FROM session) AS sessions, (SELECT COUNT(*) FROM pageview) AS pageviews')
         .all();
-      return json({ ok: true, db: 'analytics-db', counts: r.results?.[0] ?? null });
+      return json({ ok: true, db: 'analytics-db', counts: r.results?.[0] ?? null }, 200, request);
     }
 
     if (url.pathname !== '/collect' || request.method !== 'POST') {
-      return json({ ok: false, error: 'not_found' }, 404);
+      return json({ ok: false, error: 'not_found' }, 404, request);
     }
 
     let payload;
-    try { payload = await request.json(); } catch { return json({ ok: false, error: 'bad_json' }, 400); }
+    try { payload = await request.json(); } catch { return json({ ok: false, error: 'bad_json' }, 400, request); }
 
     const host = clean(payload.site, 120);
-    if (!host) return json({ ok: false, error: 'site_required' }, 400);
+    if (!host) return json({ ok: false, error: 'site_required' }, 400, request);
 
     const ua = request.headers.get('user-agent') || '';
     const isBot = BOT_RE.test(ua) ? 1 : 0;
@@ -59,7 +74,7 @@ export default {
 
     const siteRow = env.ANALYTICS_DB.prepare('SELECT id FROM site WHERE host = ?').bind(host);
     const siteId = (await siteRow.first())?.id;
-    if (!siteId) return json({ ok: false, error: 'site_lookup_failed' }, 500);
+    if (!siteId) return json({ ok: false, error: 'site_lookup_failed' }, 500, request);
 
     const s = payload.session || {};
     const g7 = clean(s.geohash, 12);
@@ -121,8 +136,8 @@ export default {
     try {
       await env.ANALYTICS_DB.batch(stmts);
     } catch (err) {
-      return json({ ok: false, error: 'write_failed', detail: String(err).slice(0, 200) }, 500);
+      return json({ ok: false, error: 'write_failed', detail: String(err).slice(0, 200) }, 500, request);
     }
-    return json({ ok: true, site: host, bot: isBot, writes: stmts.length });
+    return json({ ok: true, site: host, bot: isBot, writes: stmts.length }, 200, request);
   },
 };
