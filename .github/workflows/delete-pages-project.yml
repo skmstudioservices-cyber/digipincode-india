@@ -1,0 +1,49 @@
+name: Delete Pages Project (one-shot)
+
+# One-shot destructive helper. Guarded: only ever acts on the project name
+# passed in the confirm input, and refuses anything else.
+
+on:
+  workflow_dispatch:
+    inputs:
+      project:
+        description: 'Exact Pages project name to delete'
+        required: true
+      confirm:
+        description: 'Type DELETE to proceed'
+        required: true
+
+jobs:
+  delete:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Guard
+        run: |
+          if [ "${{ inputs.confirm }}" != "DELETE" ]; then
+            echo "::error::confirmation missing"; exit 1
+          fi
+      - name: Delete project
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          echo "Deleting Pages project: ${{ inputs.project }}"
+          code=$(curl -s -o /tmp/out.json -w "%{http_code}" -X DELETE \
+            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects/${{ inputs.project }}")
+          echo "HTTP $code"
+          cat /tmp/out.json | head -c 600
+          echo
+          if [ "$code" != "200" ] && [ "$code" != "204" ]; then
+            echo "::error::delete failed"; exit 1
+          fi
+      - name: Verify gone
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          code=$(curl -s -o /tmp/get.json -w "%{http_code}" \
+            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects/${{ inputs.project }}")
+          echo "GET after delete -> HTTP $code"
+          if [ "$code" = "200" ]; then echo "::error::project still exists"; exit 1; fi
