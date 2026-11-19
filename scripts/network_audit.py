@@ -42,7 +42,11 @@ def deep_n(url):
     return cfg["default"]
 
 def fetch(url, timeout=25):
-    req = urllib.request.Request(url, headers={"User-Agent": UA})
+    req = urllib.request.Request(url, headers={
+        "User-Agent": UA,
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "en-IN,en;q=0.9",
+    })
     try:
         with urllib.request.urlopen(req, timeout=timeout) as r:
             return r.status, r.read().decode("utf-8", "replace")
@@ -101,7 +105,16 @@ def audit_site(url, is_worker=False):
     row = {"url": url, "type": "worker" if is_worker else "page", "issues": []}
     code, html = fetch(url)
     row["home_status"] = code
-    if code != 200: row["issues"].append(f"HOME {code}")
+    row["warn"] = []
+    # v3 fix 19 Nov 2026: Cloudflare bot-challenge answers GitHub-runner IPs with 403
+    # on several hosts (digipincode, examstatus, mapsnearme). A 403 alone is NOT an
+    # outage -> classify as a challenge warning and verify in a real browser instead.
+    if code == 403 and re.search(r"just a moment|cf-chl|attention required|enable javascript and cookies|cloudflare", html, re.I):
+        row["home_status"] = "403-CF"
+        row["warn"].append("HOME 403 = CF challenge to CI runner (browser-verify, not an outage)")
+        code = 0
+    elif code != 200:
+        row["issues"].append(f"HOME {code}")
     if code == 200:
         if len(html) < 800: row["issues"].append("HOME thin")
         if re.search(r"setup in progress|coming soon|lorem ipsum", html, re.I):
@@ -143,7 +156,12 @@ def audit_site(url, is_worker=False):
     # deep pages
     deep = []
     for u in sample_locs(sxml, deep_n(url)):
+        if u.lower().endswith(".xml"):
+            continue  # v3: never score sitemap XML files as if they were pages
         c, h = fetch(u)
+        if c == 403 and re.search(r"just a moment|cf-chl|attention required|cloudflare", h, re.I):
+            deep.append({"url": u, "status": "403-CF", "score": 0, "gaps": ["cf-challenge"]})
+            continue
         sc2, nts = (score_page(h, u) if c == 200 else (0, ["dead"]))
         deep.append({"url": u, "status": c, "score": sc2, "gaps": nts[:4]})
         if c >= 400 or c == 0: row["issues"].append(f"DEEP {c} {u}")
@@ -188,14 +206,15 @@ def main():
     targets = build_targets()
     results = [audit_site(u, w) for u, w in targets]
     red = [r for r in results if r["issues"]]
+    warn = [r for r in results if r.get("warn") and not r["issues"]]
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     lines = [f"# SKM Network Audit — {now}", "",
-             f"Sites checked: **{len(results)}** · with issues: **{len(red)}**", "",
+             f"Sites checked: **{len(results)}** · with issues: **{len(red)}** · CF-challenge warnings: **{len(warn)}**", "",
              "| Site | Home | Sitemap | Locs | Score | Issues |", "|---|---|---|---|---|---|"]
     for r in sorted(results, key=lambda x: -len(x["issues"])):
         lines.append(f"| {r['url'].replace('https://','')} | {r.get('home_status')} | "
                      f"{r.get('sitemap_status')} | {r.get('sitemap_locs',0)} | {r.get('score','-')} | "
-                     f"{'; '.join(r['issues'][:3]) or '✅'} |")
+                     f"{'; '.join(r['issues'][:3]) or ('⚠️ ' + '; '.join(r.get('warn', [])[:2]) if r.get('warn') else '✅')} |")
     # lowest scoring deep pages network-wide (what to fix first)
     flat = [(d["url"], d["score"], ",".join(d["gaps"])) for r in results for d in r.get("deep", []) if d["status"] == 200]
     flat.sort(key=lambda x: x[1])
@@ -207,7 +226,7 @@ def main():
     open(os.path.join(ROOT, "audit-report.md"), "w", encoding="utf-8").write(out)
     json.dump(results, open(os.path.join(ROOT, "audit-report.json"), "w", encoding="utf-8"), indent=1)
     print(out[:4000])
-    print(f"\nRESULT: {len(red)} site(s) with issues")
+    print(f"\nRESULT: {len(red)} site(s) with issues, {len(warn)} CF-challenge warning(s)")
     sys.exit(1 if red else 0)
 
 if __name__ == "__main__":
