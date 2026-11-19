@@ -33,3 +33,4 @@ jobs:
           H=$(curl -s --max-time 30 "https://railwaystationnearme.pages.dev/?cb=$RANDOM")
           echo "GTM-KRXTHDXR count: $(echo "$H" | grep -c 'GTM-KRXTHDXR')"
           echo "gtag/js count: $(echo "$H" | grep -c 'googletagmanager.com/gtag/js')"
+# redeploy trigger 2026-11-19T14:10:04Z
