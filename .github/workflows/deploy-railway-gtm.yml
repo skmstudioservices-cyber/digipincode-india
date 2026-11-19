@@ -1,0 +1,35 @@
+name: Deploy railwaystationnearme (one-shot)
+
+# One-shot: deploys the railwaystationnearme repo using this repo's CF token,
+# because that project is not git-connected. Triggers only on its own file.
+
+on:
+  push:
+    paths:
+      - '.github/workflows/deploy-railway-gtm.yml'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout target repo
+        uses: actions/checkout@v4
+        with:
+          repository: skmstudioservices-cyber/railwaystationnearme
+          ref: main
+          path: site
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: Deploy to Pages
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          cd site
+          npx --yes wrangler@latest pages deploy . --project-name=railwaystationnearme --branch=main --commit-dirty=true
+      - name: Verify GTM tag live
+        run: |
+          sleep 25
+          H=$(curl -s --max-time 30 "https://railwaystationnearme.pages.dev/?cb=$RANDOM")
+          echo "GTM-KRXTHDXR count: $(echo "$H" | grep -c 'GTM-KRXTHDXR')"
+          echo "gtag/js count: $(echo "$H" | grep -c 'googletagmanager.com/gtag/js')"
