@@ -21,6 +21,7 @@ jobs:
       - name: Verify hub
         run: |
           sleep 15
+          echo "--- gsc file"; curl -sS -o /tmp/g -w "%{http_code} %{content_type}\n" -m 30 "https://sitemaps.india-in.workers.dev/google89ab3618a1b62b6f.html"; cat /tmp/g; echo
           echo "--- index"; curl -sS -m 30 "https://sitemaps.india-in.workers.dev/" | head -c 200; echo
           for s in toiletsnearme restareanearme karvachauth; do
             echo "--- $s"; curl -sS -o /tmp/x -w "%{http_code} %{content_type}\n" -m 30 -A "Mozilla/5.0 (compatible; Googlebot/2.1)" "https://sitemaps.india-in.workers.dev/$s/sitemap.xml"
