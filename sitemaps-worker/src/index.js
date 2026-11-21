@@ -55,6 +55,15 @@ a{color:#0b7285}li{margin:.25rem 0}</style></head><body>
 <ul>${rows}</ul></body></html>`);
     }
 
+    // Google Search Console - HTML FILE verification method.
+    // Content must be exactly this one line, served at the site root.
+    if (url.pathname === '/google89ab3618a1b62b6f.html') {
+      return new Response('google-site-verification: google89ab3618a1b62b6f.html', {
+        status: 200,
+        headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'public, max-age=300' },
+      });
+    }
+
     const site = parts[0];
     const file = parts[1];
     if (!SITES.includes(site) || (file !== 'sitemap.xml' && file !== 'robots.txt')) {
