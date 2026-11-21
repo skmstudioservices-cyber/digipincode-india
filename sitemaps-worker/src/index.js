@@ -47,6 +47,7 @@ export default {
       ).join('');
       return html(`<!doctype html><html lang="en"><head><meta charset="utf-8">
 <title>SKM Sitemap Hub</title><meta name="robots" content="noindex">
+<meta name="google-site-verification" content="GlkDu5ZL-CyyKjwPSj9d9X3Y2qsHUj_qAwRwxiLr7nI">
 <style>body{font:15px/1.6 system-ui,sans-serif;max-width:44rem;margin:2rem auto;padding:0 1rem}
 a{color:#0b7285}li{margin:.25rem 0}</style></head><body>
 <h1>SKM Sitemap Hub</h1>
