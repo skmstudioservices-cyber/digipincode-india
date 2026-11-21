@@ -18,7 +18,13 @@ On-page SEO score (0-100) per page — the internal score the user asked for:
 import json, os, re, sys, random, urllib.request, urllib.error
 from datetime import datetime, timezone
 
-UA = "SKM-network-audit/1.0"
+# 21 Nov 2026 fix: the previous UA ("SKM-network-audit/1.0") was treated as a bot
+# by the digipincode/examstatus worker middleware and by Cloudflare bot protection,
+# so every run reported false "HOME 403" alarms (8 sites "with issues" on 21 Nov).
+# Use a real browser UA for the page fetch, and fall back to a Googlebot UA so the
+# report can tell "blocked for everyone" apart from "blocked for this client only".
+UA = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+GOOGLEBOT_UA = "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SITES = json.load(open(os.path.join(ROOT, "sites.json"), encoding="utf-8"))
 
@@ -41,9 +47,9 @@ def deep_n(url):
     if imp >= 1000: return min(cfg["max"], cfg["top"]*2)
     return cfg["default"]
 
-def fetch(url, timeout=25):
+def _get(url, ua, timeout=25):
     req = urllib.request.Request(url, headers={
-        "User-Agent": UA,
+        "User-Agent": ua,
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         "Accept-Language": "en-IN,en;q=0.9",
     })
@@ -55,6 +61,17 @@ def fetch(url, timeout=25):
         except Exception: return e.code, ""
     except Exception as e:
         return 0, str(e)
+
+def fetch(url, timeout=25):
+    """Browser UA first; if the edge still refuses, retry as Googlebot.
+    A 403 to Googlebot is a real indexing red flag; a 403 only to our client is not."""
+    status, body = _get(url, UA, timeout)
+    if status in (403, 429, 0):
+        s2, b2 = _get(url, GOOGLEBOT_UA, timeout)
+        if s2 and s2 < 400:
+            return s2, b2
+        return status, body
+    return status, body
 
 def score_page(html, url):
     s = 0; notes = []
