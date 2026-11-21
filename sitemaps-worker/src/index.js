@@ -25,6 +25,7 @@ const SITES = [
   'subhammaddheshiya', 'skmstudio',
 ];
 
+const HUB = 'https://sitemaps.india-in.workers.dev/';
 const ORIGIN = (site) => `https://${site}.pages.dev`;
 const XML_HEADERS = {
   'content-type': 'application/xml; charset=utf-8',
@@ -41,12 +42,30 @@ export default {
     const url = new URL(request.url);
     const parts = url.pathname.split('/').filter(Boolean);
 
+    // Master sitemap index - one URL Google can read to find every site sitemap.
+    if (url.pathname === '/sitemap-index.xml') {
+      const today = new Date().toISOString().slice(0, 10);
+      const body = '<?xml version="1.0" encoding="UTF-8"?>\n' +
+        '<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' +
+        SITES.map((s) => `  <sitemap><loc>${HUB}${s}/sitemap.xml</loc><lastmod>${today}</lastmod></sitemap>`).join('\n') +
+        '\n</sitemapindex>\n';
+      return new Response(body, { status: 200, headers: XML_HEADERS });
+    }
+
+    if (url.pathname === '/robots.txt') {
+      return new Response(`User-agent: *\nAllow: /\n\nSitemap: ${HUB}sitemap-index.xml\n`, {
+        status: 200,
+        headers: { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'public, max-age=3600' },
+      });
+    }
+
     if (parts.length === 0) {
       const rows = SITES.map(
         (s) => `<li><a href="/${s}/sitemap.xml">${s}</a> · <a href="/${s}/robots.txt">robots</a></li>`
       ).join('');
       return html(`<!doctype html><html lang="en"><head><meta charset="utf-8">
-<title>SKM Sitemap Hub</title><meta name="robots" content="noindex">
+<title>SKM Sitemap Hub — every site sitemap in one place</title>
+<meta name="description" content="Index of every SKM network sitemap. One reliable fetch path for search engines.">
 <meta name="google-site-verification" content="Y_eKs_NNxezM-xRutg7oqy5Ga7qwl1W_ZbIPLGmn3pI">
 <style>body{font:15px/1.6 system-ui,sans-serif;max-width:44rem;margin:2rem auto;padding:0 1rem}
 a{color:#0b7285}li{margin:.25rem 0}</style></head><body>
