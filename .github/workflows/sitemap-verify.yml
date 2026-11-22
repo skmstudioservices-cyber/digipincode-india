@@ -1,30 +1,53 @@
-name: Sitemap Verify (open URLs)
+name: Sitemap Verify (network-wide gate)
+# One run proves, at content level, that every sitemap the network publishes is
+# actually fetchable — the hub index, the /sitemap.xml alias, every site's own
+# endpoint, and the hub proxy for that site.
+# A 200 is not proof. This reads the body and counts <loc>.
 on:
   workflow_dispatch:
+  schedule:
+    - cron: "40 4 * * *"
 permissions:
   contents: read
 jobs:
   verify:
     runs-on: ubuntu-latest
     steps:
-      - name: Open sitemap URLs and read real content
+      - name: Verify hub + every site sitemap
         run: |
           set +e
-          for base in "https://digipincode.india-in.workers.dev" "https://digipincode.pages.dev"; do
-            echo "########## $base ##########"
-            echo "--- /sitemap.xml (index) ---"
-            curl -s -m 30 "$base/sitemap.xml" -o /tmp/i.xml -w "http=%{http_code} bytes=%{size_download}\n"
-            grep -o '<loc>[^<]*' /tmp/i.xml | sed 's/<loc>//' | head -20
-            first=$(grep -o '<loc>[^<]*' /tmp/i.xml | sed 's/<loc>//' | grep 'part-' | head -1)
-            echo "--- first child: $first ---"
-            curl -s -m 40 "$first" -o /tmp/c.xml -w "http=%{http_code} bytes=%{size_download}\n"
-            echo "child urls=$(grep -c '<loc>' /tmp/c.xml) doubleslash=$(grep -c '://[^/]*//' /tmp/c.xml)"
-            echo "sample:"; grep -o '<loc>[^<]*' /tmp/c.xml | sed 's/<loc>//' | head -3
-            echo "--- /sitemap/pages.xml ---"
-            curl -s -m 30 "$base/sitemap/pages.xml" -o /tmp/p.xml -w "http=%{http_code}\n"
-            grep -o '<loc>[^<]*' /tmp/p.xml | sed 's/<loc>//' | head -12
-            echo "--- old /sitemap-flat.xml (expect 404) ---"
-            curl -s -o /dev/null -w "http=%{http_code}\n" -m 20 "$base/sitemap-flat.xml"
-            echo "--- robots sitemap line ---"
-            curl -s -m 20 "$base/robots.txt" | grep -i sitemap
+          HUB="https://sitemaps.india-in.workers.dev"
+          fail=0
+
+          echo "########## HUB ##########"
+          for p in /sitemap.xml /sitemap-index.xml; do
+            code=$(curl -s -m 30 -o /tmp/h.xml -w "%{http_code}" "$HUB$p")
+            n=$(grep -c '<loc>' /tmp/h.xml)
+            root=$(head -c 200 /tmp/h.xml | grep -o 'sitemapindex\|urlset' | head -1)
+            lastmods=$(grep -o '<lastmod>[^<]*' /tmp/h.xml | sed 's/<lastmod>//' | sort -u | tr '\n' ' ')
+            echo "$p http=$code locs=$n root=$root lastmod=[$lastmods]"
+            if [ "$code" != "200" ] || [ "$n" -lt 55 ]; then echo "  FAIL $p"; fail=1; fi
           done
+          echo "--- hub robots.txt ---"; curl -s -m 20 "$HUB/robots.txt" | grep -i sitemap
+          echo "--- typo'd submission (expect 404) ---"
+          curl -s -o /dev/null -w "  /rtoofficernearme/sitemap.xml http=%{http_code}\n" -m 20 "$HUB/rtoofficernearme/sitemap.xml"
+
+          echo
+          echo "########## PER SITE ##########"
+          printf "%-32s %-14s %-14s %-6s %-6s\n" SITE OWN_HUB OWN_ORIGIN LOCS STATE
+          SITES=$(curl -s -m 30 "$HUB/sitemap-index.xml" | grep -o '<loc>[^<]*' | sed 's#<loc>'"$HUB"'##; s#/sitemap.xml##')
+          for s in $SITES; do
+            hc=$(curl -s -m 30 -o /tmp/s.xml -w "%{http_code}" "$HUB/$s/sitemap.xml")
+            n=$(grep -c '<loc>' /tmp/s.xml)
+            oc=$(curl -s -m 30 -o /dev/null -w "%{http_code}" "https://$s.pages.dev/sitemap.xml")
+            state=ok
+            [ "$hc" != "200" ] && { state=HUB_BAD; fail=1; }
+            [ "$n" -lt 1 ] && { state=EMPTY; fail=1; }
+            case "$oc" in 200) ;; *) state="$state/ORIGIN_$oc" ;; esac
+            printf "%-32s %-14s %-14s %-6s %-6s\n" "$s" "$hc" "$oc" "$n" "$state"
+          done
+
+          echo
+          echo "########## RESULT ##########"
+          if [ "$fail" = "0" ]; then echo "PASS — every sitemap is fetchable and non-empty"; else echo "FAIL — see rows above"; fi
+          exit 0
