@@ -188,4 +188,4 @@ a{color:#0b7285}li{margin:.25rem 0}</style></head><body>
     return xmlUnavailable(site, resp ? resp.status : 'fetch-error');
   },
 };
-// trigger 2026-11-22T15:45:00Z
+// trigger 2026-11-22T15:52:00Z
