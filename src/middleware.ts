@@ -78,7 +78,12 @@ export const onRequest = defineMiddleware(async (context, next) => {
   const _uaGeo = (context.request.headers.get('user-agent') || '');
   // Allowed regardless of country: search-index crawlers (Google + Bing) and the
   // chat-retrieval agents (they fetch one page per human action, so volume is low).
-  const _isGoogleIndexer = /googlebot|google-inspectiontool|adsbot-google|mediapartners-google|apis-google|googleother|storebot-google|bingbot|msnbot|adidxbot|claude-user|claude-searchbot|chatgpt-user|oai-searchbot|perplexity-user/i.test(_uaGeo);
+  // 22 Nov 2026 SKM audit: our OWN automation was being geo-refused. GitHub Actions
+  // runners sit in the US, so daily-indexnow.mjs (UA digipincode-indexnow/1.0) got
+  // 403 "Not available in your region" on /sitemap.xml and silently exited 0 —
+  // 24 requests/24h, 100% 403 (CF trace). Same for Google-Site-Verification and the
+  // examstatus self-audit bot. Added to the non-IN allowlist; the bot BLOCK list is untouched.
+  const _isGoogleIndexer = /googlebot|google-inspectiontool|adsbot-google|mediapartners-google|apis-google|googleother|storebot-google|bingbot|msnbot|adidxbot|claude-user|claude-searchbot|chatgpt-user|oai-searchbot|perplexity-user|digipincode-indexnow|google-site-verification|examstatusauditbot/i.test(_uaGeo);
   if (_country && _country !== 'IN' && !_isGoogleIndexer) {
     return new Response('Not available in your region', {
       status: 403,
