@@ -113,3 +113,15 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: deploy
           workingDirectory: ./skm-ai-worker
+
+      # 22 Nov 2026 SKM audit: a green deploy is not proof. Our own IndexNow pinger
+      # (GitHub runner, US) was being geo-refused with 403 and silently exiting 0,
+      # so daily index pings were dead for weeks. This asserts the fix on every deploy.
+      - name: Post-deploy live check (own automation UA must pass geo guard)
+        run: |
+          U="https://digipincode.india-in.workers.dev"
+          c=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 -A 'digipincode-indexnow/1.0 (+https://digipincode.india-in.workers.dev/)' "$U/sitemap.xml")
+          h=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 "$U/")
+          echo "own-UA sitemap=$c  homepage=$h"
+          if [ "$c" != "200" ]; then echo "FAIL: own IndexNow UA blocked ($c)"; exit 1; fi
+          echo "OK: content-level check passed"

@@ -45,8 +45,11 @@ async function main() {
     catch (e) { console.log(`  ${u} -> ${String(e).slice(0, 70)}`); }
   }
   if (!idx) {
-    console.log('WARN: no sitemap index reachable after retries — transient; exiting 0 so the run is not marked failed.');
-    process.exit(0);
+    // 22 Nov 2026 SKM audit: this used to exit 0, which hid a total failure —
+    // the pinger was being geo-refused (403) by our own middleware for weeks and
+    // every run still reported green. Loud now: a failed ping must fail the job.
+    console.error('FAIL: no sitemap index reachable after retries — index pings did NOT run.');
+    process.exit(1);
   }
   const parts = [...idx.matchAll(/<loc>\s*([^<\s]+)\s*<\/loc>/g)].map(m => m[1]).filter(u => u.includes('/sitemap/'));
   if (!parts.length) { console.log('WARN: sitemap index had no child parts; exiting 0.'); process.exit(0); }
