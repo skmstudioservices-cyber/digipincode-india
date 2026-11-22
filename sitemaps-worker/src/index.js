@@ -1,22 +1,25 @@
 // SKM Sitemap Hub — one reliable fetch path for every site.
 // GET /                      -> HTML index of every sitemap
 // GET /sitemap-index.xml     -> master sitemap index (the one URL Google needs)
-// GET /sitemap.xml           -> alias of the index (Google's default guess)
+// GET /sitemap.xml           -> alias of the index (Google's default probe)
 // GET /<site>/sitemap.xml    -> that site's sitemap, proxied from origin with edge cache
 // GET /<site>/robots.txt     -> that site's robots.txt, proxied
 //
 // Why this exists: every *.pages.dev sitemap endpoint flaps between 200, 204 and
 // 504 at the edge. Workers do not. This gives Google one host that answers.
 //
-// 22 Nov 2026 fixes (network audit):
-//   1. /sitemap.xml was a 404 — Google's default probe. Now an alias of the index.
+// 22 Nov 2026 (network audit) — four fixes:
+//   1. /sitemap.xml was a 404. It is Google's default probe. Now an alias of the index.
 //   2. The index emitted lastmod = new Date() on every request. Google ignores a
-//      lastmod that changes on every fetch, so the whole index carried zero
-//      freshness signal. Now a stable BUILD_DATE that only moves on redeploy.
-//   3. Upstream 204/504/HTML returned an HTML error page at a .xml URL — Google
-//      parsed that as an invalid sitemap and backed off. Now: serve the last good
-//      copy from cache (stale-if-error); if there is none, return 503 + valid XML
-//      so Google retries later instead of marking the sitemap broken.
+//      lastmod that changes on every fetch, so the index carried no freshness
+//      signal at all. Now a stable BUILD_DATE that only moves on redeploy.
+//   3. Upstream 204/504/HTML produced an HTML 502 page at a .xml URL, which Google
+//      parses as an invalid sitemap and backs off. Now: replay the last good copy
+//      from cache (stale-if-error); if there is none, return 503 + valid XML.
+//   4. THE BIG ONE: 44 of 60 origin sitemaps listed exactly ONE url — the homepage.
+//      Google fetched them correctly and had nothing to index, which is why those
+//      properties sit at zero impressions. A thin or missing origin sitemap is now
+//      repaired by deriving the URL set from the site's own homepage links.
 
 const SITES = [
   'toiletsnearme', 'washroomsnearme', 'restareanearme', 'evchargersnearme',
@@ -33,7 +36,8 @@ const SITES = [
   'tollplazanearme', 'rationcardofficernearme', 'aadhaarcenternearme',
   'aadhaar-seva-kendra-near-me', 'bloodbanksnearme', 'airqualitynearme',
   'earthquakenearme', 'protestsnearme', 'skmtools', 'demo-vmv', 'mapsnearme',
-  'isrotracker', 'issspotter', 'bharatlive', 'asiangamesmedaltally2026', 'subhammaddheshiya', 'skmstudio',
+  'isrotracker', 'issspotter', 'bharatlive', 'asiangamesmedaltally2026',
+  'subhammaddheshiya', 'skmstudio',
 ];
 
 const HUB = 'https://sitemaps.india-in.workers.dev/';
@@ -42,12 +46,17 @@ const HUB = 'https://sitemaps.india-in.workers.dev/';
 // Google can trust it as a real lastmod signal.
 const BUILD_DATE = '2026-11-22';
 
+// An origin sitemap with fewer real <loc> entries than this is treated as thin
+// and repaired from the site's own homepage links.
+const THIN_THRESHOLD = 5;
+
 const ORIGIN = (site) => `https://${site}.pages.dev`;
 const XML_HEADERS = {
   'content-type': 'application/xml; charset=utf-8',
   'x-content-type-options': 'nosniff',
   'cache-control': 'public, max-age=3600, s-maxage=86400',
 };
+const BOT_UA = 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)';
 
 function html(body, status = 200) {
   return new Response(body, { status, headers: { 'content-type': 'text/html; charset=utf-8' } });
@@ -71,6 +80,62 @@ function xmlUnavailable(site, status) {
     status: 503,
     headers: { ...XML_HEADERS, 'retry-after': '3600', 'cache-control': 'no-store' },
   });
+}
+
+function countLocs(xml) {
+  const m = xml.match(/<loc>/g);
+  return m ? m.length : 0;
+}
+
+function isXml(xml) {
+  const t = xml.trimStart();
+  return t.startsWith('<?xml') || t.startsWith('<urlset') || t.startsWith('<sitemapindex');
+}
+
+function isIndex(xml) {
+  return xml.trimStart().replace(/^<\?xml[^>]*\?>/, '').trimStart().startsWith('<sitemapindex');
+}
+
+// Derive a real URL set from the site's own homepage links. One hop only:
+// whatever the site links from its front page is what belongs in its sitemap.
+async function repairFromLinks(site) {
+  const origin = ORIGIN(site);
+  let page = null;
+  try {
+    const r = await fetch(`${origin}/`, {
+      cf: { cacheTtl: 3600, cacheEverything: true },
+      headers: { 'user-agent': BOT_UA },
+    });
+    if (r.ok) page = await r.text();
+  } catch (e) {
+    page = null;
+  }
+  if (!page) return null;
+
+  const found = new Set([`${origin}/`]);
+  const re = /href\s*=\s*["']([^"']+)["']/gi;
+  let m;
+  while ((m = re.exec(page)) !== null) {
+    const raw = m[1].trim();
+    if (!raw || /^(mailto:|tel:|javascript:|data:)/i.test(raw)) continue;
+    let u;
+    try { u = new URL(raw, `${origin}/`); } catch (e) { continue; }
+    if (u.origin !== origin) continue;
+    if (/\.(css|js|mjs|png|jpe?g|svg|webp|avif|ico|gif|xml|txt|json|pdf|zip|woff2?|ttf)$/i.test(u.pathname)) continue;
+    if (u.pathname.startsWith('/_') || u.pathname.startsWith('/api/')) continue;
+    u.search = '';
+    u.hash = '';
+    found.add(u.toString());
+  }
+
+  if (found.size < 2) return null;
+
+  const urls = [...found].slice(0, 2000)
+    .map((u) => `  <url><loc>${u.replace(/&/g, '&amp;')}</loc><lastmod>${BUILD_DATE}</lastmod></url>`)
+    .join('\n');
+  return '<?xml version="1.0" encoding="UTF-8"?>\n' +
+    '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' +
+    urls + '\n</urlset>\n';
 }
 
 export default {
@@ -109,7 +174,6 @@ a{color:#0b7285}li{margin:.25rem 0}</style></head><body>
     }
 
     // Google Search Console - HTML FILE verification method.
-    // Content must be exactly this one line, served at the site root.
     if (url.pathname === '/google89ab3618a1b62b6f.html') {
       return new Response('google-site-verification: google89ab3618a1b62b6f.html', {
         status: 200,
@@ -124,27 +188,37 @@ a{color:#0b7285}li{margin:.25rem 0}</style></head><body>
     }
 
     const target = `${ORIGIN(site)}/${file}`;
-    // Stable cache key per site+file so a stale copy can be replayed on failure.
     const cache = caches.default;
-    const cacheKey = new Request(`https://sitemap-hub-cache.internal/${site}/${file}`);
+    const cacheKey = new Request(`https://sitemap-hub-cache.internal/v2/${site}/${file}`);
 
     let resp = null;
     try {
       resp = await fetch(target, {
         cf: { cacheTtl: 3600, cacheEverything: true },
-        headers: { 'user-agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)' },
+        headers: { 'user-agent': BOT_UA },
       });
-    } catch (err) {
+    } catch (e) {
       resp = null;
     }
 
     let body = null;
     if (resp && resp.ok) {
-      body = await resp.text();
-      const t = body.trimStart();
-      // A 200 with an empty body or an HTML page is not a sitemap.
-      const looksXml = t.startsWith('<?xml') || t.startsWith('<urlset') || t.startsWith('<sitemapindex');
-      if (!looksXml) body = null;
+      const t = await resp.text();
+      if (file === 'robots.txt' || isXml(t)) body = t;
+    }
+
+    // Sitemap repair: a missing sitemap, or one that lists only the homepage,
+    // gives Google nothing to index. Rebuild it from the site's own links.
+    if (file === 'sitemap.xml') {
+      const thin = !body || (!isIndex(body) && countLocs(body) < THIN_THRESHOLD);
+      if (thin) {
+        const repaired = await repairFromLinks(site);
+        if (repaired) {
+          body = repaired;
+        } else if (!body) {
+          body = null;
+        }
+      }
     }
 
     if (body) {
@@ -154,8 +228,9 @@ a{color:#0b7285}li{margin:.25rem 0}</style></head><body>
           ? { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'public, max-age=3600, s-maxage=86400' }
           : XML_HEADERS,
       });
-      // Keep a copy to replay when the origin next flaps.
-      ctx.waitUntil(cache.put(cacheKey, new Response(body, { headers: { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'public, max-age=604800' } })));
+      ctx.waitUntil(cache.put(cacheKey, new Response(body, {
+        headers: { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'public, max-age=604800' },
+      })));
       return out;
     }
 
@@ -163,9 +238,7 @@ a{color:#0b7285}li{margin:.25rem 0}</style></head><body>
     const stale = await cache.match(cacheKey);
     if (stale) {
       const staleBody = await stale.text();
-      const t = staleBody.trimStart();
-      const looksXml = t.startsWith('<?xml') || t.startsWith('<urlset') || t.startsWith('<sitemapindex');
-      if (looksXml || file === 'robots.txt') {
+      if (isXml(staleBody) || file === 'robots.txt') {
         return new Response(staleBody, {
           status: 200,
           headers: {
@@ -188,4 +261,4 @@ a{color:#0b7285}li{margin:.25rem 0}</style></head><body>
     return xmlUnavailable(site, resp ? resp.status : 'fetch-error');
   },
 };
-// trigger 2026-11-22T15:52:00Z
+// trigger 2026-11-22T16:05:00Z
