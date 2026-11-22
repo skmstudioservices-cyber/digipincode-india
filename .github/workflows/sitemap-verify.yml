@@ -5,6 +5,9 @@ name: Sitemap Verify (network-wide gate)
 # A 200 is not proof. This reads the body and counts <loc>.
 on:
   workflow_dispatch:
+  push:
+    paths:
+      - 'sitemaps-worker/**'
   schedule:
     - cron: "40 4 * * *"
 permissions:
