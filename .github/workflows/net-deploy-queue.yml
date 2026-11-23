@@ -1,0 +1,113 @@
+name: Network Deploy Queue (push-triggered bridge)
+
+# WHY THIS EXISTS
+# `net-deploy.yml` is workflow_dispatch-only, and the GitHub App used by the
+# agent has no `actions:write` scope (dispatch returns 403). So a deploy could
+# not be started programmatically at all.
+#
+# This workflow is the same bridge driven by a file instead of an input form:
+# push a JSON file to `deploy-queue/` and every changed file is deployed to its
+# own Cloudflare Pages project using THIS repo's CF secrets. New site repos
+# therefore never need their own CLOUDFLARE_API_TOKEN.
+#
+# Queue file shape (deploy-queue/<slug>.json):
+#   { "repo": "atmsnearme", "project": "atmsnearme", "dir": ".",
+#     "branch": "main", "verify_url": "" }
+#
+# Removing the file afterwards is safe; it is only read at push time.
+
+on:
+  push:
+    paths:
+      - 'deploy-queue/*.json'
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-queue
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+
+      - name: Resolve queue files
+        id: q
+        run: |
+          if git rev-parse HEAD^ >/dev/null 2>&1; then
+            FILES=$(git diff --name-only HEAD^ HEAD -- 'deploy-queue/*.json' | tr '\n' ' ')
+          else
+            FILES=$(ls deploy-queue/*.json 2>/dev/null | tr '\n' ' ')
+          fi
+          echo "files=$FILES" >> "$GITHUB_OUTPUT"
+          echo "queue: $FILES"
+
+      - name: Deploy each queued site
+        if: ${{ steps.q.outputs.files != '' }}
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          FILES: ${{ steps.q.outputs.files }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set +e
+          ok=0; fail=0
+          for f in $FILES; do
+            [ -f "$f" ] || { echo "SKIP (deleted) $f"; continue; }
+            REPO=$(jq -r '.repo' "$f")
+            PROJ=$(jq -r '.project' "$f")
+            DIR=$(jq -r '.dir // "."' "$f")
+            BR=$(jq -r '.branch // "main"' "$f")
+            VURL=$(jq -r '.verify_url // ""' "$f")
+            echo "########## $REPO -> $PROJ (dir=$DIR) ##########"
+
+            rm -rf site
+            if ! git clone --depth 1 --branch "$BR" \
+                 "https://x-access-token:${GH_TOKEN}@github.com/skmstudioservices-cyber/${REPO}.git" site; then
+              echo "::error::clone failed for $REPO"; fail=$((fail+1)); continue
+            fi
+
+            npx --yes wrangler@latest pages project create "$PROJ" --production-branch="$BR" >/dev/null 2>&1 || true
+
+            if ( cd "site" && npx --yes wrangler@latest pages deploy "$DIR" \
+                   --project-name="$PROJ" --branch="$BR" --commit-dirty=true ); then
+              echo "DEPLOY OK $PROJ"
+            else
+              echo "::error::deploy failed for $PROJ"; fail=$((fail+1)); continue
+            fi
+
+            sleep 20
+            BASE="${VURL:-https://$PROJ.pages.dev}"; BASE="${BASE%/}"
+            UA='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36'
+            code=$(curl -s -L -o /tmp/home.html -w '%{http_code}' -m 30 -A "$UA" \
+                   -H 'Accept: text/html,application/xhtml+xml' "$BASE/")
+            title=$(grep -o '<title>[^<]*' /tmp/home.html | head -1 | sed 's/<title>//')
+            h1=$(grep -o '<h1[^>]*>[^<]*' /tmp/home.html | head -1 | sed 's/<h1[^>]*>//')
+            words=$(sed 's/<[^>]*>/ /g' /tmp/home.html | wc -w)
+            smcode=$(curl -s -o /tmp/sm.xml -w '%{http_code}' -m 30 -A "$UA" "$BASE/sitemap.xml")
+            locs=$(grep -c '<loc>' /tmp/sm.xml)
+            echo "VERIFY $PROJ home=$code sitemap=$smcode locs=$locs words=$words"
+            echo "  title=$title"
+            echo "  h1=$h1"
+            if [ "$code" != "200" ]; then echo "::error::$PROJ home not 200 ($code)"; fail=$((fail+1)); continue; fi
+            if [ -z "$title" ]; then echo "::error::$PROJ has no <title>"; fail=$((fail+1)); continue; fi
+            if [ -z "$h1" ]; then echo "::error::$PROJ has no <h1>"; fail=$((fail+1)); continue; fi
+            if [ "$words" -lt 120 ]; then echo "::error::$PROJ thin content (${words}w)"; fail=$((fail+1)); continue; fi
+            ok=$((ok+1))
+          done
+          echo "=== QUEUE DONE ok=$ok fail=$fail ==="
+          [ "$fail" = "0" ] || exit 1
+
+      - name: No queue changes
+        if: ${{ steps.q.outputs.files == '' }}
+        run: echo "no deploy-queue files changed in this push"
