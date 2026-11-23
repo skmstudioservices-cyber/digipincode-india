@@ -1,0 +1,112 @@
+# demo-vmv.pages.dev is a duplicate host: it serves a full copy of every near-me
+# page while the real page lives on <slug>.pages.dev. GSC records the duplicate
+# as the declared canonical on atmsnearme and petrolpumpsnearme.
+#
+# These rules 301 every duplicated path to the real host, so link equity and
+# any traffic that still lands here reaches the site that should rank.
+#
+# Order matters: Cloudflare Pages takes the first matching rule.
+
+# root -> the network sitemap index (an HTML index of every site)
+/  https://sitemaps.india-in.workers.dev/  301
+
+# sitemap / robots must not compete with the real hosts
+/sitemap.xml  https://sitemaps.india-in.workers.dev/sitemap-index.xml  301
+/robots.txt  https://sitemaps.india-in.workers.dev/robots.txt  301
+
+# one rule per niche site
+/aadhaarcenternearme/*  https://aadhaarcenternearme.pages.dev/:splat  301
+/aadhaarcenternearme  https://aadhaarcenternearme.pages.dev/  301
+/atmsnearme/*  https://atmsnearme.pages.dev/:splat  301
+/atmsnearme  https://atmsnearme.pages.dev/  301
+/autostandnearme/*  https://autostandnearme.pages.dev/:splat  301
+/autostandnearme  https://autostandnearme.pages.dev/  301
+/bakerynearme/*  https://bakerynearme.pages.dev/:splat  301
+/bakerynearme  https://bakerynearme.pages.dev/  301
+/banksnearme/*  https://banksnearme.pages.dev/:splat  301
+/banksnearme  https://banksnearme.pages.dev/  301
+/bicyclestandnearme/*  https://bicyclestandnearme.pages.dev/:splat  301
+/bicyclestandnearme  https://bicyclestandnearme.pages.dev/  301
+/bikerepairsnearme/*  https://bikerepairsnearme.pages.dev/:splat  301
+/bikerepairsnearme  https://bikerepairsnearme.pages.dev/  301
+/bikestandnearme/*  https://bikestandnearme.pages.dev/:splat  301
+/bikestandnearme  https://bikestandnearme.pages.dev/  301
+/busstationnearme/*  https://busstationnearme.pages.dev/:splat  301
+/busstationnearme  https://busstationnearme.pages.dev/  301
+/busstopnearme/*  https://busstopnearme.pages.dev/:splat  301
+/busstopnearme  https://busstopnearme.pages.dev/  301
+/cafenearme/*  https://cafenearme.pages.dev/:splat  301
+/cafenearme  https://cafenearme.pages.dev/  301
+/carparkingnearme/*  https://carparkingnearme.pages.dev/:splat  301
+/carparkingnearme  https://carparkingnearme.pages.dev/  301
+/carrepairsnearme/*  https://carrepairsnearme.pages.dev/:splat  301
+/carrepairsnearme  https://carrepairsnearme.pages.dev/  301
+/churchesnearme/*  https://churchesnearme.pages.dev/:splat  301
+/churchesnearme  https://churchesnearme.pages.dev/  301
+/courtnearme/*  https://courtnearme.pages.dev/:splat  301
+/courtnearme  https://courtnearme.pages.dev/  301
+/dentistsnearme/*  https://dentistsnearme.pages.dev/:splat  301
+/dentistsnearme  https://dentistsnearme.pages.dev/  301
+/dhabanearme/*  https://dhabanearme.pages.dev/:splat  301
+/dhabanearme  https://dhabanearme.pages.dev/  301
+/electricityofficernearme/*  https://electricityofficernearme.pages.dev/:splat  301
+/electricityofficernearme  https://electricityofficernearme.pages.dev/  301
+/erickshawstandnearme/*  https://erickshawstandnearme.pages.dev/:splat  301
+/erickshawstandnearme  https://erickshawstandnearme.pages.dev/  301
+/gymnearme/*  https://gymnearme.pages.dev/:splat  301
+/gymnearme  https://gymnearme.pages.dev/  301
+/hardwareshopnearme/*  https://hardwareshopnearme.pages.dev/:splat  301
+/hardwareshopnearme  https://hardwareshopnearme.pages.dev/  301
+/hospitalsnearme/*  https://hospitalsnearme.pages.dev/:splat  301
+/hospitalsnearme  https://hospitalsnearme.pages.dev/  301
+/hotelnearme/*  https://hotelnearme.pages.dev/:splat  301
+/hotelnearme  https://hotelnearme.pages.dev/  301
+/laundrynearme/*  https://laundrynearme.pages.dev/:splat  301
+/laundrynearme  https://laundrynearme.pages.dev/  301
+/lodgenearme/*  https://lodgenearme.pages.dev/:splat  301
+/lodgenearme  https://lodgenearme.pages.dev/  301
+/mechanicnearme/*  https://mechanicnearme.pages.dev/:splat  301
+/mechanicnearme  https://mechanicnearme.pages.dev/  301
+/medicalshopnearme/*  https://medicalshopnearme.pages.dev/:splat  301
+/medicalshopnearme  https://medicalshopnearme.pages.dev/  301
+/mobilerepairnearme/*  https://mobilerepairnearme.pages.dev/:splat  301
+/mobilerepairnearme  https://mobilerepairnearme.pages.dev/  301
+/mosquesnearme/*  https://mosquesnearme.pages.dev/:splat  301
+/mosquesnearme  https://mosquesnearme.pages.dev/  301
+/paintshopnearme/*  https://paintshopnearme.pages.dev/:splat  301
+/paintshopnearme  https://paintshopnearme.pages.dev/  301
+/parksnearme/*  https://parksnearme.pages.dev/:splat  301
+/parksnearme  https://parksnearme.pages.dev/  301
+/petrolpumpsnearme/*  https://petrolpumpsnearme.pages.dev/:splat  301
+/petrolpumpsnearme  https://petrolpumpsnearme.pages.dev/  301
+/policestationsnearme/*  https://policestationsnearme.pages.dev/:splat  301
+/policestationsnearme  https://policestationsnearme.pages.dev/  301
+/postofficenearme/*  https://postofficenearme.pages.dev/:splat  301
+/postofficenearme  https://postofficenearme.pages.dev/  301
+/protestsnearme/*  https://protestsnearme.pages.dev/:splat  301
+/protestsnearme  https://protestsnearme.pages.dev/  301
+/railwaystationnearme/*  https://railwaystationnearme.pages.dev/:splat  301
+/railwaystationnearme  https://railwaystationnearme.pages.dev/  301
+/rationcardofficernearme/*  https://rationcardofficernearme.pages.dev/:splat  301
+/rationcardofficernearme  https://rationcardofficernearme.pages.dev/  301
+/restaurantsnearme/*  https://restaurantsnearme.pages.dev/:splat  301
+/restaurantsnearme  https://restaurantsnearme.pages.dev/  301
+/rtoofficenearme/*  https://rtoofficenearme.pages.dev/:splat  301
+/rtoofficenearme  https://rtoofficenearme.pages.dev/  301
+/salonnearme/*  https://salonnearme.pages.dev/:splat  301
+/salonnearme  https://salonnearme.pages.dev/  301
+/sweetsshopnearme/*  https://sweetsshopnearme.pages.dev/:splat  301
+/sweetsshopnearme  https://sweetsshopnearme.pages.dev/  301
+/tailorshopnearme/*  https://tailorshopnearme.pages.dev/:splat  301
+/tailorshopnearme  https://tailorshopnearme.pages.dev/  301
+/templesnearme/*  https://templesnearme.pages.dev/:splat  301
+/templesnearme  https://templesnearme.pages.dev/  301
+/thananearme/*  https://thananearme.pages.dev/:splat  301
+/thananearme  https://thananearme.pages.dev/  301
+/tirenearme/*  https://tirenearme.pages.dev/:splat  301
+/tirenearme  https://tirenearme.pages.dev/  301
+/tollplazanearme/*  https://tollplazanearme.pages.dev/:splat  301
+/tollplazanearme  https://tollplazanearme.pages.dev/  301
+
+# anything else -> network index rather than a soft 404
+/*  https://sitemaps.india-in.workers.dev/  301
