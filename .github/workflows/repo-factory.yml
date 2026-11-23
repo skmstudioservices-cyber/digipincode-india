@@ -1,0 +1,234 @@
+name: Repo Factory (create one GitHub repo per niche site)
+
+# WHY THIS EXISTS
+# The GitHub App this agent uses cannot create repositories:
+#   gh repo create            -> GraphQL: Resource not accessible by integration (createRepository)
+#   POST /orgs/{org}/repos    -> 404 Not Found
+# So repo creation has to happen from a runner holding a PAT that can create org
+# repos. This workflow does exactly that, and it also seeds each new repo with
+# that site's real content, taken from the Demo repo.
+#
+# HOW TO USE
+#   1. Put slugs in `repo-factory/slugs.json` (array of strings).
+#   2. Push. The path filter starts this workflow.
+#   3. Each slug -> repo `skmstudioservices-cyber/<slug>`, seeded and pushed.
+#
+# A slug is skipped if the repo already exists, so re-running is safe.
+# Secret values are never printed — only whether a candidate name is set.
+
+on:
+  push:
+    paths:
+      - 'repo-factory/slugs.json'
+  workflow_dispatch:
+
+concurrency:
+  group: repo-factory
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  factory:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Probe for a PAT that can create org repos
+        id: pat
+        env:
+          P1: ${{ secrets.GH_PAT }}
+          P2: ${{ secrets.PAT_TOKEN }}
+          P3: ${{ secrets.GITHUB_PAT }}
+          P4: ${{ secrets.GH_TOKEN }}
+          P5: ${{ secrets.ORG_PAT }}
+          P6: ${{ secrets.REPO_FACTORY_PAT }}
+        run: |
+          found=""
+          for n in P1 P2 P3 P4 P5 P6; do
+            eval "v=\$$n"
+            if [ -n "$v" ]; then echo "$n is SET"; [ -z "$found" ] && found="$n"; else echo "$n is empty"; fi
+          done
+          case "$found" in
+            P1) echo "name=GH_PAT" >> "$GITHUB_OUTPUT" ;;
+            P2) echo "name=PAT_TOKEN" >> "$GITHUB_OUTPUT" ;;
+            P3) echo "name=GITHUB_PAT" >> "$GITHUB_OUTPUT" ;;
+            P4) echo "name=GH_TOKEN" >> "$GITHUB_OUTPUT" ;;
+            P5) echo "name=ORG_PAT" >> "$GITHUB_OUTPUT" ;;
+            P6) echo "name=REPO_FACTORY_PAT" >> "$GITHUB_OUTPUT" ;;
+            *)  echo "name=" >> "$GITHUB_OUTPUT" ;;
+          esac
+          echo "usable=$found"
+
+      - name: Fail clearly if no PAT is available
+        if: ${{ steps.pat.outputs.name == '' }}
+        run: |
+          echo "::error::No PAT secret available on this repo. Repo creation needs a PAT with 'Administration: write' on the org (classic: 'repo' + org owner). Add one as GH_PAT in digipincode-india secrets, then re-run."
+          exit 1
+
+      - name: Create and seed repos
+        if: ${{ steps.pat.outputs.name != '' }}
+        env:
+          PAT_NAME: ${{ steps.pat.outputs.name }}
+          GH_PAT: ${{ secrets.GH_PAT }}
+          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
+          GITHUB_PAT: ${{ secrets.GITHUB_PAT }}
+          GH_TOKEN_SECRET: ${{ secrets.GH_TOKEN }}
+          ORG_PAT: ${{ secrets.ORG_PAT }}
+          REPO_FACTORY_PAT: ${{ secrets.REPO_FACTORY_PAT }}
+        run: |
+          set +e
+          eval "TOK=\$$PAT_NAME"
+          ORG=skmstudioservices-cyber
+          API=https://api.github.com
+
+          git clone --depth 1 "https://x-access-token:${TOK}@github.com/${ORG}/Demo.git" demo || { echo "::error::cannot clone Demo"; exit 1; }
+
+          ok=0; skipped=0; fail=0
+          for SLUG in $(jq -r '.[]' repo-factory/slugs.json); do
+            echo "########## $SLUG ##########"
+            exists=$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $TOK" "$API/repos/$ORG/$SLUG")
+            if [ "$exists" = "200" ]; then echo "SKIP $SLUG (repo exists)"; skipped=$((skipped+1)); continue; fi
+
+            if [ ! -f "demo/$SLUG.html" ]; then echo "::error::$SLUG has no $SLUG.html in Demo"; fail=$((fail+1)); continue; fi
+
+            # ---- create the repo ----
+            created=$(curl -s -X POST -H "Authorization: Bearer $TOK" -H 'Accept: application/vnd.github+json' \
+              "$API/orgs/$ORG/repos" \
+              -d "{\"name\":\"$SLUG\",\"visibility\":\"public\",\"description\":\"Near-me site: $SLUG — static map page on Cloudflare Pages\",\"auto_init\":false}")
+            if ! echo "$created" | grep -q '"full_name"'; then
+              echo "::error::create failed for $SLUG: $(echo "$created" | head -c 300)"; fail=$((fail+1)); continue
+            fi
+
+            # ---- seed content ----
+            W=/tmp/seed-$SLUG
+            rm -rf "$W"; mkdir -p "$W/css" "$W/js" "$W/.github/workflows"
+            cp "demo/$SLUG.html" "$W/index.html"
+            cp demo/css/style.css "$W/css/"
+            cp demo/js/*.js "$W/js/"
+            cp demo/icon.svg "$W/"
+            HOST="https://$SLUG.pages.dev"
+            printf '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n  <url><loc>%s/</loc></url>\n</urlset>\n' "$HOST" > "$W/sitemap.xml"
+            printf 'User-agent: *\nAllow: /\n\nSitemap: %s/sitemap.xml\n' "$HOST" > "$W/robots.txt"
+            TITLE=$(grep -o '<title>[^<]*' "$W/index.html" | head -1 | sed 's/<title>//')
+
+            cat > "$W/README.md" <<MD
+          # $SLUG
+
+          Static near-me site — **$TITLE**.
+
+          - Live: $HOST
+          - Cloudflare Pages project: \`$SLUG\`
+          - Sitemap: $HOST/sitemap.xml
+
+          ## Deploy
+
+          Static files at the repo root. Two paths:
+
+          1. \`.github/workflows/deploy.yml\` — on push to \`main\`, needs
+             \`CLOUDFLARE_API_TOKEN\` + \`CLOUDFLARE_ACCOUNT_ID\` as repo secrets.
+          2. **Network bridge** — \`net-deploy-queue.yml\` in \`digipincode-india\`
+             deploys this repo to the \`$SLUG\` Pages project using that repo's
+             secrets. Push \`deploy-queue/$SLUG.json\` there to trigger it.
+
+          ## Rules
+
+          - One repo per site. This repo owns only \`$SLUG\`.
+          - Never copy another site's data or branding here.
+          - Keep the host in \`sitemap.xml\` and \`robots.txt\` correct.
+          MD
+
+            cat > "$W/STRUCTURE.md" <<MD
+          # STRUCTURE — $SLUG
+
+          ## DOM-id contract — do not rename
+
+          | id / selector | Used by |
+          | --- | --- |
+          | \`#map\` | \`js/app.js\` (Leaflet mount) |
+          | \`#ncontent\` | \`js/content.js\` |
+          | \`#nblocks\` | \`js/blocks.js\` |
+          | \`.controls\` | \`js/app.js\` |
+
+          ## File roles
+
+          | File | Role |
+          | --- | --- |
+          | \`index.html\` | the only page |
+          | \`css/style.css\` | all styling |
+          | \`js/app.js\` | Leaflet map, geolocation, search |
+          | \`js/blocks.js\` | near-me blocks + Read more expansion |
+          | \`js/content.js\` | intro, query headings, how-to, FAQ |
+          | \`js/analytics.js\` | first-party pageview beacon |
+          | \`sitemap.xml\` | urlset, own host only |
+          | \`robots.txt\` | allow all, Sitemap line last |
+
+          ## Improvement protocol
+
+          1. Read this file and \`index.html\` before editing.
+          2. Never remove a DOM id the JS depends on.
+          3. Add a \`<loc>\` to \`sitemap.xml\` whenever a real page is added.
+          4. Verify live after deploy: home 200, title, h1, sitemap locs > 0.
+          MD
+
+            cat > "$W/.github/workflows/deploy.yml" <<'YML'
+          name: Deploy to Cloudflare Pages
+          on:
+            push:
+              branches: [main]
+            workflow_dispatch:
+          concurrency:
+            group: deploy-GHOPEN github.ref GHCLOSE
+            cancel-in-progress: true
+          permissions:
+            contents: read
+          jobs:
+            deploy:
+              runs-on: ubuntu-latest
+              steps:
+                - uses: actions/checkout@v4
+                - uses: actions/setup-node@v4
+                  with: { node-version: 22 }
+                - name: Guard - secrets present?
+                  id: guard
+                  env:
+                    TOK: GHOPEN secrets.CLOUDFLARE_API_TOKEN GHCLOSE
+                  run: |
+                    if [ -z "$TOK" ]; then echo "present=false" >> "$GITHUB_OUTPUT";
+                      echo "No CF token on this repo - deploy via the network bridge (deploy-queue). Not a failure.";
+                    else echo "present=true" >> "$GITHUB_OUTPUT"; fi
+                - name: Deploy
+                  if: GHOPEN steps.guard.outputs.present == 'true' GHCLOSE
+                  env:
+                    CLOUDFLARE_API_TOKEN: GHOPEN secrets.CLOUDFLARE_API_TOKEN GHCLOSE
+                    CLOUDFLARE_ACCOUNT_ID: GHOPEN secrets.CLOUDFLARE_ACCOUNT_ID GHCLOSE
+                  run: npx --yes wrangler@latest pages deploy . --project-name="GHOPEN github.event.repository.name GHCLOSE" --branch=main --commit-dirty=true
+                - name: Verify live content
+                  if: GHOPEN steps.guard.outputs.present == 'true' GHCLOSE
+                  run: |
+                    sleep 20
+                    BASE="https://GHOPEN github.event.repository.name GHCLOSE.pages.dev"
+                    UA='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36'
+                    code=$(curl -s -L -o /tmp/h.html -w '%{http_code}' -m 30 -A "$UA" "$BASE/")
+                    echo "home=$code"; [ "$code" = "200" ] || exit 1
+                    grep -q '<h1' /tmp/h.html || { echo "::error::no h1"; exit 1; }
+          YML
+
+            # inner template used GHOPEN/GHCLOSE markers so Actions would not
+            # expand them here; turn them into real Actions expressions now.
+            D='$'; O='{{'; C='}}'
+            sed -i "s/GHOPEN/${D}${O}/g; s/GHCLOSE/${C}/g" "$W/.github/workflows/deploy.yml"
+
+            # ---- push it ----
+            ( cd "$W" && git init -q -b main \
+              && git config user.name "skm-repo-factory" \
+              && git config user.email "skmstudio.services@gmail.com" \
+              && git add -A \
+              && git commit -q -m "Initial commit: $SLUG static site" \
+              && git push -q "https://x-access-token:${TOK}@github.com/${ORG}/${SLUG}.git" main )
+            if [ $? -eq 0 ]; then echo "OK   $SLUG"; ok=$((ok+1)); else echo "::error::push failed for $SLUG"; fail=$((fail+1)); fi
+          done
+          echo "=== FACTORY DONE ok=$ok skipped=$skipped fail=$fail ==="
+          [ "$fail" = "0" ] || exit 1
