@@ -32,8 +32,8 @@ jobs:
             if [ "$code" != "200" ] || [ "$n" -lt 55 ]; then echo "  FAIL $p"; fail=1; fi
           done
           echo "--- hub robots.txt ---"; curl -s -m 20 "$HUB/robots.txt" | grep -i sitemap
-          echo "--- typo'd submission (expect 404) ---"
-          curl -s -o /dev/null -w "  /rtoofficernearme/sitemap.xml http=%{http_code}\n" -m 20 "$HUB/rtoofficernearme/sitemap.xml"
+          echo "--- rtoofficenearme hub endpoint (expect 200) ---"
+          curl -s -o /dev/null -w "  /rtoofficenearme/sitemap.xml http=%{http_code}\n" -m 20 "$HUB/rtoofficenearme/sitemap.xml"
 
           echo
           echo "########## PER SITE ##########"
