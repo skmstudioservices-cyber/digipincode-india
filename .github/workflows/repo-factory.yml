@@ -97,7 +97,7 @@ jobs:
             # ---- create the repo (retry on GitHub secondary rate limit) ----
             created=""
             attempt=0
-            for wait in 0 30 60 120 180; do
+            for wait in 0 60 180 420 900; do
               attempt=$((attempt+1))
               [ "$wait" -gt 0 ] && { echo "    rate-limited, waiting ${wait}s (attempt $attempt)"; sleep "$wait"; }
               created=$(curl -s -X POST -H "Authorization: Bearer $TOK" -H 'Accept: application/vnd.github+json' \
@@ -114,6 +114,11 @@ jobs:
             if ! echo "$created" | grep -q '"full_name"'; then
               echo "::error::create failed for $SLUG: $(echo "$created" | head -c 300)"; fail=$((fail+1)); continue
             fi
+
+            # 24 Nov 2026: pace creations — GitHub's secondary "content creation"
+            # limit tripped after ~10 repos in one run (37/38 failed on 24 Nov).
+            # A short pause between successful creations keeps us under it.
+            sleep 45
 
             # ---- seed content ----
             W=/tmp/seed-$SLUG
