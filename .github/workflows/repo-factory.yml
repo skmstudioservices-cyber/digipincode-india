@@ -96,7 +96,7 @@ jobs:
 
             # ---- create the repo ----
             created=$(curl -s -X POST -H "Authorization: Bearer $TOK" -H 'Accept: application/vnd.github+json' \
-              "$API/orgs/$ORG/repos" \
+              "$API/user/repos" \
               -d "{\"name\":\"$SLUG\",\"visibility\":\"public\",\"description\":\"Near-me site: $SLUG — static map page on Cloudflare Pages\",\"auto_init\":false}")
             if ! echo "$created" | grep -q '"full_name"'; then
               echo "::error::create failed for $SLUG: $(echo "$created" | head -c 300)"; fail=$((fail+1)); continue
