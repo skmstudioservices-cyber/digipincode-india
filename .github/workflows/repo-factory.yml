@@ -32,7 +32,7 @@ permissions:
 jobs:
   factory:
     runs-on: ubuntu-latest
-    timeout-minutes: 50
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
 
@@ -94,10 +94,23 @@ jobs:
 
             if [ ! -f "demo/$SLUG.html" ]; then echo "::error::$SLUG has no $SLUG.html in Demo"; fail=$((fail+1)); continue; fi
 
-            # ---- create the repo ----
-            created=$(curl -s -X POST -H "Authorization: Bearer $TOK" -H 'Accept: application/vnd.github+json' \
-              "$API/user/repos" \
-              -d "{\"name\":\"$SLUG\",\"visibility\":\"public\",\"description\":\"Near-me site: $SLUG — static map page on Cloudflare Pages\",\"auto_init\":false}")
+            # ---- create the repo (retry on GitHub secondary rate limit) ----
+            created=""
+            attempt=0
+            for wait in 0 30 60 120 180; do
+              attempt=$((attempt+1))
+              [ "$wait" -gt 0 ] && { echo "    rate-limited, waiting ${wait}s (attempt $attempt)"; sleep "$wait"; }
+              created=$(curl -s -X POST -H "Authorization: Bearer $TOK" -H 'Accept: application/vnd.github+json' \
+                "$API/user/repos" \
+                -d "{\"name\":\"$SLUG\",\"visibility\":\"public\",\"description\":\"Near-me site: $SLUG — static map page on Cloudflare Pages\",\"auto_init\":false}")
+              if echo "$created" | grep -q '"full_name"'; then break; fi
+              # already exists from an earlier partial run -> treat as skip
+              if echo "$created" | grep -q 'name already exists'; then
+                echo "SKIP $SLUG (already exists)"; created="EXISTS"; break
+              fi
+              if ! echo "$created" | grep -q 'secondary rate limit'; then break; fi
+            done
+            if [ "$created" = "EXISTS" ]; then skipped=$((skipped+1)); continue; fi
             if ! echo "$created" | grep -q '"full_name"'; then
               echo "::error::create failed for $SLUG: $(echo "$created" | head -c 300)"; fail=$((fail+1)); continue
             fi
@@ -229,6 +242,8 @@ jobs:
               && git commit -q -m "Initial commit: $SLUG static site" \
               && git push -q "https://x-access-token:${TOK}@github.com/${ORG}/${SLUG}.git" main )
             if [ $? -eq 0 ]; then echo "OK   $SLUG"; ok=$((ok+1)); else echo "::error::push failed for $SLUG"; fail=$((fail+1)); fi
+            echo "    spacing 15s before next slug"
+            sleep 15
           done
           echo "=== FACTORY DONE ok=$ok skipped=$skipped fail=$fail ==="
           [ "$fail" = "0" ] || exit 1
