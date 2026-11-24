@@ -26,3 +26,6 @@ Disallow: /api/
 # ---------- Everything else: denied ----------
 User-agent: *
 Disallow: /
+
+# ---------- Sitemap ----------
+Sitemap: https://digipincode.india-in.workers.dev/sitemap.xml
