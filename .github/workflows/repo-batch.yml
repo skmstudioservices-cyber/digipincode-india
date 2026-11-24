@@ -1,0 +1,141 @@
+name: Repo Batch (staggered, self-draining)
+
+# Creates a SMALL batch of repos per run, then removes them from the pending
+# list and commits it back. Spread across several irregular cron times per day
+# so GitHub's content-creation secondary limit (80/min, 500/hour) is never
+# approached. Each run is idempotent: existing repos are skipped.
+#
+# WHY THIS SHAPE: 38 repos in one burst tripped the limit after the first one
+# (24 Nov 2026). Batching is the only correct answer; the limit is global and
+# retrying hard makes it last longer.
+
+on:
+  schedule:
+    # irregular minutes and hours on purpose — no round-number pattern
+    - cron: '17 3,8,13,18,22 * * *'
+  workflow_dispatch:
+  push:
+    paths:
+      - 'repo-factory/trigger.txt'
+
+concurrency:
+  group: repo-batch
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  batch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GH_PAT }}
+
+      - name: Create this batch
+        env:
+          TOK: ${{ secrets.GH_PAT }}
+        run: |
+          set +e
+          ORG=skmstudioservices-cyber
+          API=https://api.github.com
+          BATCH=8
+          GAP=45
+          ok=0; skipped=0; fail=0
+
+          git clone --depth 1 "https://x-access-token:${TOK}@github.com/${ORG}/Demo.git" demo || { echo "::error::cannot clone Demo"; exit 1; }
+
+          TOTAL=$(jq 'length' repo-factory/pending.json)
+          echo "pending before: $TOTAL  (batch size $BATCH)"
+          SLUGS=$(jq -r ".[0:$BATCH][]" repo-factory/pending.json)
+          DONE_SLUGS=""
+
+          for SLUG in $SLUGS; do
+            echo "########## $SLUG ##########"
+            exists=$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $TOK" "$API/repos/$ORG/$SLUG")
+            if [ "$exists" = "200" ]; then echo "SKIP $SLUG (exists)"; skipped=$((skipped+1)); DONE_SLUGS="$DONE_SLUGS $SLUG"; continue; fi
+            if [ ! -f "demo/$SLUG.html" ]; then echo "::error::$SLUG missing in Demo"; fail=$((fail+1)); continue; fi
+
+            created=""
+            for wait in 0 60 180 300; do
+              [ "$wait" -gt 0 ] && { echo "    blocked, waiting ${wait}s"; sleep "$wait"; }
+              created=$(curl -s -D /tmp/ch.hdr -X POST -H "Authorization: Bearer $TOK" -H 'Accept: application/vnd.github+json' \
+                "$API/user/repos" \
+                -d "{\"name\":\"$SLUG\",\"visibility\":\"public\",\"description\":\"Near-me site: $SLUG — static map page on Cloudflare Pages\",\"auto_init\":false}")
+              echo "$created" | grep -q '"full_name"' && break
+              echo "$created" | grep -q 'name already exists' && { created="EXISTS"; break; }
+              echo "$created" | grep -q 'secondary rate limit' || break
+              RA=$(grep -i '^retry-after:' /tmp/ch.hdr | tr -d '\r' | cut -d: -f2- | xargs)
+              [ -n "$RA" ] && { echo "    retry-after header says ${RA}s"; sleep "$RA"; }
+            done
+            if [ "$created" = "EXISTS" ]; then echo "SKIP $SLUG (exists)"; skipped=$((skipped+1)); DONE_SLUGS="$DONE_SLUGS $SLUG"; continue; fi
+            if ! echo "$created" | grep -q '"full_name"'; then
+              echo "::error::create failed for $SLUG: $(echo "$created" | head -c 200)"; fail=$((fail+1)); continue
+            fi
+
+            W=/tmp/seed-$SLUG; rm -rf "$W"; mkdir -p "$W/css" "$W/js" "$W/.github/workflows"
+            cp "demo/$SLUG.html" "$W/index.html"; cp demo/css/style.css "$W/css/"; cp demo/js/*.js "$W/js/"; cp demo/icon.svg "$W/"
+            HOST="https://$SLUG.pages.dev"
+            printf '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n  <url><loc>%s/</loc></url>\n</urlset>\n' "$HOST" > "$W/sitemap.xml"
+            printf 'User-agent: *\nAllow: /\n\nSitemap: %s/sitemap.xml\n' "$HOST" > "$W/robots.txt"
+            TITLE=$(grep -o '<title>[^<]*' "$W/index.html" | head -1 | sed 's/<title>//')
+            printf '# %s\n\nStatic near-me site — %s\n\n- Live: %s\n- Cloudflare Pages project: `%s`\n- Deployed by the network bridge (`net-deploy-queue.yml` in digipincode-india).\n- One repo per site. Never copy another site'"'"'s data or branding here.\n' "$SLUG" "$TITLE" "$HOST" "$SLUG" > "$W/README.md"
+            printf '# STRUCTURE — %s\n\nDOM-id contract (do not rename): `#map` (js/app.js) · `#ncontent` (js/content.js) · `#nblocks` (js/blocks.js) · `.controls` (js/app.js).\n\nFiles: index.html · css/style.css · js/app.js · js/blocks.js · js/content.js · js/analytics.js · sitemap.xml · robots.txt\n\nVerify live after any change: home 200, title present, h1 present, sitemap <loc> > 0.\n' "$SLUG" > "$W/STRUCTURE.md"
+            cat > "$W/.github/workflows/deploy.yml" <<'YML2'
+          name: Deploy to Cloudflare Pages
+          on:
+            push:
+              branches: [main]
+            workflow_dispatch:
+          permissions:
+            contents: read
+          jobs:
+            deploy:
+              runs-on: ubuntu-latest
+              steps:
+                - uses: actions/checkout@v4
+                - uses: actions/setup-node@v4
+                  with: { node-version: 22 }
+                - name: Guard - secrets present?
+                  id: g
+                  env:
+                    TOK: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+                  run: |
+                    if [ -z "$TOK" ]; then echo "present=false" >> "$GITHUB_OUTPUT"; echo "No CF token - deploy via the network bridge."; else echo "present=true" >> "$GITHUB_OUTPUT"; fi
+                - name: Deploy
+                  if: ${{ steps.g.outputs.present == 'true' }}
+                  env:
+                    CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+                    CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+                  run: npx --yes wrangler@latest pages deploy . --project-name="${{ github.event.repository.name }}" --branch=main --commit-dirty=true
+          YML2
+            D='$'; O='{{'; C='}}'
+            sed -i "s/GHOPEN/${D}${O}/g; s/GHCLOSE/${C}/g" "$W/.github/workflows/deploy.yml" 2>/dev/null
+
+            ( cd "$W" && git init -q -b main && git config user.name "skm-repo-factory" \
+              && git config user.email "skmstudio.services@gmail.com" && git add -A \
+              && git commit -q -m "Initial commit: $SLUG static site" \
+              && git push -q "https://x-access-token:${TOK}@github.com/${ORG}/${SLUG}.git" main )
+            if [ $? -eq 0 ]; then echo "OK   $SLUG"; ok=$((ok+1)); DONE_SLUGS="$DONE_SLUGS $SLUG"; else echo "::error::push failed $SLUG"; fail=$((fail+1)); fi
+            echo "    spacing ${GAP}s"; sleep "$GAP"
+          done
+
+          # ---- remove the processed slugs from pending.json and commit back ----
+          python3 - "$DONE_SLUGS" <<'PY'
+          import json, sys
+          done = sys.argv[1].split()
+          p = 'repo-factory/pending.json'
+          cur = json.load(open(p))
+          rest = [s for s in cur if s not in done]
+          json.dump(rest, open(p,'w'), separators=(',',':'))
+          print(f"pending after: {len(rest)} (removed {len(cur)-len(rest)})")
+          PY
+          git config user.name "skm-repo-batch"
+          git config user.email "skmstudio.services@gmail.com"
+          git add repo-factory/pending.json
+          git diff --cached --quiet || git commit -q -m "repo-batch: drain batch (ok=$ok skipped=$skipped fail=$fail)"
+          git push -q origin HEAD:main || echo "::warning::could not commit pending.json back"
+
+          echo "=== BATCH DONE ok=$ok skipped=$skipped fail=$fail ==="
