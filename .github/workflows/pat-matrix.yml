@@ -1,0 +1,121 @@
+name: PAT Permission Matrix
+
+# Answers three questions with evidence, and changes nothing:
+#   1. Is a repo-creating PAT present, and under which secret name?
+#   2. Does it work?
+#   3. Which permissions did it actually get — including any granted beyond what was asked?
+#
+# METHOD: every write test sends a deliberately malformed body, so the API
+# answers 403 (no permission) or 422 (permission OK, body rejected). Nothing is
+# created, edited or deleted. No repo, no file, no secret is touched.
+#
+# Never prints a token. Prints only presence, login, and HTTP status codes.
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'pat-probe/run.txt'
+
+permissions:
+  contents: read
+
+jobs:
+  matrix:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Probe presence and full permission matrix
+        env:
+          S_GH_PAT: ${{ secrets.GH_PAT }}
+          S_PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
+          S_GITHUB_PAT: ${{ secrets.GITHUB_PAT }}
+          S_ORG_PAT: ${{ secrets.ORG_PAT }}
+          S_REPO_FACTORY_PAT: ${{ secrets.REPO_FACTORY_PAT }}
+          S_GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          S_PERSONAL_TOKEN: ${{ secrets.PERSONAL_TOKEN }}
+          S_ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
+          S_GITHUB_TOKEN_PAT: ${{ secrets.GITHUB_TOKEN_PAT }}
+          S_REPO_PAT: ${{ secrets.REPO_PAT }}
+          S_SKM_PAT: ${{ secrets.SKM_PAT }}
+          S_ACTIONS_PAT: ${{ secrets.ACTIONS_PAT }}
+          S_WORKFLOW_PAT: ${{ secrets.WORKFLOW_PAT }}
+          S_DEPLOY_PAT: ${{ secrets.DEPLOY_PAT }}
+          S_CI_PAT: ${{ secrets.CI_PAT }}
+        run: |
+          set +e
+          OWNER=skmstudioservices-cyber
+          API=https://api.github.com
+          TESTREPO=digipincode-india
+          TOK=""; NAME=""
+
+          echo "################ 1. PRESENCE ################"
+          for n in GH_PAT PAT_TOKEN GITHUB_PAT ORG_PAT REPO_FACTORY_PAT GH_TOKEN PERSONAL_TOKEN ADMIN_TOKEN GITHUB_TOKEN_PAT REPO_PAT SKM_PAT ACTIONS_PAT WORKFLOW_PAT DEPLOY_PAT CI_PAT; do
+            eval "v=\$S_$n"
+            if [ -n "$v" ]; then echo "PRESENT   $n"; [ -z "$TOK" ] && { TOK="$v"; NAME="$n"; }
+            else echo "empty     $n"; fi
+          done
+
+          if [ -z "$TOK" ]; then
+            echo "################ RESULT ################"
+            echo "NO PAT SECRET FOUND. Nothing was tested because there is no token to test."
+            exit 0
+          fi
+
+          echo
+          echo "################ 2. IDENTITY (using $NAME) ################"
+          curl -s -o /tmp/u.json -D /tmp/u.hdr -H "Authorization: Bearer $TOK" "$API/user"
+          echo "login : $(jq -r '.login // "n/a"' /tmp/u.json)"
+          echo "type  : $(jq -r '.type // "n/a"' /tmp/u.json)"
+          echo "scopes: $(grep -i '^x-oauth-scopes:' /tmp/u.hdr | tr -d '\r' | cut -d: -f2-)  (blank is normal for fine-grained tokens)"
+
+          # helper: send a malformed body; 422 = permission granted, 403 = not
+          chk () {
+            local label="$1"; shift
+            local method="$1"; shift
+            local url="$1"; shift
+            local code
+            code=$(curl -s -o /tmp/r.json -w '%{http_code}' -X "$method" \
+              -H "Authorization: Bearer $TOK" -H 'Accept: application/vnd.github+json' \
+              -H 'Content-Type: application/json' "$@" "$url")
+            local verdict
+            case "$code" in
+              200|201|204) verdict="GRANTED" ;;
+              422)         verdict="GRANTED (body rejected, action not performed)" ;;
+              403)         verdict="NOT GRANTED" ;;
+              404)         verdict="NOT GRANTED or not visible" ;;
+              *)           verdict="INCONCLUSIVE" ;;
+            esac
+            printf '%-34s HTTP %-4s %s\n' "$label" "$code" "$verdict"
+          }
+
+          echo
+          echo "################ 3. PERMISSION MATRIX ################"
+          echo "-- baseline reads --"
+          chk "Metadata (read repo)"            GET  "$API/repos/$OWNER/$TESTREPO"
+          chk "Contents (read file)"            GET  "$API/repos/$OWNER/$TESTREPO/contents/README.md"
+          echo
+          echo "-- what you asked for --"
+          chk "Repository creation"             POST "$API/user/repos" -d '{}'
+          chk "Contents (write)"                PUT  "$API/repos/$OWNER/$TESTREPO/contents/pat-matrix-probe.txt" -d '{}'
+          chk "Workflows (write)"               PUT  "$API/repos/$OWNER/$TESTREPO/contents/.github/workflows/pat-matrix-probe.yml" -d '{}'
+          chk "Actions (read runs)"             GET  "$API/repos/$OWNER/$TESTREPO/actions/runs?per_page=1"
+          chk "Actions (write / dispatch)"      POST "$API/repos/$OWNER/$TESTREPO/actions/workflows/deploy.yml/dispatches" -d '{}'
+          echo
+          echo "-- extra access: granted or not --"
+          chk "Administration (read settings)"  GET  "$API/repos/$OWNER/$TESTREPO/actions/permissions"
+          chk "Administration (write settings)" PATCH "$API/repos/$OWNER/$TESTREPO" -d '{}'
+          chk "Administration (delete repo)"    DELETE "$API/repos/$OWNER/pat-matrix-nonexistent-repo"
+          chk "Secrets (read)"                  GET  "$API/repos/$OWNER/$TESTREPO/actions/secrets"
+          chk "Secrets (write)"                 PUT  "$API/repos/$OWNER/$TESTREPO/actions/secrets/PROBE" -d '{}'
+          chk "Variables (read)"                GET  "$API/repos/$OWNER/$TESTREPO/actions/variables"
+          chk "Environments (read)"             GET  "$API/repos/$OWNER/$TESTREPO/environments"
+          chk "Issues (write)"                  POST "$API/repos/$OWNER/$TESTREPO/issues" -d '{}'
+          chk "Pull requests (write)"           POST "$API/repos/$OWNER/$TESTREPO/pulls" -d '{}'
+          chk "Pages (read)"                    GET  "$API/repos/$OWNER/$TESTREPO/pages"
+          chk "Webhooks (read)"                 GET  "$API/repos/$OWNER/$TESTREPO/hooks"
+          chk "Members / org (read)"            GET  "$API/orgs/$OWNER/members"
+
+          echo
+          echo "################ RESULT ################"
+          echo "Token under secret name: $NAME"
+          echo "Nothing was created, edited or deleted by this run."
