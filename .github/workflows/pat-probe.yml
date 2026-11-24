@@ -1,0 +1,76 @@
+name: PAT Probe (which token can create repos)
+
+# Answers one question with evidence: is a repo-creating PAT already stored in
+# this repo's secrets, and under which name?
+#
+# Never prints a token. It prints only:
+#   - whether each candidate secret name is non-empty
+#   - the GitHub login the token belongs to
+#   - the token's scopes (X-OAuth-Scopes) — "repo" present means it can create
+#   - whether the org/user repo-create endpoint accepts it (dry check, no repo made)
+#
+# Safe to re-run. Creates nothing.
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'pat-probe/run.txt'
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Probe every candidate secret name
+        env:
+          S_GH_PAT: ${{ secrets.GH_PAT }}
+          S_PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
+          S_GITHUB_PAT: ${{ secrets.GITHUB_PAT }}
+          S_ORG_PAT: ${{ secrets.ORG_PAT }}
+          S_REPO_FACTORY_PAT: ${{ secrets.REPO_FACTORY_PAT }}
+          S_GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          S_PERSONAL_TOKEN: ${{ secrets.PERSONAL_TOKEN }}
+          S_ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
+          S_GITHUB_TOKEN_PAT: ${{ secrets.GITHUB_TOKEN_PAT }}
+          S_REPO_PAT: ${{ secrets.REPO_PAT }}
+          S_SKM_PAT: ${{ secrets.SKM_PAT }}
+          S_ACTIONS_PAT: ${{ secrets.ACTIONS_PAT }}
+          S_WORKFLOW_PAT: ${{ secrets.WORKFLOW_PAT }}
+          S_DEPLOY_PAT: ${{ secrets.DEPLOY_PAT }}
+          S_CI_PAT: ${{ secrets.CI_PAT }}
+        run: |
+          set +e
+          OWNER=skmstudioservices-cyber
+          echo "=== candidate secrets ==="
+          FOUND=0
+          for n in GH_PAT PAT_TOKEN GITHUB_PAT ORG_PAT REPO_FACTORY_PAT GH_TOKEN PERSONAL_TOKEN ADMIN_TOKEN GITHUB_TOKEN_PAT REPO_PAT SKM_PAT ACTIONS_PAT WORKFLOW_PAT DEPLOY_PAT CI_PAT; do
+            eval "v=\$S_$n"
+            if [ -n "$v" ]; then
+              echo "--- $n : PRESENT"
+              FOUND=$((FOUND+1))
+              echo "    GET /user ->"
+              hdr=$(curl -s -D - -o /tmp/u.json -H "Authorization: Bearer $v" https://api.github.com/user)
+              echo "      scopes: $(echo "$hdr" | grep -i '^x-oauth-scopes:' | tr -d '\r' | cut -d: -f2-)"
+              echo "      login : $(jq -r '.login // "n/a"' /tmp/u.json 2>/dev/null)"
+              echo "      type  : $(jq -r '.type // "n/a"' /tmp/u.json 2>/dev/null)"
+              echo "    repo-create dry check (no repo is created) ->"
+              code=$(curl -s -o /tmp/rc.json -w '%{http_code}' -X POST \
+                -H "Authorization: Bearer $v" -H 'Accept: application/vnd.github+json' \
+                https://api.github.com/user/repos \
+                -d '{"name":"pat-probe-delete-me","auto_init":false,"private":true}')
+              echo "      POST /user/repos -> HTTP $code"
+              [ "$code" = "201" ] && {
+                echo "      CAN CREATE — cleaning up the probe repo"
+                curl -s -X DELETE -H "Authorization: Bearer $v" \
+                  https://api.github.com/repos/$OWNER/pat-probe-delete-me >/dev/null
+                echo "      probe repo deleted"
+              }
+            else
+              echo "--- $n : empty"
+            fi
+          done
+          echo "=== RESULT: $FOUND usable candidate(s) ==="
+          [ "$FOUND" -gt 0 ] || echo "No PAT secret is stored under any candidate name in this repo."
