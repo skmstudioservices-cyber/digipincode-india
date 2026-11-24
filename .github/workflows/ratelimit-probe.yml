@@ -1,0 +1,46 @@
+name: Rate Limit Probe (creates nothing)
+
+# Non-destructive probe for GitHub's content-creation secondary limit.
+# Sends POST /user/repos with an empty body:
+#   422 = not blocked (permission fine, body rejected)
+#   403 = still blocked
+#   201 = a repo WAS created -> deletes it immediately
+# Also prints retry-after / x-ratelimit headers.
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'ratelimit-probe/run.txt'
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Probe
+        env:
+          GH_PAT: ${{ secrets.GH_PAT }}
+        run: |
+          set +e
+          API=https://api.github.com
+          echo "=== POST /user/repos with empty body (creates nothing) ==="
+          code=$(curl -s -o /tmp/b.json -D /tmp/h.hdr -w '%{http_code}' -X POST \
+            -H "Authorization: Bearer $GH_PAT" -H 'Accept: application/vnd.github+json' \
+            -H 'Content-Type: application/json' -d '{}' "$API/user/repos")
+          echo "HTTP $code"
+          echo "retry-after:        $(grep -i '^retry-after:' /tmp/h.hdr | tr -d '\r' | cut -d: -f2- | xargs)"
+          echo "x-ratelimit-remaining: $(grep -i '^x-ratelimit-remaining:' /tmp/h.hdr | tr -d '\r' | cut -d: -f2- | xargs)"
+          echo "x-ratelimit-reset:     $(grep -i '^x-ratelimit-reset:' /tmp/h.hdr | tr -d '\r' | cut -d: -f2- | xargs)"
+          echo "message: $(jq -r '.message // "n/a"' /tmp/b.json | head -c 200)"
+          echo
+          case "$code" in
+            422) echo "RESULT: CLEAR — content creation is allowed again" ;;
+            403) echo "RESULT: STILL BLOCKED — wait for retry-after, then retry" ;;
+            201) echo "RESULT: CREATED a probe repo — deleting it now"
+                 curl -s -X DELETE -H "Authorization: Bearer $GH_PAT" "$API/repos/skmstudioservices-cyber/$(jq -r .name /tmp/b.json)" >/dev/null
+                 echo "deleted (or delete refused if the token lacks delete_repo)" ;;
+            *)   echo "RESULT: INCONCLUSIVE (HTTP $code)" ;;
+          esac
