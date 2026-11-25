@@ -83,7 +83,12 @@ export const onRequest = defineMiddleware(async (context, next) => {
   // 403 "Not available in your region" on /sitemap.xml and silently exited 0 —
   // 24 requests/24h, 100% 403 (CF trace). Same for Google-Site-Verification and the
   // examstatus self-audit bot. Added to the non-IN allowlist; the bot BLOCK list is untouched.
-  const _isGoogleIndexer = /googlebot|google-inspectiontool|adsbot-google|mediapartners-google|apis-google|googleother|storebot-google|bingbot|msnbot|adidxbot|claude-user|claude-searchbot|chatgpt-user|oai-searchbot|perplexity-user|digipincode-indexnow|google-site-verification|examstatusauditbot/i.test(_uaGeo);
+  // 25 Nov 2026 SKM audit: our OWN monitors were geo-refused too. Site Monitor and
+  // Health Check run from US GitHub runners, so every run returned 403 and the
+  // monitor logged 6 false "site DOWN" failures each cycle (03:55 IST run: all
+  // six 403). Added the two monitor UAs below so a health check measures the site,
+  // not the geo guard. They are matched before any render, so no D1 cost.
+  const _isGoogleIndexer = /googlebot|google-inspectiontool|adsbot-google|mediapartners-google|apis-google|googleother|storebot-google|bingbot|msnbot|adidxbot|claude-user|claude-searchbot|chatgpt-user|oai-searchbot|perplexity-user|digipincode-indexnow|google-site-verification|examstatusauditbot|skm-site-monitor|skm-network-audit/i.test(_uaGeo);
   if (_country && _country !== 'IN' && !_isGoogleIndexer) {
     return new Response('Not available in your region', {
       status: 403,
