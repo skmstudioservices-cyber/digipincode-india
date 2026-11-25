@@ -20,6 +20,11 @@ on:
   push:
     paths:
       - 'repo-factory/slugs.json'
+  # Hourly bridge: one repo per hour, so GitHub's secondary "content creation"
+  # limit is never approached. Scheduled runs create ONE repo; manual runs
+  # (workflow_dispatch) still drain the whole list.
+  schedule:
+    - cron: '15 * * * *'
   workflow_dispatch:
 
 concurrency:
@@ -33,6 +38,9 @@ jobs:
   factory:
     runs-on: ubuntu-latest
     timeout-minutes: 90
+    env:
+      # 1 on the hourly schedule, 99 when a human clicks Run workflow.
+      MAX_CREATE: ${{ github.event_name == 'schedule' && '1' || '99' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -249,6 +257,10 @@ jobs:
             if [ $? -eq 0 ]; then echo "OK   $SLUG"; ok=$((ok+1)); else echo "::error::push failed for $SLUG"; fail=$((fail+1)); fi
             echo "    spacing 15s before next slug"
             sleep 15
+            if [ "${ok:-0}" -ge "${MAX_CREATE:-1}" ]; then
+              echo "=== hourly budget reached: ${ok} repo(s) created, stopping ==="
+              break
+            fi
           done
           echo "=== FACTORY DONE ok=$ok skipped=$skipped fail=$fail ==="
           [ "$fail" = "0" ] || exit 1
