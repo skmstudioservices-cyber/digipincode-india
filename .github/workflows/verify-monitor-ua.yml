@@ -1,0 +1,19 @@
+name: Verify monitor UA (temp)
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/verify-monitor-ua.yml']
+jobs:
+  v:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Probe with monitor UA and with browser UA
+        run: |
+          for u in https://digipincode.india-in.workers.dev/ https://digipincode.india-in.workers.dev/sitemap.xml https://digipincode.india-in.workers.dev/state/uttar-pradesh; do
+            a=$(curl -s -o /dev/null -w "%{http_code}" -A "skm-site-monitor/1.0 (+https://skmstudio.pages.dev)" --max-time 30 "$u")
+            b=$(curl -s -o /dev/null -w "%{http_code}" -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36" --max-time 30 "$u")
+            g=$(curl -s -o /dev/null -w "%{http_code}" -A "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)" --max-time 30 "$u")
+            echo "PROBE $u | monitor=$a browser=$b googlebot=$g"
+          done
+          echo "--- content marker ---"
+          curl -s -A "skm-site-monitor/1.0 (+https://skmstudio.pages.dev)" --max-time 30 https://digipincode.india-in.workers.dev/ | grep -o -m1 "India Pincode Directory" || echo "MARKER MISSING"
