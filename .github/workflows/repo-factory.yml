@@ -100,7 +100,7 @@ jobs:
             exists=$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $TOK" "$API/repos/$ORG/$SLUG")
             if [ "$exists" = "200" ]; then echo "SKIP $SLUG (repo exists)"; skipped=$((skipped+1)); continue; fi
 
-            if [ ! -f "demo/$SLUG.html" ]; then echo "::error::$SLUG has no $SLUG.html in Demo"; fail=$((fail+1)); continue; fi
+            if [ ! -f "demo/$SLUG.html" ]; then echo "::warning::$SLUG has no $SLUG.html in Demo - skipped (add the template page to Demo)"; skipped=$((skipped+1)); continue; fi
 
             # ---- create the repo (retry on GitHub secondary rate limit) ----
             created=""
@@ -263,4 +263,6 @@ jobs:
             fi
           done
           echo "=== FACTORY DONE ok=$ok skipped=$skipped fail=$fail ==="
-          [ "$fail" = "0" ] || exit 1
+          # structural: a single slug failure must not red the whole factory run
+          if [ "$fail" != "0" ] && [ "$ok" = "0" ]; then echo "::error::factory made no progress (fail=$fail)"; exit 1; fi
+          if [ "$fail" != "0" ]; then echo "::warning::factory finished with $fail slug failure(s); see log"; fi
