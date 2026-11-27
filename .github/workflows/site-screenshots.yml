@@ -1,4 +1,5 @@
 name: Site Screenshots (mobile + desktop gate)
+# re-run after the bridge deploy — 27 Nov 2026 21:30 IST
 
 # WHY: 200 OK is not a pass. This renders every site in a real browser at a
 # phone width and a desktop width, saves the screenshots as artifacts, and
