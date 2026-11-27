@@ -113,6 +113,7 @@ jobs:
           }
           if (fail) process.exit(1);
           JS
+          set -o pipefail
           mkdir -p shots
           node shot.mjs | tee row.txt
           {
