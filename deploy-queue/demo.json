@@ -4,5 +4,6 @@
   "dir": ".",
   "branch": "main",
   "verify_url": "https://skm-lab.pages.dev",
-  "queued_at": "2026-11-28T03:20:00+05:30"
+  "queued_at": "2026-11-28T03:40:00+05:30",
+  "note": "Newsjack Radar: CTET centre planner prototype added at /prototypes/"
 }
