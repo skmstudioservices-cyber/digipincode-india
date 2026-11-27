@@ -7,6 +7,9 @@ name: Site Screenshots (mobile + desktop gate)
 
 on:
   workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/site-screenshots.yml'
   schedule:
     - cron: '30 3 * * 1'   # Mondays 09:00 IST
 
