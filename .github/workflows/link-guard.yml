@@ -1,0 +1,74 @@
+name: Link Guard (no traffic to hosts we do not own)
+
+# WHY: 27 Nov 2026. hospitalsnearme.pages.dev turned out to be somebody else's
+# hospital directory, and our own canonical + sitemap for that site pointed at
+# it. This job makes that class of mistake impossible to ship again: every repo
+# in the network is scanned for hosts, and any .pages.dev / .workers.dev host
+# that is not in owned-domains.json fails the run.
+#
+# The only sanctioned exception is listed in owned-domains.json under
+# known_exceptions, with a reason and a hold date. Never add a host there to
+# silence a real leak - ask the owner first.
+
+on:
+  push:
+    paths:
+      - 'owned-domains.json'
+      - '.github/workflows/link-guard.yml'
+  schedule:
+    - cron: '45 2 * * *'   # daily 08:15 IST
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Scan every site repo for foreign hosts
+        run: |
+          python3 - <<'PY'
+          import json, os, re, subprocess, sys
+          reg = json.load(open('owned-domains.json'))
+          owned = {h.lower() for h in reg['owned_hosts']}
+          service = {h.lower() for h in reg['service_hosts']}
+          exc = reg.get('known_exceptions', {})
+          slugs = [s for s in json.load(open('repo-factory/slugs.json'))
+                   if s not in ('opticiansnearme', 'stationeryshopnearme')]
+          bad, held, scanned = [], [], 0
+          for slug in slugs:
+              d = f'/tmp/repo-{slug}'
+              subprocess.run(['git', 'clone', '-q', '--depth', '1',
+                              f'https://github.com/skmstudioservices-cyber/{slug}.git', d],
+                             check=False)
+              if not os.path.isdir(d):
+                  bad.append((slug, 'CLONE-FAILED', '')); continue
+              for root, _, files in os.walk(d):
+                  if '/.git' in root: continue
+                  for f in files:
+                      if not f.endswith(('.html','.js','.css','.json','.webmanifest','.xml','.txt','.md')):
+                          continue
+                      p = os.path.join(root, f)
+                      try: text = open(p, encoding='utf-8', errors='ignore').read()
+                      except Exception: continue
+                      scanned += 1
+                      for h in set(x.lower() for x in re.findall(r'https?://([a-zA-Z0-9.\-]+)', text)):
+                          if h in owned: continue
+                          if any(h == s or h.endswith('.' + s) for s in service): continue
+                          rel = os.path.relpath(p, d)
+                          if h in [x.lower() for x in exc.get(slug, {}).get('hosts', [])]:
+                              held.append((slug, h, rel)); continue
+                          bad.append((slug, h, rel))
+          print(f'scanned {scanned} files across {len(slugs)} repos')
+          for slug, h, rel in held:
+              print(f'::warning::{slug} references HELD host {h} ({rel}) - owner hold, do not change')
+          if bad:
+              for slug, h, rel in bad:
+                  print(f'::error::{slug} references a host this network does not own: {h} ({rel})')
+              print(f'FAIL: {len(bad)} foreign-host reference(s). Add the host to owned-domains.json only if we really own it.')
+              sys.exit(1)
+          print(f'PASS: no foreign hosts. {len(held)} held reference(s) reported as warnings.')
+          PY
