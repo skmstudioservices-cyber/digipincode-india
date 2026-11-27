@@ -74,6 +74,11 @@ jobs:
             v=$(python3 /tmp/parse.py /tmp/r.txt)
             [ "$v" != "ALLOWED" ] && blocked="$blocked $h:$v"
             printf "%-38s %-5s %-15s\n" "$h" "$code" "$v"
+            if [ "$v" != "ALLOWED" ]; then
+              echo "    ---- exact group that triggered it ----"
+              awk 'BEGIN{IGNORECASE=1} /^[[:space:]]*User-agent:/{ua=$0} /^[[:space:]]*Disallow:[[:space:]]*\/(\*)?[[:space:]]*$/{print "    " ua "  ==>  " $0}' /tmp/r.txt
+              echo "    ---- end ----"
+            fi
           done
 
           echo
