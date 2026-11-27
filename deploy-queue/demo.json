@@ -1,0 +1,7 @@
+{
+  "repo": "Demo",
+  "project": "demo",
+  "dir": ".",
+  "branch": "main",
+  "verify_url": "https://demo.pages.dev"
+}
