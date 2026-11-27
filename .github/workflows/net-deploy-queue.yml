@@ -91,9 +91,14 @@ jobs:
             UA='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36'
             code=$(curl -s -L -o /tmp/home.html -w '%{http_code}' -m 30 -A "$UA" \
                    -H 'Accept: text/html,application/xhtml+xml' "$BASE/")
-            title=$(grep -o '<title>[^<]*' /tmp/home.html | head -1 | sed 's/<title>//')
-            h1=$(grep -o '<h1[^>]*>[^<]*' /tmp/home.html | head -1 | sed 's/<h1[^>]*>//')
-            words=$(sed 's/<[^>]*>/ /g' /tmp/home.html | wc -w)
+            # Strip HTML comments BEFORE extracting — a DO-NOT-TOUCH comment block
+            # near the top of a page contains literal markup such as "- <title>, meta
+            # description", which made head -1 match the comment instead of the real
+            # tag and produced a false "no <h1>" failure (hospitalsnearme, 27 Nov 2026).
+            perl -0777 -pe 's/<!--.*?-->//gs' /tmp/home.html > /tmp/home.clean.html
+            title=$(grep -o '<title>[^<]*' /tmp/home.clean.html | head -1 | sed 's/<title>//')
+            h1=$(grep -o '<h1[^>]*>[^<]*' /tmp/home.clean.html | head -1 | sed 's/<h1[^>]*>//')
+            words=$(sed 's/<[^>]*>/ /g' /tmp/home.clean.html | wc -w)
             smcode=$(curl -s -o /tmp/sm.xml -w '%{http_code}' -m 30 -A "$UA" "$BASE/sitemap.xml")
             locs=$(grep -c '<loc>' /tmp/sm.xml)
             echo "VERIFY $PROJ home=$code sitemap=$smcode locs=$locs words=$words"
