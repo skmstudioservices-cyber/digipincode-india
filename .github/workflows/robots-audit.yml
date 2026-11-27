@@ -48,8 +48,19 @@ jobs:
                           gb_blocked = True
                       if "*" in cur:
                           star_blocked = True
+          # robots.txt SPECIFICITY RULE: if a group names Googlebot, that group
+          # governs Googlebot entirely and the "*" group is ignored for it.
+          # Flagging "BLOCKED-BY-STAR" without this check is a false positive —
+          # the same mistake the external audit tool makes.
+          has_gb_group = False
+          for l in lines:
+              l = l.strip().lower()
+              if l.startswith("user-agent:") and "googlebot" in l:
+                  has_gb_group = True
           if gb_blocked:
               print("BLOCKED")
+          elif has_gb_group:
+              print("ALLOWED")
           elif star_blocked:
               print("BLOCKED-BY-STAR")
           else:
