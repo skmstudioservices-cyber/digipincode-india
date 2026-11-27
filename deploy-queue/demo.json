@@ -3,5 +3,6 @@
   "project": "skm-lab",
   "dir": ".",
   "branch": "main",
-  "verify_url": "https://skm-lab.pages.dev"
+  "verify_url": "https://skm-lab.pages.dev",
+  "queued_at": "2026-11-28T03:20:00+05:30"
 }
