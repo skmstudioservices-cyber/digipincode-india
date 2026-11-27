@@ -3,5 +3,5 @@
   "project": "demo",
   "dir": ".",
   "branch": "main",
-  "verify_url": "https://demo.pages.dev"
+  "verify_url": "https://demo-vmv.pages.dev"
 }
