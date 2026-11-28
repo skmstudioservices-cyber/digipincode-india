@@ -4,6 +4,6 @@
   "dir": ".",
   "branch": "main",
   "verify_url": "https://skm-lab.pages.dev",
-  "queued_at": "2026-11-28T06:40:00+05:30",
-  "note": "Newsjack Radar run 28 Nov 06:09 IST: ideas library +5 PARK/WEAK records (fog-season bus alternatives, wedding sweets lead time, cold wave near me, Buy Nothing Day, memory price board). 73 ideas at /ideas/"
+  "queued_at": "2026-11-28T06:52:00+05:30",
+  "note": "Newsjack Radar run 28 Nov 06:36 IST: new build builds/tools/aadhaar-fee-clock/ (Aadhaar Fee Clock - fee calculator + three waiver countdowns) and design designs/layouts/aadhaar-fee-clock/. Demo commit 86bd257, tag build/aadhaar-fee-clock-2026-11-28."
 }
