@@ -4,6 +4,6 @@
   "dir": ".",
   "branch": "main",
   "verify_url": "https://skm-lab.pages.dev",
-  "queued_at": "2026-11-28T09:15:00+05:30",
-  "note": "Newsjack Radar run 28 Nov 09:01 IST: ideas/ library +3 briefs (checkout-skimmer-check, the-winter-kitchen-bill, airport-near-me-silchar) and the rupee record corrected to the 27 Nov close of 92.99. ideas.json and the embedded array in ideas/index.html both at 76 records. Demo commit 55d71a9."
+  "queued_at": "2026-11-28T12:05:00+05:30",
+  "note": "Newsjack Radar run 28 Nov 12:01 IST: parked-idea records synced with two newly notified rules - SEBI closing auction 3:30-3:40 pm from 7 Dec 2026 (order transition 8 Feb 2027) and CBIC Notification 08/2026 rule 20(5) automatic GST cancellation from 1 Dec 2026. ideas.json and the embedded array in ideas/index.html both at 76 records. Demo commit 042e2a2."
 }
